@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chrome DevTools – Style Reference</title>
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────────────── */
+    :root {
+      /* Dark theme (default) */
+      --bg:           #202124;
+      --surface:      #292a2d;
+      --surface-hi:   #35363a;
+      --border:       #3c4043;
+      --text:         #e8eaed;
+      --text-mid:     #bdc1c6;
+      --text-low:     #9aa0a6;
+      --text-muted:   #5f6368;
+      --blue:         #8ab4f8;
+      --blue-dim:     #4285f4;
+      --green:        #81c995;
+      --red:          #f28b82;
+      --orange:       #fcad70;
+      --yellow:       #fdd663;
+
+      --font-ui:   -apple-system, BlinkMacSystemFont, 'Roboto', Arial, sans-serif;
+      --font-mono: 'Menlo', 'Lucida Console', 'Cascadia Code', ui-monospace, monospace;
+      --font-size: 11px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg:           #ffffff;
+        --surface:      #f1f3f4;
+        --surface-hi:   #e8eaed;
+        --border:       #dadce0;
+        --text:         #202124;
+        --text-mid:     #3c4043;
+        --text-low:     #5f6368;
+        --text-muted:   #9aa0a6;
+        --blue:         #1a73e8;
+        --blue-dim:     #4285f4;
+        --green:        #188038;
+        --red:          #d93025;
+        --orange:       #e37400;
+        --yellow:       #f29900;
+      }
+    }
+
+    /* ─── BASE ───────────────────────────────────────────────── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: var(--font-size);
+      line-height: 1.4;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ─── NAV ────────────────────────────────────────────────── */
+    .nav {
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .nav-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      padding: 0 12px 8px;
+    }
+
+    .nav a {
+      display: block;
+      padding: 5px 12px;
+      color: var(--text-low);
+      text-decoration: none;
+      font-size: 11px;
+    }
+
+    .nav a:hover { color: var(--text); background: var(--surface); }
+
+    /* ─── CONTENT ────────────────────────────────────────────── */
+    .content {
+      padding: 24px 32px;
+      max-width: 760px;
+    }
+
+    .section {
+      margin-bottom: 40px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .section-sub {
+      font-size: 11px;
+      color: var(--text-low);
+      margin-bottom: 16px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .row-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 80px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-low);
+      background: var(--surface);
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+
+    /* ─── COLORS ─────────────────────────────────────────────── */
+    .swatch-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .swatch-block {
+      width: 40px;
+      height: 28px;
+      border-radius: 2px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .swatch-name {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ─── TYPOGRAPHY ─────────────────────────────────────────── */
+    .type-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .type-preview { flex: 1; }
+    .type-meta    { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* ─── CHIPS ──────────────────────────────────────────────── */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: var(--surface-hi);
+      color: var(--text-mid);
+      user-select: none;
+    }
+
+    .chip:hover                   { border-color: var(--blue); color: var(--blue); }
+    .chip.chip--current           { border-color: var(--blue); color: var(--blue); background: var(--surface); }
+    .chip.chip--locked            { border-color: var(--green); color: var(--green); background: var(--surface); }
+    .chip.chip--selected          { border-color: var(--blue); background: var(--surface-hi); color: var(--text); }
+
+    /* ─── SCALE ROW ──────────────────────────────────────────── */
+    .scale-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+    }
+
+    .scale-chip {
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      border: 1px solid transparent;
+      background: var(--surface-hi);
+      color: var(--text-low);
+      cursor: pointer;
+    }
+
+    .scale-chip:hover               { border-color: var(--green); color: var(--green); background: var(--surface); }
+    .scale-chip.scale-chip--current { border-color: var(--blue);  color: var(--blue);  background: var(--surface); }
+    .scale-chip.scale-chip--locked  { border-color: var(--green); color: var(--green); background: var(--surface); }
+
+    /* ─── CATEGORY LABEL ─────────────────────────────────────── */
+    .category-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin: 10px 0 4px;
+    }
+
+    /* ─── BUTTONS ────────────────────────────────────────────── */
+    .btn {
+      padding: 3px 10px;
+      border-radius: 2px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #202124;
+      border-color: var(--blue);
+    }
+
+    .btn-primary:hover { filter: brightness(1.1); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-low);
+      border-color: var(--border);
+    }
+
+    .btn-secondary:hover { background: var(--surface-hi); color: var(--text); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--red);
+      border-color: var(--border);
+    }
+
+    .btn-danger:hover { background: var(--surface-hi); }
+
+    /* ─── CONTAINER SWITCHER ─────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      gap: 0;
+    }
+
+    .tab {
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--text-low);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    .tab:hover { color: var(--text); }
+
+    .tab.tab--active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+    }
+
+    /* ─── STATUS DOTS ────────────────────────────────────────── */
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* ─── PICKER PANEL MOCK ──────────────────────────────────── */
+    .picker-panel {
+      width: 280px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-size: 11px;
+      overflow: hidden;
+    }
+
+    .picker-header {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .picker-component-name {
+      font-weight: 600;
+      color: var(--blue);
+    }
+
+    .picker-instance-count {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .picker-body { padding: 6px 8px; }
+
+    .picker-actions {
+      display: flex;
+      gap: 6px;
+      padding: 6px 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── COLOR GRID MOCK ────────────────────────────────────── */
+    .color-grid {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 6px;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .color-hue-label {
+      width: 48px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: right;
+      padding-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .color-cell {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+
+    .color-cell:hover        { border-color: var(--text); transform: scale(1.2); }
+    .color-cell.color--current { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+    /* ─── TOGGLE BTN ─────────────────────────────────────────── */
+    .toggle-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--surface-hi);
+      border: 1px solid var(--border);
+      color: var(--text-low);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .toggle-btn:hover { background: var(--surface); color: var(--text); }
+
+    .toggle-btn.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #202124;
+    }
+
+    /* ─── EMPTY STATE ────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .empty-state-icon { font-size: 22px; opacity: 0.5; }
+
+    /* ─── UTIL ───────────────────────────────────────────────── */
+    .gap-2  { gap:  2px; }
+    .gap-4  { gap:  4px; }
+    .gap-6  { gap:  6px; }
+    .gap-8  { gap:  8px; }
+    .flex   { display: flex; }
+    .wrap   { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .column { flex-direction: column; }
+    .mt-8  { margin-top:  8px; }
+    .mt-12 { margin-top: 12px; }
+
+    /* ─── DIVIDER ────────────────────────────────────────────── */
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 12px 0;
+    }
+
+    /* ─── ANNOTATION ─────────────────────────────────────────── */
+    .annotation {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 4px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── NAV ── -->
+  <nav class="nav">
+    <div class="nav-title">Style Reference</div>
+    <a href="#colors">Colors</a>
+    <a href="#typography">Typography</a>
+    <a href="#chips">Class Chips</a>
+    <a href="#scale-row">Scale Row</a>
+    <a href="#color-grid">Color Grid</a>
+    <a href="#buttons">Buttons</a>
+    <a href="#tabs">Container Tabs</a>
+    <a href="#picker">Picker Panel</a>
+    <a href="#overlay">Overlay Toggle</a>
+    <a href="#empty">Empty States</a>
+  </nav>
+
+  <!-- ── CONTENT ── -->
+  <main class="content">
+
+    <!-- COLORS -->
+    <section class="section" id="colors">
+      <div class="section-title">Color Palette</div>
+      <div class="section-sub">Chrome DevTools Material-based palette. Dark theme shown; light mode values auto-switch via <code>prefers-color-scheme</code>.</div>
+
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-block" style="background:#202124"></div>
+          <div class="swatch-name">--bg<br>#202124</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#292a2d"></div>
+          <div class="swatch-name">--surface<br>#292a2d</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#35363a"></div>
+          <div class="swatch-name">--surface-hi<br>#35363a</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#3c4043"></div>
+          <div class="swatch-name">--border<br>#3c4043</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#5f6368"></div>
+          <div class="swatch-name">--text-muted<br>#5f6368</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#9aa0a6"></div>
+          <div class="swatch-name">--text-low<br>#9aa0a6</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#bdc1c6"></div>
+          <div class="swatch-name">--text-mid<br>#bdc1c6</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#e8eaed"></div>
+          <div class="swatch-name">--text<br>#e8eaed</div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-block" style="background:#8ab4f8"></div>
+          <div class="swatch-name">--blue<br>#8ab4f8<br><span style="color:var(--text-muted)">(light: #1a73e8)</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#81c995"></div>
+          <div class="swatch-name">--green<br>#81c995<br><span style="color:var(--text-muted)">(light: #188038)</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#f28b82"></div>
+          <div class="swatch-name">--red<br>#f28b82<br><span style="color:var(--text-muted)">(light: #d93025)</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#fcad70"></div>
+          <div class="swatch-name">--orange<br>#fcad70<br><span style="color:var(--text-muted)">(light: #e37400)</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#fdd663"></div>
+          <div class="swatch-name">--yellow<br>#fdd663<br><span style="color:var(--text-muted)">(light: #f29900)</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TYPOGRAPHY -->
+    <section class="section" id="typography">
+      <div class="section-title">Typography</div>
+      <div class="section-sub">UI font: Roboto / system-ui · Mono: Menlo / Lucida Console · Base size: 11px</div>
+
+      <div class="type-row">
+        <div class="type-preview" style="font-size:13px;font-weight:600;color:var(--text)">Button — 4 instances on this page</div>
+        <div class="type-meta">13px semibold · --text · component heading</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:11px;color:var(--text)">padding-left · margin · border-radius</div>
+        <div class="type-meta">11px regular · --text · body</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:11px;color:var(--text-mid)">Subtext / secondary labels</div>
+        <div class="type-meta">11px · --text-mid</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:11px;color:var(--text-low)">Muted / descriptions</div>
+        <div class="type-meta">11px · --text-low</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted)">Spacing</div>
+        <div class="type-meta">10px uppercase 0.6px tracking · --text-muted · category label</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-family:var(--font-mono);font-size:11px;color:var(--text-mid)">px-4 py-2 rounded-md text-sm</div>
+        <div class="type-meta">11px mono · --text-mid · class chip</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">#202124 · 1px · 2rem · 0.5</div>
+        <div class="type-meta">10px mono · --text-muted · scale values</div>
+      </div>
+    </section>
+
+    <!-- CHIPS -->
+    <section class="section" id="chips">
+      <div class="section-title">Class Chips</div>
+      <div class="section-sub">Used in the class list. Five visual states.</div>
+
+      <div class="row">
+        <span class="row-label">Default</span>
+        <div class="chip">px-4</div>
+        <div class="chip">py-2</div>
+        <div class="chip">rounded-md</div>
+        <div class="chip">text-sm</div>
+      </div>
+      <div class="row">
+        <span class="row-label">Hover</span>
+        <div class="chip" style="border-color:var(--blue);color:var(--blue)">px-4</div>
+        <div class="annotation">(simulated :hover)</div>
+      </div>
+      <div class="row">
+        <span class="row-label">Selected</span>
+        <div class="chip chip--selected">px-4</div>
+        <div class="annotation">clicked — shows expanded scale/color picker</div>
+      </div>
+      <div class="row">
+        <span class="row-label">Current</span>
+        <div class="chip chip--current">px-4</div>
+        <div class="annotation">this is the currently-applied value</div>
+      </div>
+      <div class="row">
+        <span class="row-label">Locked</span>
+        <div class="chip chip--locked">px-6</div>
+        <div class="annotation">new value selected, awaiting queue</div>
+      </div>
+    </section>
+
+    <!-- SCALE ROW -->
+    <section class="section" id="scale-row">
+      <div class="section-title">Scale Row</div>
+      <div class="section-sub">Expands below a selected chip to show the full value scale.</div>
+
+      <div class="category-label">Spacing</div>
+      <div class="scale-container">
+        <div class="scale-chip">px-0</div>
+        <div class="scale-chip">px-0.5</div>
+        <div class="scale-chip">px-1</div>
+        <div class="scale-chip">px-2</div>
+        <div class="scale-chip">px-3</div>
+        <div class="scale-chip scale-chip--current">px-4</div>
+        <div class="scale-chip">px-5</div>
+        <div class="scale-chip scale-chip--locked">px-6</div>
+        <div class="scale-chip">px-7</div>
+        <div class="scale-chip">px-8</div>
+        <div class="scale-chip">px-10</div>
+        <div class="scale-chip">px-12</div>
+        <div class="scale-chip">px-16</div>
+        <div class="scale-chip">px-20</div>
+        <div class="scale-chip">px-24</div>
+      </div>
+      <div class="annotation mt-8">
+        Blue border = current value · Green border = locked / preview value
+      </div>
+    </section>
+
+    <!-- COLOR GRID -->
+    <section class="section" id="color-grid">
+      <div class="section-title">Color Grid</div>
+      <div class="section-sub">Shown when a color utility class is selected. Rows are hues, columns are shades 50–950.</div>
+
+      <div class="color-grid">
+        <div class="color-row">
+          <span class="color-hue-label"></span>
+          <div class="color-cell" title="black" style="background:#000"></div>
+          <div class="color-cell" title="white" style="background:#fff;border-color:var(--border)"></div>
+          <div class="color-cell" title="transparent" style="background:transparent;border:1px dashed var(--border)"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">slate</span>
+          <div class="color-cell" style="background:#f8fafc"></div>
+          <div class="color-cell" style="background:#e2e8f0"></div>
+          <div class="color-cell" style="background:#cbd5e1"></div>
+          <div class="color-cell" style="background:#94a3b8"></div>
+          <div class="color-cell" style="background:#64748b"></div>
+          <div class="color-cell" style="background:#475569"></div>
+          <div class="color-cell color--current" style="background:#334155"></div>
+          <div class="color-cell" style="background:#1e293b"></div>
+          <div class="color-cell" style="background:#0f172a"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">blue</span>
+          <div class="color-cell" style="background:#eff6ff"></div>
+          <div class="color-cell" style="background:#dbeafe"></div>
+          <div class="color-cell" style="background:#bfdbfe"></div>
+          <div class="color-cell" style="background:#93c5fd"></div>
+          <div class="color-cell" style="background:#60a5fa"></div>
+          <div class="color-cell" style="background:#3b82f6"></div>
+          <div class="color-cell" style="background:#2563eb"></div>
+          <div class="color-cell" style="background:#1d4ed8"></div>
+          <div class="color-cell" style="background:#1e40af"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">green</span>
+          <div class="color-cell" style="background:#f0fdf4"></div>
+          <div class="color-cell" style="background:#dcfce7"></div>
+          <div class="color-cell" style="background:#bbf7d0"></div>
+          <div class="color-cell" style="background:#86efac"></div>
+          <div class="color-cell" style="background:#4ade80"></div>
+          <div class="color-cell" style="background:#22c55e"></div>
+          <div class="color-cell" style="background:#16a34a"></div>
+          <div class="color-cell" style="background:#15803d"></div>
+          <div class="color-cell" style="background:#166534"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">red</span>
+          <div class="color-cell" style="background:#fef2f2"></div>
+          <div class="color-cell" style="background:#fee2e2"></div>
+          <div class="color-cell" style="background:#fecaca"></div>
+          <div class="color-cell" style="background:#fca5a5"></div>
+          <div class="color-cell" style="background:#f87171"></div>
+          <div class="color-cell" style="background:#ef4444"></div>
+          <div class="color-cell" style="background:#dc2626"></div>
+          <div class="color-cell" style="background:#b91c1c"></div>
+          <div class="color-cell" style="background:#991b1b"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">violet</span>
+          <div class="color-cell" style="background:#f5f3ff"></div>
+          <div class="color-cell" style="background:#ede9fe"></div>
+          <div class="color-cell" style="background:#ddd6fe"></div>
+          <div class="color-cell" style="background:#c4b5fd"></div>
+          <div class="color-cell" style="background:#a78bfa"></div>
+          <div class="color-cell" style="background:#7c3aed"></div>
+          <div class="color-cell" style="background:#6d28d9"></div>
+          <div class="color-cell" style="background:#5b21b6"></div>
+          <div class="color-cell" style="background:#4c1d95"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUTTONS -->
+    <section class="section" id="buttons">
+      <div class="section-title">Buttons</div>
+      <div class="section-sub">Flat, compact, 2px border-radius. No shadows.</div>
+
+      <div class="row">
+        <span class="row-label">Primary</span>
+        <button class="btn btn-primary">Queue Change</button>
+        <div class="annotation">bg=--blue · color=#202124</div>
+      </div>
+      <div class="row">
+        <span class="row-label">Secondary</span>
+        <button class="btn btn-secondary">Discard</button>
+        <div class="annotation">transparent · border=--border · color=--text-low</div>
+      </div>
+      <div class="row">
+        <span class="row-label">Danger</span>
+        <button class="btn btn-danger">Remove</button>
+        <div class="annotation">transparent · border=--border · color=--red</div>
+      </div>
+    </section>
+
+    <!-- TABS -->
+    <section class="section" id="tabs">
+      <div class="section-title">Container Switcher / Tabs</div>
+      <div class="section-sub">Active tab uses a 2px blue bottom border. No filled backgrounds.</div>
+
+      <div class="tab-bar">
+        <div class="tab tab--active">Popover</div>
+        <div class="tab">Modal</div>
+        <div class="tab">Sidebar</div>
+        <div class="tab">Popup</div>
+      </div>
+      <div class="annotation mt-8">
+        active: color=--blue · border-bottom: 2px --blue · inactive: color=--text-low
+      </div>
+    </section>
+
+    <!-- PICKER PANEL MOCK -->
+    <section class="section" id="picker">
+      <div class="section-title">Picker Panel (Full Mock)</div>
+      <div class="section-sub">Assembled view showing all components in context.</div>
+
+      <div class="picker-panel">
+        <div class="picker-header">
+          <span class="picker-component-name">Button</span>
+          <span class="picker-instance-count">— 4 instances on this page</span>
+        </div>
+
+        <div class="picker-body">
+          <div class="category-label">Spacing</div>
+          <div class="row gap-2" style="margin-top:4px">
+            <div class="chip">m-0</div>
+            <div class="chip chip--selected">px-4</div>
+            <div class="chip chip--current">py-2</div>
+            <div class="chip">gap-2</div>
+          </div>
+
+          <div class="scale-container mt-8" style="margin-top:8px">
+            <div class="scale-chip">px-0</div>
+            <div class="scale-chip">px-1</div>
+            <div class="scale-chip">px-2</div>
+            <div class="scale-chip">px-3</div>
+            <div class="scale-chip scale-chip--current">px-4</div>
+            <div class="scale-chip">px-5</div>
+            <div class="scale-chip scale-chip--locked">px-6</div>
+            <div class="scale-chip">px-8</div>
+            <div class="scale-chip">px-10</div>
+          </div>
+
+          <div class="category-label">Typography</div>
+          <div class="row gap-2" style="margin-top:4px">
+            <div class="chip">font-medium</div>
+            <div class="chip chip--current">text-sm</div>
+          </div>
+
+          <div class="category-label">Color</div>
+          <div class="row gap-2" style="margin-top:4px">
+            <div class="chip">bg-blue-600</div>
+            <div class="chip chip--current">text-white</div>
+            <div class="chip">hover:bg-blue-700</div>
+          </div>
+
+          <hr class="divider" style="margin-top:10px" />
+
+          <div class="category-label">Container</div>
+          <div class="tab-bar" style="margin-top:4px">
+            <div class="tab tab--active">Popover</div>
+            <div class="tab">Modal</div>
+            <div class="tab">Sidebar</div>
+            <div class="tab">Popup</div>
+          </div>
+        </div>
+
+        <div class="picker-actions">
+          <button class="btn btn-primary">Queue Change</button>
+          <button class="btn btn-secondary">Discard</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- OVERLAY TOGGLE -->
+    <section class="section" id="overlay">
+      <div class="section-title">Overlay Toggle Button</div>
+      <div class="section-sub">Fixed to bottom-right of the inspected page. 32px circular button.</div>
+
+      <div class="row gap-8">
+        <div>
+          <div class="toggle-btn">⊕</div>
+          <div class="annotation mt-8">inactive</div>
+        </div>
+        <div>
+          <div class="toggle-btn active">⊕</div>
+          <div class="annotation mt-8">active</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EMPTY STATES -->
+    <section class="section" id="empty">
+      <div class="section-title">Empty / Connection States</div>
+      <div class="section-sub">Centered, minimal, 11px muted text. Used when no element is selected or WS is disconnected.</div>
+
+      <div class="flex gap-8 wrap">
+        <div class="picker-panel" style="width:200px">
+          <div class="empty-state">
+            <div class="empty-state-icon">⊕</div>
+            <span>Click an element to inspect</span>
+          </div>
+        </div>
+
+        <div class="picker-panel" style="width:200px">
+          <div class="empty-state">
+            <div class="status-dot" style="background:var(--red);animation:pulse 1.5s ease-in-out infinite"></div>
+            <span>Waiting for connection…</span>
+          </div>
+        </div>
+
+        <div class="picker-panel" style="width:200px">
+          <div class="empty-state">
+            <div class="status-dot" style="background:var(--green)"></div>
+            <span>Connected</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

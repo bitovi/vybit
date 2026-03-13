@@ -120,13 +120,16 @@ function renderColorGrid(
   container.appendChild(grid);
 }
 
+const SPECIAL_SPACING_ORDER: Record<string, number> = { px: 0.0625 };
+function spacingKeyOrder(k: string): number {
+  if (!isNaN(Number(k))) return Number(k);
+  return SPECIAL_SPACING_ORDER[k] ?? Infinity;
+}
+
 function getScaleValues(prefix: string, themeKey: string | null, config: any): string[] {
   if (themeKey === 'spacing' && config?.spacing) {
-    const spacing = config.spacing;
-    const keys = Object.keys(spacing);
-    const numericKeys = keys.filter(k => !isNaN(Number(k))).sort((a, b) => Number(a) - Number(b));
-    const specialKeys = keys.filter(k => isNaN(Number(k))).sort();
-    return [...specialKeys, ...numericKeys].map(k => `${prefix}${k}`);
+    const keys = Object.keys(config.spacing);
+    return keys.sort((a, b) => spacingKeyOrder(a) - spacingKeyOrder(b)).map(k => `${prefix}${k}`);
   }
   if (themeKey === 'fontSize') {
     return ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];

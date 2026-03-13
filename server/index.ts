@@ -64,9 +64,31 @@ app.post("/css", express.json(), async (req, res) => {
   }
 });
 
+// --- Serve Panel app ---
+const panelDist = path.join(packageRoot, "panel", "dist");
+app.use("/panel", express.static(panelDist));
+// SPA fallback: serve index.html for any /panel/* route not matched by static files
+app.get("/panel/*", (_req, res) => {
+  res.sendFile(path.join(panelDist, "index.html"), (err) => {
+    if (err && !res.headersSent) res.status(404).end();
+  });
+});
+
 // --- HTTP + WebSocket ---
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
+
+// Role registry: track which WS clients are overlay vs panel
+const clientRoles = new Map<WebSocket, string>();
+
+function broadcastTo(role: string, data: object, exclude?: WebSocket): void {
+  const payload = JSON.stringify(data);
+  for (const [client, clientRole] of clientRoles) {
+    if (clientRole === role && client !== exclude && client.readyState === 1) {
+      client.send(payload);
+    }
+  }
+}
 
 wss.on("connection", (ws: WebSocket) => {
   console.error("[ws] Client connected");
@@ -75,6 +97,22 @@ wss.on("connection", (ws: WebSocket) => {
     try {
       const msg = JSON.parse(String(raw));
 
+      if (msg.type === "REGISTER") {
+        const role = msg.role;
+        if (role === "overlay" || role === "panel") {
+          clientRoles.set(ws, role);
+          console.error(`[ws] Client registered as: ${role}`);
+        }
+        return;
+      }
+
+      // Route messages with a "to" field to all clients of that role
+      if (msg.to) {
+        broadcastTo(msg.to, msg, ws);
+        return;
+      }
+
+      // Server-handled messages (no "to" field)
       if (msg.type === "CHANGE") {
         const entry = addChange({
           component: msg.component,
@@ -92,6 +130,7 @@ wss.on("connection", (ws: WebSocket) => {
   });
 
   ws.on("close", () => {
+    clientRoles.delete(ws);
     console.error("[ws] Client disconnected");
   });
 });

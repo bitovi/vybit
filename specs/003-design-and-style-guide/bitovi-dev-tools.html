@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tailwind Inspector – Bitovi Style Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────────────── */
+    :root {
+      /* Bitovi Light Theme */
+      --bg:           #FFFFFF;
+      --surface:      #F4F5F5;   /* gray-100 */
+      --surface-hi:   #E6E9E9;   /* between gray-100 and gray-200 */
+      --border:       rgba(0, 0, 0, 0.06);
+      --border-solid: #DFE2E2;   /* gray-200 */
+
+      /* Text */
+      --text:         #334041;   /* gray-800 */
+      --text-mid:     #687879;   /* gray-600 */
+      --text-low:     #687879;   /* gray-600 */
+      --text-muted:   #A3ADAD;   /* gray-400 – decorative only */
+
+      /* Brand */
+      --orange:       #F5532D;   /* BitOrange-500 */
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --orange-hover: #C73D26;
+      --teal:         #00848B;   /* teal-600 */
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-hover:   #00464A;
+
+      /* Status (darker for light bg — WCAG AA compliant) */
+      --green:        #2E7229;
+      --red:          #C7291D;
+      --yellow:       #9B5800;
+
+      /* Fonts */
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --font-size:    12px;
+
+      /* Radii */
+      --radius-sm:    4px;
+      --radius-md:    8px;
+      --radius-lg:    12px;
+
+      /* Transitions */
+      --t-fast:       150ms ease-in-out;
+      --t-normal:     250ms ease-in-out;
+    }
+
+    /* ─── BASE ───────────────────────────────────────────────── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: var(--font-size);
+      line-height: 1.5;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 216px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ─── NAV ────────────────────────────────────────────────── */
+    .nav {
+      border-right: 1px solid #023538;
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: #00464A;   /* teal-800 – Bitovi dark sidebar */
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px 20px;
+      border-bottom: 1px solid #023538;
+      margin-bottom: 16px;
+    }
+
+    /* "Bits" logo mark – two orange circles connected by lines */
+    .bits-mark {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+    }
+
+    .nav-logo-text {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: #F4F5F5;
+      letter-spacing: -0.2px;
+    }
+
+    .nav-logo-sub {
+      font-family: var(--font-ui);
+      font-size: 10px;
+      color: rgba(163, 173, 173, 0.75);
+      margin-top: 1px;
+    }
+
+    .nav-section-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(163, 173, 173, 0.5);
+      padding: 12px 16px 4px;
+    }
+
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      color: rgba(244, 245, 245, 0.55);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 400;
+      border-left: 2px solid transparent;
+      transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+    }
+
+    .nav a::before {
+      content: '';
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.4;
+      flex-shrink: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .nav a:hover {
+      color: #F4F5F5;
+      background: rgba(255, 255, 255, 0.08);
+      border-left-color: #00848B;
+    }
+
+    .nav a:hover::before { opacity: 1; }
+
+    .nav a.active {
+      color: #F5532D;
+      border-left-color: #F5532D;
+      background: rgba(245, 83, 45, 0.15);
+    }
+
+    .nav a.active::before {
+      background: #F5532D;
+      opacity: 1;
+    }
+
+    /* ─── CONTENT ────────────────────────────────────────────── */
+    .content {
+      padding: 32px 40px;
+      max-width: 800px;
+    }
+
+    .content-header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-solid);
+    }
+
+    .content-header h1 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .content-header h1 span {
+      color: var(--orange);
+    }
+
+    .content-header p {
+      font-size: 12px;
+      color: var(--text-low);
+    }
+
+    /* ─── SECTIONS ───────────────────────────────────────────── */
+    .section {
+      margin-bottom: 48px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border-solid);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* BitOrange decorative "bit" dot on headings */
+    .section-title::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--orange);
+      flex-shrink: 0;
+    }
+
+    .section-sub {
+      font-size: 12px;
+      color: var(--text-low);
+      margin-bottom: 20px;
+      padding-left: 15px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .row-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 72px;
+      flex-shrink: 0;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--teal);
+      background: var(--teal-dim);
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(0, 132, 139, 0.25);
+    }
+
+    /* ─── COLORS ─────────────────────────────────────────────── */
+    .swatch-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .swatch-block {
+      width: 48px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .swatch-name {
+      font-size: 9px;
+      color: var(--text-low);
+      text-align: center;
+      font-family: var(--font-mono);
+      line-height: 1.4;
+    }
+
+    .swatch-name strong {
+      display: block;
+      color: var(--text);
+      font-weight: 600;
+      font-family: var(--font-ui);
+      font-size: 10px;
+    }
+
+    /* ─── TYPOGRAPHY ─────────────────────────────────────────── */
+    .type-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-solid);
+    }
+
+    .type-row:first-of-type { border-top: 1px solid var(--border-solid); }
+    .type-preview { flex: 1; }
+    .type-meta    {
+      font-size: 10px;
+      color: var(--text-low);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* ─── CHIPS ──────────────────────────────────────────────── */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: var(--surface);
+      color: var(--text-mid);
+      user-select: none;
+      transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+    }
+
+    .chip:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* Selected = user clicked, picker open */
+    .chip.chip--selected {
+      border-color: var(--orange);
+      background: var(--orange-dim);
+      color: var(--orange);
+    }
+
+    /* Current = this value is currently applied */
+    .chip.chip--current {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    /* Locked = new value chosen, staged */
+    .chip.chip--locked {
+      border-color: var(--orange);
+      color: var(--orange);
+      background: var(--surface);
+    }
+
+    /* ─── SCALE ROW ──────────────────────────────────────────── */
+    .scale-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      padding: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border-solid);
+      border-radius: var(--radius-md);
+    }
+
+    .scale-chip {
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      border: 1px solid transparent;
+      background: var(--surface-hi);
+      color: var(--text-low);
+      cursor: pointer;
+      transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+    }
+
+    .scale-chip:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .scale-chip.scale-chip--current {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .scale-chip.scale-chip--locked {
+      border-color: var(--orange);
+      color: var(--orange);
+      background: var(--orange-dim);
+    }
+
+    /* ─── CATEGORY LABEL ─────────────────────────────────────── */
+    .category-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-low);
+      margin: 12px 0 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Small teal dot before category labels */
+    .category-label::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      opacity: 0.5;
+    }
+
+    /* ─── DOCK MENU ──────────────────────────────────────────── */
+    .dock-menu-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-low);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+      margin-left: auto;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+    }
+
+    .dock-menu-btn:hover {
+      background: var(--surface);
+      border-color: var(--border-solid);
+      color: var(--text);
+    }
+
+    .dock-popover {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      background: #FFFFFF;
+      border: 1px solid var(--border-solid);
+      border-radius: var(--radius-md);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 160px;
+      z-index: 100;
+    }
+
+    .dock-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-mid);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      transition: background var(--t-fast), color var(--t-fast);
+    }
+
+    .dock-option:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .dock-option.dock-option--active {
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .dock-option svg {
+      flex-shrink: 0;
+      color: currentColor;
+      opacity: 0.8;
+    }
+
+    .dock-divider {
+      height: 1px;
+      background: var(--border-solid);
+      margin: 3px 0;
+    }
+
+    .picker-header-wrap {
+      position: relative;
+    }
+
+    /* ─── BUTTONS ────────────────────────────────────────────── */
+    .btn {
+      padding: 6px 16px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast), filter var(--t-fast);
+    }
+
+    .btn-primary {
+      background: var(--teal);
+      color: #FFFFFF;
+      border-color: var(--teal);
+    }
+
+    .btn-primary:hover {
+      background: var(--teal-hover);
+      border-color: var(--teal-hover);
+    }
+
+    .btn-primary:focus {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-low);
+      border-color: var(--border-solid);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-hi);
+      color: var(--text);
+      border-color: var(--teal);
+    }
+
+    .btn-accent {
+      background: var(--orange);
+      color: #FFFFFF;
+      border-color: var(--orange);
+    }
+
+    .btn-accent:hover {
+      background: var(--orange-hover);
+      border-color: var(--orange-hover);
+    }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--orange);
+      border-color: var(--border-solid);
+    }
+
+    .btn-danger:hover {
+      background: var(--orange-dim);
+      border-color: var(--orange);
+    }
+
+    /* ─── CONTAINER SWITCHER / TABS ──────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border-solid);
+      gap: 0;
+    }
+
+    .tab {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-low);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color var(--t-fast), border-color var(--t-fast);
+    }
+
+    .tab:hover { color: var(--text); }
+
+    .tab.tab--active {
+      color: var(--orange);
+      border-bottom-color: var(--orange);
+    }
+
+    /* ─── STATUS DOTS ────────────────────────────────────────── */
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* ─── PICKER PANEL MOCK ──────────────────────────────────── */
+    .picker-panel {
+      width: 300px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-solid);
+      border-radius: var(--radius-lg);
+      font-size: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .picker-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-solid);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+    }
+
+    .picker-component-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .picker-instance-count {
+      font-size: 10px;
+      color: var(--text-low);
+    }
+
+    .picker-body { padding: 8px 12px; }
+
+    .picker-actions {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-solid);
+      background: var(--surface);
+    }
+
+    /* ─── COLOR GRID MOCK ────────────────────────────────────── */
+    .color-grid {
+      background: var(--surface);
+      border: 1px solid var(--border-solid);
+      border-radius: var(--radius-md);
+      padding: 8px;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .color-hue-label {
+      width: 52px;
+      font-size: 10px;
+      color: var(--text-low);
+      font-family: var(--font-mono);
+      text-align: right;
+      padding-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .color-cell {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+      transition: transform var(--t-fast);
+    }
+
+    .color-cell:hover { border-color: var(--text); transform: scale(1.25); }
+    .color-cell.color--current {
+      outline: 2px solid var(--orange);
+      outline-offset: 2px;
+    }
+
+    /* ─── TOGGLE BTN ─────────────────────────────────────────── */
+    .toggle-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border-solid);
+      color: var(--text-low);
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+    }
+
+    .toggle-btn:hover {
+      background: var(--surface-hi);
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    .toggle-btn.active {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #FFFFFF;
+      box-shadow: 0 0 0 4px var(--orange-dim);
+    }
+
+    /* ─── EMPTY STATE ────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 36px 16px;
+      color: var(--text-low);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      font-size: 26px;
+      opacity: 0.4;
+    }
+
+    /* ─── "BITS" DECORATIVE CONNECTOR ───────────────────────── */
+    .bits-connector {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 16px 0;
+    }
+
+    /* ─── BADGE / TAG ────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: var(--font-ui);
+    }
+
+    .badge-teal {
+      background: var(--teal-dim);
+      color: var(--teal);
+      border: 1px solid rgba(0, 132, 139, 0.35);
+    }
+
+    .badge-orange {
+      background: var(--orange-dim);
+      color: var(--orange);
+      border: 1px solid rgba(245, 83, 45, 0.35);
+    }
+
+    .badge-green {
+      background: rgba(46, 114, 41, 0.09);
+      color: var(--green);
+      border: 1px solid rgba(46, 114, 41, 0.25);
+    }
+
+    /* ─── INFO BOX ───────────────────────────────────────────── */
+    .info-box {
+      background: var(--teal-dim);
+      border: 1px solid rgba(0, 132, 139, 0.3);
+      border-left: 3px solid var(--teal);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--text-mid);
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    /* ─── UTIL ───────────────────────────────────────────────── */
+    .gap-2  { gap:  2px; }
+    .gap-4  { gap:  4px; }
+    .gap-6  { gap:  6px; }
+    .gap-8  { gap:  8px; }
+    .gap-12 { gap: 12px; }
+    .flex   { display: flex; }
+    .wrap   { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .column { flex-direction: column; }
+    .mt-4  { margin-top:  4px; }
+    .mt-8  { margin-top:  8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+
+    /* ─── DIVIDER ────────────────────────────────────────────── */
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border-solid);
+      margin: 14px 0;
+    }
+
+    /* ─── ANNOTATION ─────────────────────────────────────────── */
+    .annotation {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 6px;
+    }
+
+    /* ─── SCROLLBAR ──────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-solid);
+      border-radius: 3px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
+    }
+
+    @keyframes bits-glow {
+      0%, 100% { box-shadow: 0 0 0 0 var(--orange-dim); }
+      50%       { box-shadow: 0 0 0 5px var(--orange-dim); }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── NAV ── -->
+  <nav class="nav">
+    <div class="nav-logo">
+      <!-- "Bits" SVG mark: two orange circles connected by a curved line -->
+      <svg class="bits-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="5" cy="18" r="2.5" fill="#F5532D"/>
+        <circle cx="19" cy="6" r="2.5" fill="#F5532D"/>
+        <circle cx="12" cy="12" r="1.5" stroke="#F5532D" stroke-width="1.5"/>
+        <path d="M5 18 Q5 12 12 12 Q19 12 19 6" stroke="#F5532D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div class="nav-logo-text">Tailwind Inspector</div>
+        <div class="nav-logo-sub">Bitovi Style Reference</div>
+      </div>
+    </div>
+
+    <div class="nav-section-label">Tokens</div>
+    <a href="#colors">Colors</a>
+    <a href="#typography">Typography</a>
+
+    <div class="nav-section-label">Components</div>
+    <a href="#chips">Class Chips</a>
+    <a href="#scale-row">Scale Row</a>
+    <a href="#color-grid">Color Grid</a>
+    <a href="#buttons">Buttons</a>
+    <a href="#badges">Badges &amp; Tags</a>
+    <a href="#tabs">Container Tabs</a>
+
+    <div class="nav-section-label">Panels</div>
+    <a href="#picker">Picker Panel</a>
+    <a href="#overlay">Overlay Toggle</a>
+    <a href="#empty">Empty States</a>
+  </nav>
+
+  <!-- ── CONTENT ── -->
+  <main class="content">
+
+    <div class="content-header">
+      <h1>Style Reference <span>·</span> Bitovi</h1>
+      <p>Design tokens and component patterns for the Tailwind Inspector panel. Built on Bitovi's teal/orange brand system — Poppins for headings, Inter for UI, Roboto Mono for class names.</p>
+    </div>
+
+    <!-- ── COLORS ── -->
+    <section class="section" id="colors">
+      <div class="section-title">Color Palette</div>
+      <div class="section-sub">Bitovi dark-teal theme. Teal-950 background with radial gradient; BitOrange as primary accent.</div>
+
+      <div class="category-label">Background &amp; Surface</div>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-block" style="background:#002A2D;border-color:rgba(255,255,255,0.12)"></div>
+          <div class="swatch-name"><strong>--bg</strong>#002A2D<br>teal-950</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#023538"></div>
+          <div class="swatch-name"><strong>teal-900</strong>#023538<br>gradient mid</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#00464A"></div>
+          <div class="swatch-name"><strong>--surface</strong>#00464A<br>teal-800</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#04646A"></div>
+          <div class="swatch-name"><strong>--surface-hi</strong>#04646A<br>teal-700</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#00848B"></div>
+          <div class="swatch-name"><strong>--teal</strong>#00848B<br>teal-600</div>
+        </div>
+      </div>
+
+      <div class="category-label" style="margin-top:20px">Text</div>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-block" style="background:#F4F5F5"></div>
+          <div class="swatch-name"><strong>--text</strong>#F4F5F5<br>gray-100</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#A3ADAD"></div>
+          <div class="swatch-name"><strong>--text-mid</strong>#A3ADAD<br>gray-400</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#687879"></div>
+          <div class="swatch-name"><strong>--text-low</strong>#687879<br>gray-600</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#334041"></div>
+          <div class="swatch-name"><strong>gray-800</strong>#334041<br>for light UI</div>
+        </div>
+      </div>
+
+      <div class="category-label" style="margin-top:20px">Brand Accents</div>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-block" style="background:#F5532D"></div>
+          <div class="swatch-name"><strong>--orange</strong>#F5532D<br>BitOrange-500</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#C73D26"></div>
+          <div class="swatch-name"><strong>orange-hover</strong>#C73D26<br>BitOrange-600</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#5FA657"></div>
+          <div class="swatch-name"><strong>--green</strong>#2E7229<br>success</div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-block" style="background:#CF7C01"></div>
+          <div class="swatch-name"><strong>--yellow</strong>#CF7C01<br>warning</div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong style="color:var(--teal)">Brand Guideline</strong> — BitOrange (<code>#F5532D</code>) should be used sparingly as an accent: selected states, active nav, category labels, "bits" decorations. Teal is the workhorse for interactive elements, focus states, and current-value indicators.
+      </div>
+    </section>
+
+    <!-- ── TYPOGRAPHY ── -->
+    <section class="section" id="typography">
+      <div class="section-title">Typography</div>
+      <div class="section-sub">Three-font system: Poppins Bold for headings · Inter for all UI text · Roboto Mono for class names &amp; values.</div>
+
+      <div class="type-row">
+        <div class="type-preview" style="font-family:'Poppins',sans-serif;font-size:22px;font-weight:700;color:var(--text);line-height:1.2">Section Heading</div>
+        <div class="type-meta">Poppins 700 · 22px · lh 1.2 · --text · section-title</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:700;color:var(--text);line-height:1.2">Button — 4 instances on this page</div>
+        <div class="type-meta">Poppins 700 · 15px · lh 1.2 · --text · picker header</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:13px;font-weight:700;color:var(--text)">Component heading · Bold</div>
+        <div class="type-meta">Inter 700 · 13px · --text · nav labels</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:12px;font-weight:600;color:var(--text)">Semibold body · Button labels · Nav items</div>
+        <div class="type-meta">Inter 600 · 12px · --text</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:12px;color:var(--text-mid)">Regular body · descriptions · subtext</div>
+        <div class="type-meta">Inter 400 · 12px · --text-mid</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:12px;color:var(--text-low)">Muted / secondary labels · annotation text</div>
+        <div class="type-meta">Inter 400 · 12px · --text-low</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--orange)">Spacing</div>
+        <div class="type-meta">Inter 600 · 9px · uppercase 1px · --orange · category label</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-family:'Roboto Mono',monospace;font-size:11px;color:var(--text-mid)">px-4 py-2 rounded-md text-sm</div>
+        <div class="type-meta">Roboto Mono 400 · 11px · --text-mid · class chip</div>
+      </div>
+      <div class="type-row">
+        <div class="type-preview" style="font-family:'Roboto Mono',monospace;font-size:10.5px;color:var(--teal)">bg-teal-600 · #00848B · 16px</div>
+        <div class="type-meta">Roboto Mono 400 · 10.5px · --teal · scale values / code</div>
+      </div>
+    </section>
+
+    <!-- ── CHIPS ── -->
+    <section class="section" id="chips">
+      <div class="section-title">Class Chips</div>
+      <div class="section-sub">Used in the class list panel. Five visual states — orange for selection/staging, teal for current applied value.</div>
+
+      <div class="row">
+        <span class="row-label">default</span>
+        <div class="chip">px-4</div>
+        <div class="chip">py-2</div>
+        <div class="chip">rounded-md</div>
+        <div class="chip">text-sm</div>
+      </div>
+      <div class="row">
+        <span class="row-label">hover</span>
+        <div class="chip" style="border-color:var(--teal);color:var(--teal)">px-4</div>
+        <div class="annotation">(simulated :hover) — teal border + text</div>
+      </div>
+      <div class="row">
+        <span class="row-label">selected</span>
+        <div class="chip chip--selected">px-4</div>
+        <div class="annotation">clicked — scale/color picker opens · orange bg tint</div>
+      </div>
+      <div class="row">
+        <span class="row-label">current</span>
+        <div class="chip chip--current">px-4</div>
+        <div class="annotation">currently-applied value · teal border + tint</div>
+      </div>
+      <div class="row">
+        <span class="row-label">locked</span>
+        <div class="chip chip--locked">px-6</div>
+        <div class="annotation">new value staged, awaiting queue · orange border</div>
+      </div>
+
+      <div class="info-box" style="margin-top:16px">
+        <strong style="color:var(--orange)">Pattern</strong> — Orange signals "you did something" (selection/staging). Teal signals "this is the truth / current state". Users can read the difference at a glance.
+      </div>
+    </section>
+
+    <!-- ── SCALE ROW ── -->
+    <section class="section" id="scale-row">
+      <div class="section-title">Scale Row</div>
+      <div class="section-sub">Expands below a selected chip. Shows the full value scale with teal = current, orange = locked/preview.</div>
+
+      <div class="category-label">Spacing</div>
+      <div class="scale-container">
+        <div class="scale-chip">px-0</div>
+        <div class="scale-chip">px-0.5</div>
+        <div class="scale-chip">px-1</div>
+        <div class="scale-chip">px-2</div>
+        <div class="scale-chip">px-3</div>
+        <div class="scale-chip scale-chip--current">px-4</div>
+        <div class="scale-chip">px-5</div>
+        <div class="scale-chip scale-chip--locked">px-6</div>
+        <div class="scale-chip">px-7</div>
+        <div class="scale-chip">px-8</div>
+        <div class="scale-chip">px-10</div>
+        <div class="scale-chip">px-12</div>
+        <div class="scale-chip">px-16</div>
+        <div class="scale-chip">px-20</div>
+        <div class="scale-chip">px-24</div>
+      </div>
+      <div class="annotation mt-8">
+        Teal border + tint = current applied value · Orange border + tint = locked/staged value
+      </div>
+    </section>
+
+    <!-- ── COLOR GRID ── -->
+    <section class="section" id="color-grid">
+      <div class="section-title">Color Grid</div>
+      <div class="section-sub">Shown when a color utility is selected. Rows = hues, columns = shades 50–950. Orange outline = current value.</div>
+
+      <div class="color-grid">
+        <div class="color-row">
+          <span class="color-hue-label"></span>
+          <div class="color-cell" title="black" style="background:#000"></div>
+          <div class="color-cell" title="white" style="background:#fff;border-color:rgba(255,255,255,0.2)"></div>
+          <div class="color-cell" title="transparent" style="background:transparent;border:1px dashed var(--border-solid)"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">slate</span>
+          <div class="color-cell" style="background:#f8fafc"></div>
+          <div class="color-cell" style="background:#e2e8f0"></div>
+          <div class="color-cell" style="background:#cbd5e1"></div>
+          <div class="color-cell" style="background:#94a3b8"></div>
+          <div class="color-cell" style="background:#64748b"></div>
+          <div class="color-cell" style="background:#475569"></div>
+          <div class="color-cell color--current" style="background:#334155"></div>
+          <div class="color-cell" style="background:#1e293b"></div>
+          <div class="color-cell" style="background:#0f172a"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">teal</span>
+          <div class="color-cell" style="background:#f0fdfa"></div>
+          <div class="color-cell" style="background:#ccfbf1"></div>
+          <div class="color-cell" style="background:#99f6e4"></div>
+          <div class="color-cell" style="background:#5eead4"></div>
+          <div class="color-cell" style="background:#2dd4bf"></div>
+          <div class="color-cell" style="background:#14b8a6"></div>
+          <div class="color-cell" style="background:#0d9488"></div>
+          <div class="color-cell" style="background:#0f766e"></div>
+          <div class="color-cell" style="background:#115e59"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">orange</span>
+          <div class="color-cell" style="background:#fff7ed"></div>
+          <div class="color-cell" style="background:#ffedd5"></div>
+          <div class="color-cell" style="background:#fed7aa"></div>
+          <div class="color-cell" style="background:#fdba74"></div>
+          <div class="color-cell" style="background:#fb923c"></div>
+          <div class="color-cell" style="background:#f97316"></div>
+          <div class="color-cell" style="background:#ea580c"></div>
+          <div class="color-cell" style="background:#c2410c"></div>
+          <div class="color-cell" style="background:#9a3412"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">green</span>
+          <div class="color-cell" style="background:#f0fdf4"></div>
+          <div class="color-cell" style="background:#dcfce7"></div>
+          <div class="color-cell" style="background:#bbf7d0"></div>
+          <div class="color-cell" style="background:#86efac"></div>
+          <div class="color-cell" style="background:#4ade80"></div>
+          <div class="color-cell" style="background:#22c55e"></div>
+          <div class="color-cell" style="background:#16a34a"></div>
+          <div class="color-cell" style="background:#15803d"></div>
+          <div class="color-cell" style="background:#166534"></div>
+        </div>
+        <div class="color-row">
+          <span class="color-hue-label">violet</span>
+          <div class="color-cell" style="background:#f5f3ff"></div>
+          <div class="color-cell" style="background:#ede9fe"></div>
+          <div class="color-cell" style="background:#ddd6fe"></div>
+          <div class="color-cell" style="background:#c4b5fd"></div>
+          <div class="color-cell" style="background:#a78bfa"></div>
+          <div class="color-cell" style="background:#7c3aed"></div>
+          <div class="color-cell" style="background:#6d28d9"></div>
+          <div class="color-cell" style="background:#5b21b6"></div>
+          <div class="color-cell" style="background:#4c1d95"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── BUTTONS ── -->
+    <section class="section" id="buttons">
+      <div class="section-title">Buttons</div>
+      <div class="section-sub">8px border-radius, Inter 600. Teal = primary action. Orange = accent/destructive-safe action. No shadows on ghost variants.</div>
+
+      <div class="row">
+        <span class="row-label">primary</span>
+        <button class="btn btn-primary">Queue Change</button>
+        <div class="annotation">bg=--teal · white text · hover → teal-800</div>
+      </div>
+      <div class="row">
+        <span class="row-label">accent</span>
+        <button class="btn btn-accent">Apply Changes</button>
+        <div class="annotation">bg=--orange · white text · hover → orange-600</div>
+      </div>
+      <div class="row">
+        <span class="row-label">secondary</span>
+        <button class="btn btn-secondary">Discard</button>
+        <div class="annotation">transparent · border=--surface · hover → surface-hi + teal border</div>
+      </div>
+      <div class="row">
+        <span class="row-label">danger</span>
+        <button class="btn btn-danger">Remove</button>
+        <div class="annotation">transparent · text=--orange · hover → orange-dim bg</div>
+      </div>
+
+      <div class="row mt-12">
+        <span class="row-label">group</span>
+        <button class="btn btn-primary">Queue Change</button>
+        <button class="btn btn-secondary">Discard</button>
+      </div>
+    </section>
+
+    <!-- ── BADGES ── -->
+    <section class="section" id="badges">
+      <div class="section-title">Badges &amp; Tags</div>
+      <div class="section-sub">Pill badges for statuses, property counts, and labels. Use teal for info, orange for staged/active, green for success.</div>
+
+      <div class="row gap-8">
+        <span class="badge badge-teal">4 instances</span>
+        <span class="badge badge-orange">● staged</span>
+        <span class="badge badge-green">● connected</span>
+        <span class="badge badge-teal">Spacing</span>
+        <span class="badge badge-orange">Typography</span>
+        <span class="badge" style="background:rgba(46,114,41,0.09);color:#2E7229;border:1px solid rgba(46,114,41,0.25)">Color</span>
+      </div>
+    </section>
+
+    <!-- ── TABS ── -->
+    <section class="section" id="tabs">
+      <div class="section-title">Container Switcher / Tabs</div>
+      <div class="section-sub">Active tab: 2px BitOrange bottom border, orange text. Inactive: gray-600. No filled backgrounds.</div>
+
+      <div class="tab-bar">
+        <div class="tab tab--active">Popover</div>
+        <div class="tab">Modal</div>
+        <div class="tab">Sidebar</div>
+        <div class="tab">Popup</div>
+      </div>
+      <div class="annotation mt-8">
+        active: color=--orange · border-bottom: 2px --orange · inactive: color=--text-low
+      </div>
+    </section>
+
+    <!-- ── PICKER PANEL ── -->
+    <section class="section" id="picker">
+      <div class="section-title">Picker Panel (Full Mock)</div>
+      <div class="section-sub">White card panel. 12px border-radius. The dock-mode icon in the top-right corner shows the current layout; clicking it opens the dock menu to switch.</div>
+
+      <div class="picker-panel" style="position:relative">
+        <div class="picker-header" style="position:relative">
+          <span class="picker-component-name">Button</span>
+          <span class="picker-instance-count">&mdash; 4 instances on this page</span>
+
+          <!-- Dock icon button — shows current mode (popover), click to switch -->
+          <button
+            id="dock-trigger"
+            title="Change container"
+            onclick="var p=document.getElementById('dock-popup');p.style.display=p.style.display==='flex'?'none':'flex'"
+            style="margin-left:auto;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);padding:3px;cursor:pointer;color:var(--text-low);display:flex;align-items:center;justify-content:center;transition:background 150ms,border-color 150ms,color 150ms"
+            onmouseover="this.style.background='var(--surface)';this.style.borderColor='var(--border-solid)';this.style.color='var(--text)'"
+            onmouseout="this.style.background='transparent';this.style.borderColor='transparent';this.style.color='var(--text-low)'"
+          >
+            <!-- Popover icon: small floating panel over a page -->
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.2" opacity="0.3"/>
+              <rect x="5" y="5" width="8" height="6" rx="1.5" fill="currentColor"/>
+            </svg>
+          </button>
+
+          <!-- Dock popup menu -->
+          <div id="dock-popup" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid var(--border-solid);border-radius:var(--radius-md);box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:6px;flex-direction:column;gap:1px;min-width:148px;z-index:200">
+            <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);padding:4px 8px 6px">Container</div>
+
+            <!-- Popover — active -->
+            <button class="dock-option dock-option--active" onclick="document.getElementById('dock-popup').style.display='none'">
+              <!-- Floating card over page -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="1" width="14" height="14" rx="1.5" stroke="currentColor" stroke-width="1.1" opacity="0.3"/>
+                <rect x="4" y="4" width="8" height="6" rx="1" fill="currentColor"/>
+              </svg>
+              Popover
+            </button>
+
+            <!-- Sidebar -->
+            <button class="dock-option" onclick="document.getElementById('dock-popup').style.display='none'">
+              <!-- Right-side panel -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="1" width="14" height="14" rx="1.5" stroke="currentColor" stroke-width="1.1" opacity="0.3"/>
+                <rect x="9" y="1" width="6" height="14" rx="1.5" fill="currentColor" opacity="0.85"/>
+              </svg>
+              Sidebar
+            </button>
+
+            <!-- Modal -->
+            <button class="dock-option" onclick="document.getElementById('dock-popup').style.display='none'">
+              <!-- Centered dialog over dimmed bg -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="1" width="14" height="14" rx="1.5" fill="currentColor" opacity="0.12"/>
+                <rect x="3" y="4" width="10" height="8" rx="1" fill="currentColor" opacity="0.9"/>
+              </svg>
+              Modal
+            </button>
+
+            <!-- Popup -->
+            <button class="dock-option" onclick="document.getElementById('dock-popup').style.display='none'">
+              <!-- Small corner popup -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="1" width="14" height="14" rx="1.5" stroke="currentColor" stroke-width="1.1" opacity="0.3"/>
+                <rect x="8" y="8" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
+              </svg>
+              Popup
+            </button>
+          </div>
+        </div>
+
+        <div class="picker-body">
+          <div class="category-label">Spacing</div>
+          <div class="row gap-4 mt-4">
+            <div class="chip">m-0</div>
+            <div class="chip chip--selected">px-4</div>
+            <div class="chip chip--current">py-2</div>
+            <div class="chip">gap-2</div>
+          </div>
+
+          <div class="scale-container mt-8">
+            <div class="scale-chip">px-0</div>
+            <div class="scale-chip">px-1</div>
+            <div class="scale-chip">px-2</div>
+            <div class="scale-chip">px-3</div>
+            <div class="scale-chip scale-chip--current">px-4</div>
+            <div class="scale-chip">px-5</div>
+            <div class="scale-chip scale-chip--locked">px-6</div>
+            <div class="scale-chip">px-8</div>
+            <div class="scale-chip">px-10</div>
+          </div>
+
+          <div class="category-label">Typography</div>
+          <div class="row gap-4 mt-4">
+            <div class="chip">font-medium</div>
+            <div class="chip chip--current">text-sm</div>
+          </div>
+
+          <div class="category-label">Color</div>
+          <div class="row gap-4 mt-4">
+            <div class="chip">bg-teal-600</div>
+            <div class="chip chip--current">text-white</div>
+            <div class="chip">hover:bg-teal-800</div>
+          </div>
+
+          <hr class="divider" style="margin-top:12px" />
+
+          <div class="category-label">Container</div>
+          <div class="tab-bar mt-4">
+            <div class="tab tab--active">Popover</div>
+            <div class="tab">Modal</div>
+            <div class="tab">Sidebar</div>
+            <div class="tab">Popup</div>
+          </div>
+        </div>
+
+        <div class="picker-actions">
+          <button class="btn btn-primary">Queue Change</button>
+          <button class="btn btn-secondary">Discard</button>
+        </div>
+      </div>
+
+      <div class="annotation mt-12">
+        Dock icon shows current mode · Click to open menu · Active item: teal tint · No text label, icon only
+      </div>
+    </section>
+
+    <!-- ── OVERLAY TOGGLE ── -->
+    <section class="section" id="overlay">
+      <div class="section-title">Overlay Toggle Button</div>
+      <div class="section-sub">Fixed to bottom-right of the inspected page. 36px circular. Inactive = teal surface. Active = BitOrange with glow ring.</div>
+
+      <div class="row gap-12">
+        <div>
+          <div class="toggle-btn">⊕</div>
+          <div class="annotation mt-8">inactive</div>
+        </div>
+        <div>
+          <div class="toggle-btn active" style="animation: bits-glow 2s ease-in-out infinite">⊕</div>
+          <div class="annotation mt-8">active · orange + glow</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── EMPTY STATES ── -->
+    <section class="section" id="empty">
+      <div class="section-title">Empty / Connection States</div>
+      <div class="section-sub">Centered, minimal. 12px Inter, muted text. Three states: idle, connecting, connected.</div>
+
+      <div class="flex gap-12 wrap">
+        <div class="picker-panel" style="width:210px">
+          <div class="empty-state">
+            <div class="empty-state-icon">⊕</div>
+            <span>Click an element to inspect</span>
+          </div>
+        </div>
+
+        <div class="picker-panel" style="width:210px">
+          <div class="empty-state">
+            <div class="status-dot" style="background:var(--orange);animation:pulse 1.5s ease-in-out infinite"></div>
+            <span>Waiting for connection…</span>
+          </div>
+        </div>
+
+        <div class="picker-panel" style="width:210px">
+          <div class="empty-state">
+            <div class="status-dot" style="background:var(--green)"></div>
+            <span style="color:var(--green);font-weight:600">Connected</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Highlight active nav link based on scroll position
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const active = document.querySelector(`.nav a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

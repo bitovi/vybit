@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  /* Bitovi design tokens */
+  --color-bv-bg: #FFFFFF;
+  --color-bv-surface: #F4F5F5;
+  --color-bv-surface-hi: #E6E9E9;
+  --color-bv-border: #DFE2E2;
+  --color-bv-text: #334041;
+  --color-bv-text-mid: #687879;
+  --color-bv-muted: #A3ADAD;
+  --color-bv-orange: #F5532D;
+  --color-bv-orange-hover: #C73D26;
+  --color-bv-teal: #00848B;
+  --color-bv-teal-dark: #00464A;
+  --color-bv-green: #2E7229;
+  --font-display: 'Poppins', sans-serif;
+  --font-ui: 'Inter', sans-serif;
+  --font-mono: 'Roboto Mono', 'Menlo', ui-monospace, monospace;
+}

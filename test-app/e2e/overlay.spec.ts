@@ -79,7 +79,7 @@ test.describe('Overlay', () => {
     expect(cursor).toBe('crosshair');
   });
 
-  test('clicking element in inspect mode opens picker', async ({ page }) => {
+  test('clicking element in inspect mode opens panel container', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
@@ -92,29 +92,38 @@ test.describe('Overlay', () => {
 
     // Click on the h1 element
     await page.click('h1');
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
 
-    // Check if picker appeared in shadow DOM
-    const pickerInfo = await page.evaluate(() => {
+    // Check if a container (iframe) appeared in shadow DOM
+    const containerInfo = await page.evaluate(() => {
       const host = document.querySelector('#tw-visual-editor-host');
       if (!host || !host.shadowRoot) return { found: false, reason: 'no shadow root' };
-      const picker = host.shadowRoot.querySelector('.picker-panel');
-      if (!picker) {
-        // List all children of shadow root for debugging
+      const iframe = host.shadowRoot.querySelector('iframe');
+      if (!iframe) {
         const children = Array.from(host.shadowRoot.children).map(c => ({
           tag: c.tagName,
           className: c.className,
         }));
-        return { found: false, reason: 'no picker-panel', shadowChildren: children };
+        return { found: false, reason: 'no iframe', shadowChildren: children };
       }
-      return { found: true, text: picker.textContent?.slice(0, 100) };
+      return { found: true, src: iframe.src };
     });
 
-    console.log('Picker info:', JSON.stringify(pickerInfo, null, 2));
-    expect(pickerInfo.found).toBe(true);
+    console.log('Container info:', JSON.stringify(containerInfo, null, 2));
+    expect(containerInfo.found).toBe(true);
   });
 
-  test('clicking Button in inspect mode shows correct component', async ({ page }) => {
+  test('clicking Button in inspect mode sends correct component to panel', async ({ page }) => {
+    const wsMessages: any[] = [];
+    page.on('websocket', (ws) => {
+      ws.on('framesent', (frame) => {
+        try {
+          const data = JSON.parse(frame.payload as string);
+          if (data.type === 'ELEMENT_SELECTED') wsMessages.push(data);
+        } catch { /* ignore */ }
+      });
+    });
+
     await page.goto('/');
     await page.waitForTimeout(2000);
 
@@ -125,23 +134,15 @@ test.describe('Overlay', () => {
       btn.click();
     });
 
-    // Click on the first "Primary" button (in the buttons section)
+    // Click on the first "Primary" button
     await page.locator('button:has-text("Primary")').first().click();
     await page.waitForTimeout(1000);
 
-    // Check picker shows Button component with correct instance count
-    const pickerInfo = await page.evaluate(() => {
-      const host = document.querySelector('#tw-visual-editor-host');
-      if (!host || !host.shadowRoot) return { found: false };
-      const picker = host.shadowRoot.querySelector('.picker-panel');
-      if (!picker) return { found: false };
-      return { found: true, text: picker.textContent?.slice(0, 150) };
-    });
-
-    console.log('Button picker info:', JSON.stringify(pickerInfo, null, 2));
-    expect(pickerInfo.found).toBe(true);
-    // Should show Button component, not App
-    expect(pickerInfo.text).toContain('Button');
+    // Verify ELEMENT_SELECTED was sent with correct component name
+    console.log('WS messages:', JSON.stringify(wsMessages, null, 2));
+    const selected = wsMessages.find(m => m.componentName === 'Button');
+    expect(selected).toBeTruthy();
+    expect(selected.componentName).toBe('Button');
   });
 
   test('WebSocket connects to server', async ({ page }) => {
