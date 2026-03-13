@@ -1,0 +1,31 @@
+{
+  "name": "tailwind-visual-editor",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "tailwind-visual-editor": "./loader.mjs"
+  },
+  "scripts": {
+    "build": "npm run build:overlay",
+    "build:overlay": "esbuild overlay/src/index.ts --bundle --format=iife --outfile=overlay/dist/overlay.js --platform=browser",
+    "typecheck": "tsc --noEmit",
+    "dev": "npm run build:overlay && node --import tsx server/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.21.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@floating-ui/dom": "^1.6.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.5.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

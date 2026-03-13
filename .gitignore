@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Compiled output
+dist/
+overlay/dist/overlay.js
+!overlay/dist/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+
+# Build caches
+.vite/
+*.tsbuildinfo
+
+# Lock conflict artifacts
+*.yarn-integrity
+yarn-error.log
