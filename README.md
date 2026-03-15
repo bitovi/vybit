@@ -123,14 +123,15 @@ Or manually in `.mcp.json`:
    - Click color chips to pick a new color
    - Press **Queue Change** to stage a change
 5. Once you've queued your changes, tell your AI agent: _"Apply the queued Tailwind changes"_
-6. The agent calls `get_next_change` and applies each change to your source files
+6. The agent calls `implement_next_change` and keeps looping until the queue is empty
 
 ## MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `get_next_change` | Returns the next queued change and waits for one if none are ready. Includes an embedded implementation prompt. |
-| `mark_change_implemented` | Marks one or more changes as implemented by ID. |
+| `implement_next_change` | **Start here.** Waits for the next committed change, returns implementation instructions, and requires the agent to apply it, mark it done, then call this tool again in an endless loop. |
+| `get_next_change` | Returns the next committed change as raw patch data (no workflow instructions). Use this for custom agent workflows. |
+| `mark_change_implemented` | Marks one or more changes as implemented by ID. Returns a directive to call `implement_next_change` again. |
 | `list_changes` | Lists all changes grouped by status (`staged`, `committed`, `implementing`, `implemented`). |
 | `discard_all_changes` | Clears the entire change queue. |
 

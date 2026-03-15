@@ -224,7 +224,7 @@ describe('Server integration tests', () => {
   // -----------------------------------------------------------------------
   // d. get_next_change returns immediately when committed patch exists
   // -----------------------------------------------------------------------
-  it('get_next_change returns committed patch with multi-part response', async () => {
+  it('get_next_change returns committed patch as raw JSON (single content item)', async () => {
     const patch = makePatch();
 
     // Stage + commit
@@ -237,26 +237,13 @@ describe('Server integration tests', () => {
 
     const result = await mcpClient.callTool({ name: 'get_next_change' });
 
-    // Multi-part response: text (patch), text (workflow), resource (prompt)
-    expect(result.content).toHaveLength(3);
+    // Single content item: raw patch JSON only
+    expect(result.content).toHaveLength(1);
 
-    const [patchContent, workflowContent, promptContent] = result.content as any[];
-
-    // First part: patch data as JSON
+    const [patchContent] = result.content as any[];
     expect(patchContent.type).toBe('text');
     const patchData = JSON.parse(patchContent.text);
     expect(patchData.id).toBe(patch.id);
-
-    // Second part: workflow instructions
-    expect(workflowContent.type).toBe('text');
-    expect(workflowContent.text).toContain('mark_change_implemented');
-    expect(workflowContent.text).toContain('get_next_change');
-
-    // Third part: embedded prompt resource
-    expect(promptContent.type).toBe('resource');
-    expect(promptContent.resource.uri).toBe('prompt://implement-change');
-    expect(promptContent.resource.text).toContain(patch.originalClass);
-    expect(promptContent.resource.text).toContain(patch.newClass);
 
     // Panel should get PATCH_UPDATE with implementing: 1
     const msg = await waitForPanelMessage(panelMessages, (m) =>
@@ -284,10 +271,65 @@ describe('Server integration tests', () => {
 
     // The get_next_change should now resolve
     const result = await resultPromise;
-    expect(result.content).toHaveLength(3);
+    expect(result.content).toHaveLength(1);
 
     const patchData = JSON.parse((result.content as any[])[0].text);
     expect(patchData.id).toBe(patch.id);
+  });
+
+  // -----------------------------------------------------------------------
+  // e2. implement_next_change returns patch + loop instructions
+  // -----------------------------------------------------------------------
+  it('implement_next_change returns committed patch with loop instructions', async () => {
+    const patch = makePatch();
+
+    overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+
+    panelMessages.length = 0;
+
+    const result = await mcpClient.callTool({ name: 'implement_next_change' });
+
+    // Two content items: structured JSON + markdown instructions
+    expect(result.content).toHaveLength(2);
+
+    const [jsonContent, mdContent] = result.content as any[];
+
+    // First: structured data with isComplete + patch
+    expect(jsonContent.type).toBe('text');
+    const data = JSON.parse(jsonContent.text);
+    expect(data.isComplete).toBe(false);
+    expect(data.patch.id).toBe(patch.id);
+    expect(data.nextAction).toContain('implement_next_change');
+
+    // Second: markdown instructions
+    expect(mdContent.type).toBe('text');
+    expect(mdContent.text).toContain('implement_next_change');
+    expect(mdContent.text).toContain('mark_change_implemented');
+    expect(mdContent.text).toContain(patch.originalClass);
+    expect(mdContent.text).toContain(patch.newClass);
+  });
+
+  // -----------------------------------------------------------------------
+  // e3. implement_next_change waits then resolves
+  // -----------------------------------------------------------------------
+  it('implement_next_change waits for commit then resolves', async () => {
+    const patch = makePatch();
+
+    const resultPromise = mcpClient.callTool({ name: 'implement_next_change' });
+
+    await new Promise((r) => setTimeout(r, 200));
+
+    overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
+
+    const result = await resultPromise;
+    expect(result.content).toHaveLength(2);
+    const resultData = JSON.parse((result.content as any[])[0].text);
+    expect(resultData.patch.id).toBe(patch.id);
   });
 
   // -----------------------------------------------------------------------
@@ -330,8 +372,16 @@ describe('Server integration tests', () => {
       name: 'mark_change_implemented',
       arguments: { ids: [patch.id] },
     });
+    // Two content items: structured JSON + loop directive text
+    expect(result.content).toHaveLength(2);
     const resultData = JSON.parse((result.content as any[])[0].text);
     expect(resultData.moved).toBe(1);
+    expect(resultData.isComplete).toBe(false);
+    expect(resultData.nextAction).toContain('implement_next_change');
+
+    // Loop directive text should tell agent to call implement_next_change
+    const loopText = (result.content as any[])[1].text;
+    expect(loopText).toContain('implement_next_change');
 
     const msg = await waitForPanelMessage(panelMessages, (m) =>
       m.type === 'PATCH_UPDATE' && m.implemented === 1,
@@ -370,7 +420,7 @@ describe('Server integration tests', () => {
     await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
     await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
-    await mcpClient.callTool({ name: 'get_next_change' });
+    await mcpClient.callTool({ name: 'implement_next_change' });
     await mcpClient.callTool({ name: 'mark_change_implemented', arguments: { ids: [patch.id] } });
 
     const result = await mcpClient.callTool({

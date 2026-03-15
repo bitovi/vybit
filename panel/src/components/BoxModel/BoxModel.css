@@ -176,6 +176,18 @@
   pointer-events: auto;
 }
 
+/* Within an always-visible group, hide slots that have no value until ring is hovered */
+.bm-slot-group.bm-has-values .bm-slot:not(.bm-has-val) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Reveal all slots (including empty ones) when the ring is hovered */
+.bm-layer.bm-hovered .bm-slot-group .bm-slot:not(.bm-has-val) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Hide slot groups when a child ring is hovered (isolation) — 
    handled via React: non-hovered rings won't have .bm-hovered */
 

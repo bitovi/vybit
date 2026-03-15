@@ -120,9 +120,15 @@ See `.github/skills/create-react-modlet/SKILL.md` for full guidance.
 
 ## Naming: "change" vs "patch"
 
-- **"change"** is the user-facing / MCP tool name: `get_next_change`, `mark_change_implemented`, `list_changes`, `discard_all_changes`
+- **"change"** is the user-facing / MCP tool name: `get_next_change`, `implement_next_change`, `mark_change_implemented`, `list_changes`, `discard_all_changes`
 - **"patch"** is the internal code name used in types, functions, WS messages: `Patch`, `PatchStatus`, `PATCH_UPDATE`, `addPatch`, `commitPatches`, etc.
 - MCP tool names follow the `verb_subject` snake_case convention (matches GitHub MCP, Filesystem MCP)
+
+## MCP Tool Roles
+
+- `implement_next_change` — the **looping entry point**: waits, returns change + instructions, requires agent to loop back
+- `get_next_change` — raw data only, for custom agent workflows
+- `mark_change_implemented` — marks done + emits directive to call `implement_next_change` again
 
 ## Data Flow
 
@@ -132,7 +138,7 @@ See `.github/skills/create-react-modlet/SKILL.md` for full guidance.
 4. User clicks element → overlay sends `ELEMENT_SELECTED` message → panel renders chips
 5. User scrubs/selects value → panel sends `PATCH_PREVIEW` message → overlay previews live
 6. User clicks "Queue Change" → patch is staged → user commits → server stores committed patch
-7. AI agent calls MCP `get_next_change` → waits for committed patch → transitions to `implementing` → returns patch + embedded prompt for subagent implementation
+7. AI agent calls MCP `implement_next_change` → waits for committed patch → transitions to `implementing` → returns patch + loop instructions telling agent to implement, mark done, and call again
 
 ## `ParsedClass` Type (overlay/src/class-parser.ts)
 
