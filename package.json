@@ -1,14 +1,34 @@
 {
-  "name": "tailwind-visual-editor",
+  "name": "@bitovi/tailwind-inspector-mcp",
   "version": "0.1.0",
+  "description": "Browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app",
+  "keywords": ["tailwind", "mcp", "inspector", "react", "devtools", "tailwindcss"],
+  "author": "Bitovi",
+  "license": "MIT",
+  "homepage": "https://github.com/bitovi/tailwind-inspector-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bitovi/tailwind-inspector-mcp.git"
+  },
   "type": "module",
   "bin": {
-    "tailwind-visual-editor": "./loader.mjs"
+    "tailwind-inspector-mcp": "./loader.mjs"
+  },
+  "files": [
+    "loader.mjs",
+    "server/",
+    "overlay/dist/",
+    "panel/dist/",
+    "shared/"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "npm run build:overlay && npm run build:panel",
     "build:overlay": "esbuild overlay/src/index.ts --bundle --format=iife --outfile=overlay/dist/overlay.js --platform=browser",
     "build:panel": "cd panel && npx vite build",
+    "prepack": "cd panel && npm install --include=dev && cd .. && npm run build",
     "test": "npm run test:panel && npm run test:server",
     "test:panel": "cd panel && npm test",
     "test:server": "vitest run server/tests",

@@ -33,7 +33,7 @@ httpServer.listen(port, () => {
 
 // --- MCP Server (stdio) ---
 const mcp = new McpServer(
-  { name: "tailwind-visual-editor", version: "0.1.0" },
+  { name: "tailwind-inspector-mcp", version: "0.1.0" },
   { capabilities: { tools: {} } },
 );
 
