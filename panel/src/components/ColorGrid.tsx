@@ -95,18 +95,15 @@ function ColorCell({ prefix, colorName, colorValue, isCurrent, isLocked, locked,
     ? 'outline outline-2 outline-offset-2 outline-bv-orange border-transparent'
     : locked ? 'border-transparent' : 'border-transparent hover:border-bv-text hover:scale-110 hover:z-10';
 
-  const bg = colorName === 'transparent'
-    ? 'repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 8px 8px'
-    : undefined;
+  const style = colorName === 'transparent'
+    ? { background: 'repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 8px 8px' }
+    : { backgroundColor: colorValue };
 
   return (
     <div
       title={fullClass}
       className={`w-5 h-5 rounded cursor-pointer border-2 shrink-0 transition-[border-color,transform] ${borderClass}`}
-      style={{
-        backgroundColor: colorName !== 'transparent' ? colorValue : undefined,
-        background: bg,
-      }}
+      style={style}
       onMouseEnter={() => { if (!locked) onHover(fullClass); }}
       onClick={(e) => { e.stopPropagation(); onClick(fullClass); }}
     />

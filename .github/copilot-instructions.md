@@ -38,33 +38,33 @@ Start each process as a separate task via **Terminal → Run Task** so you can s
 
 1. **Watch: Overlay** — esbuild `--watch`, rebuilds `overlay/dist/overlay.js` on every save
 2. **Watch: Panel** — `vite build --watch`, rebuilds `panel/dist/` on every save
-3. **Server (port 3333)** — Express + WebSocket + MCP server, started from `test-app/`
+3. **Mock MCP Client** — spawns **its own MCP server** (port 3333) via stdio, so no separate server task is needed. Loops: `implement_next_change` → 2s simulated work → `mark_change_implemented` → repeat. Stage + commit patches in the panel and watch the mock agent pick them up.
 4. **Test App (port 5173)** — Vite dev server for the test app
-5. **Mock MCP Client** — spawns its own MCP server via stdio (like a real agent) and loops:
-   `implement_next_change` → 2s simulated work → `mark_change_implemented` → repeat.
-   Stage + commit patches in the panel and watch the mock agent pick them up.
 
-> **Tip:** Run the Mock MCP Client to observe exactly what an AI agent receives from `implement_next_change` and how the full loop behaves end-to-end.
+> **Tip:** The Mock MCP Client prints exactly what an AI agent receives from `implement_next_change`, making it easy to observe the full loop end-to-end.
 
-### ⚠️ Server Must Run from `test-app/` Directory
+### ⚠️ Mock MCP Client owns the server lifecycle
 
-The server uses `createRequire(cwd)` to load the **target project's** `tailwindcss` package. If started from the root, it will 500 on `/tailwind-config` because `tailwindcss` isn't in root `node_modules`. The VS Code task handles this automatically.
+The Mock MCP Client spawns `server/index.ts` via stdio from `test-app/`, which is why the server resolves the correct `tailwindcss` package. Do not start the **Server (port 3333)** task separately when using the Mock MCP Client — only start it if you need a standalone server without the mock agent.
 
 ```bash
 # If running manually (not via VS Code tasks):
 # 1. Build once first
 npm run build
 
-# 2. Start the server from test-app/ (CRITICAL)
-cd test-app && node --import tsx ../server/index.ts
-# → Serves panel at http://localhost:3333/panel/
-# → Serves overlay.js at http://localhost:3333/overlay.js
+# 2. Start the watch processes
+npx esbuild overlay/src/index.ts --bundle --format=iife --outfile=overlay/dist/overlay.js --platform=browser --watch &
+cd panel && npx vite build --watch &
 
-# 3. Start the test app
+# 3. Start the Mock MCP Client (spawns the server automatically, from test-app/)
+cd test-app && npx tsx mock-mcp-client.ts
+# → Server at http://localhost:3333/panel/
+
+# 4. Start the test app
 cd test-app && npx vite
 # → http://localhost:5173 (page to inspect)
 
-# 4. Storybook (optional, from panel/)
+# 5. Storybook (optional, from panel/)
 cd panel && npm run storybook
 # → http://localhost:6006
 ```

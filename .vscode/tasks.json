@@ -67,14 +67,6 @@
       "presentation": { "group": "dev", "panel": "dedicated", "reveal": "always" }
     },
     {
-      "label": "Dev: All",
-      "dependsOn": ["Watch: Overlay", "Watch: Panel", "Server (port 3333)", "Test App (port 5173)"],
-      "dependsOrder": "parallel",
-      "group": { "kind": "build", "isDefault": true },
-      "presentation": { "reveal": "always" },
-      "problemMatcher": []
-    },
-    {
       "label": "Server v3 (port 3334)",
       "type": "shell",
       "command": "PORT=3334 npx tsx watch ../server/index.ts",

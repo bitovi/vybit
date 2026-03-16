@@ -1,4 +1,11 @@
-# @bitovi/vybit
+# VyBit
+
+Change designs, draw mockups, and provide suggestions in your browser and have them implemented by your favorite coding agent (Claude, Cursor, Copilot, etc). It works with React apps built with Tailwind v3 or v4.
+
+VyBit (Pronounced Vie-BIT) is a MCP tool that lets you command the agent by editing your website or web app in the browser.
+
+
+
 
 A browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app. Click any element on the page, scrub values, preview changes live, then let an AI agent apply them to your source code.
 
