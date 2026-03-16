@@ -150,3 +150,125 @@ export function getDOMNode(fiber: any): HTMLElement | null {
 
   return null;
 }
+
+/**
+ * Given a container DOM node and a clicked descendant, find the equivalent descendant
+ * inside `container` by matching tag name and className down the ancestor chain from
+ * `clicked` up to `containerNode`. This is used instead of a fiber index path so that
+ * structural variation between siblings (e.g. a conditional badge) doesn't cause a
+ * wrong-node or null result.
+ */
+function findEquivalentDescendant(
+  container: HTMLElement,
+  clicked: HTMLElement,
+  containerNode: HTMLElement,
+): HTMLElement | null {
+  // Build the ancestor chain from clicked up to (but not including) containerNode
+  const chain: HTMLElement[] = [];
+  let el: HTMLElement | null = clicked;
+  while (el && el !== containerNode) {
+    chain.unshift(el);
+    el = el.parentElement;
+  }
+  if (chain.length === 0) return container; // clicked IS the container node
+
+  // Walk down the chain inside `container`, matching by tag+className at each step
+  let node: HTMLElement = container;
+  for (const ancestor of chain) {
+    const match = Array.from(node.children).find(
+      (c): c is HTMLElement =>
+        c instanceof HTMLElement &&
+        c.tagName === ancestor.tagName &&
+        c.className === ancestor.className,
+    ) ?? null;
+    if (!match) return null;
+    node = match;
+  }
+  return node;
+}
+
+/**
+ * Fallback for elements rendered inline via .map() without their own component boundary.
+ * Walks up the fiber tree from targetFiber (stopping at boundaryFiber) to find the level
+ * with the most same-type fiber siblings that passes the confidence check.
+ *
+ * Depth fix: once the repeating container level is found, each sibling's equivalent
+ * descendant is found by tag+className descent from the clicked element's ancestor chain —
+ * not by fiber index path — so structural variation across siblings doesn't cause mismatches.
+ *
+ * Confidence check: at most 1 sibling may have a differing className at the container
+ * level (the "active" item). Any more outliers indicates a non-repeating structure.
+ */
+export function findInlineRepeatedNodes(
+  targetFiber: any,
+  boundaryFiber: any,
+  minSiblings = 3,
+): HTMLElement[] {
+  // The actual DOM node that was clicked
+  const clickedNode = getDOMNode(targetFiber);
+  if (!clickedNode) return [];
+
+  let current: any = targetFiber;
+  let bestResult: HTMLElement[] = [];
+
+  while (current && current !== boundaryFiber) {
+    const parent = current.return;
+    if (!parent) break;
+
+    // Collect same-type fiber siblings at this level
+    const sameType: any[] = [];
+    let child = parent.child;
+    while (child) {
+      if (child.type === current.type) {
+        sameType.push(child);
+      }
+      child = child.sibling;
+    }
+
+    if (sameType.length >= minSiblings && sameType.length > bestResult.length) {
+      // Get the container DOM node for this fiber level
+      const containerNode = getDOMNode(current);
+      if (!containerNode) {
+        current = parent;
+        continue;
+      }
+
+      // Collect container DOM nodes for all same-type siblings
+      const containerNodes: HTMLElement[] = [];
+      for (const sib of sameType) {
+        const node = getDOMNode(sib);
+        if (node) containerNodes.push(node);
+      }
+
+      // Confidence check: at most 1 container node may have a differing className
+      // (the active/selected item). More than 1 outlier = not a uniform repeated list.
+      const majorityClass = containerNodes
+        .map(n => n.className)
+        .sort((a, b) =>
+          containerNodes.filter(n => n.className === b).length -
+          containerNodes.filter(n => n.className === a).length
+        )[0];
+      const outliers = containerNodes.filter(n => n.className !== majorityClass);
+      if (outliers.length > 1) {
+        current = parent;
+        continue;
+      }
+
+      // For each sibling container, find the equivalent descendant by tag+className
+      // descent from the clicked node's ancestor chain — immune to index-path divergence.
+      const results: HTMLElement[] = [];
+      for (const sibContainer of containerNodes) {
+        const equiv = findEquivalentDescendant(sibContainer, clickedNode, containerNode);
+        if (equiv) results.push(equiv);
+      }
+
+      if (results.length > bestResult.length) {
+        bestResult = results;
+      }
+    }
+
+    current = parent;
+  }
+
+  return bestResult;
+}

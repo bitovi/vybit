@@ -3,6 +3,7 @@
 
 export type {
   ContainerName,
+  InsertMode,
   Patch,
   PatchStatus,
   RegisterMessage,
@@ -20,6 +21,10 @@ export type {
   PatchImplementingMessage,
   PatchImplementedMessage,
   PatchErrorMessage,
+  InsertDesignCanvasMessage,
+  ElementContextMessage,
+  DesignSubmitMessage,
+  DesignCloseMessage,
   OverlayToPanel,
   PanelToOverlay,
   OverlayToServer,

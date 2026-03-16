@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import type { ParsedClass } from '../../overlay/src/class-parser';
 import { ColorGrid } from './components/ColorGrid';
 import { ScaleScrubber } from './components/ScaleScrubber';
-import { ContainerSwitcher } from './components/ContainerSwitcher';
 import { getScaleValues } from './components/getScaleValues';
 import { BoxModel } from './components/BoxModel';
 import { boxModelLayersFromClasses } from './components/BoxModel/layerUtils';
@@ -118,7 +117,8 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
   // Prefixes activated via the "+" button but not yet staged
   const [pendingPrefixes, setPendingPrefixes] = useState<Set<string>>(new Set());
 
-  // Reset overrides when a different element is selected (classes string changes)
+  // Reset local UI state when a different element is selected (classes string changes)
+  // Note: patches persist across element switches — only local UI state resets
   const classesKeyRef = useRef(parsedClasses.map(c => c.fullClass).join(' '));
   const currentClassesKey = parsedClasses.map(c => c.fullClass).join(' ');
   useEffect(() => {
@@ -126,7 +126,6 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
       classesKeyRef.current = currentClassesKey;
       setBoxModelOverrides(new Map());
       setPendingPrefixes(new Set());
-      patchManager.reset();
     }
   });
 
@@ -208,13 +207,6 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
 
   return (
     <div className="p-3">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="font-[family-name:var(--font-display)] font-bold text-[13px] text-bv-text leading-tight">
-          {componentName} <span className="font-[family-name:var(--font-ui)] font-normal text-bv-text-mid">— {instanceCount} instance{instanceCount !== 1 ? 's' : ''} on this page</span>
-        </div>
-        <ContainerSwitcher />
-      </div>
-
       {/* ── Box Model ─────────────────────────────────────────── */}
       <div className="mt-3 mb-1 flex items-center gap-1.5">
         <span className="w-[5px] h-[5px] rounded-full bg-bv-teal opacity-50 shrink-0" />

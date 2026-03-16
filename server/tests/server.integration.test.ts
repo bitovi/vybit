@@ -14,9 +14,12 @@ import {
   getByStatus,
   getCounts,
   getNextCommitted,
+  markCommitImplementing,
+  markCommitImplemented,
   markImplementing,
   markImplemented,
   onCommitted,
+  getQueueUpdate,
 } from '../queue.js';
 
 import type { Patch } from '../../shared/types.js';
@@ -28,6 +31,7 @@ import type { Patch } from '../../shared/types.js';
 function makePatch(overrides: Partial<Patch> = {}): Patch {
   return {
     id: overrides.id ?? crypto.randomUUID(),
+    kind: 'class-change',
     elementKey: 'TestComponent::0/1',
     status: 'staged',
     originalClass: 'px-4',
@@ -70,7 +74,7 @@ function waitForPanelMessage(
   });
 }
 
-function connectWs(port: number, role: 'overlay' | 'panel'): Promise<{ ws: WebSocket; messages: any[] }> {
+function connectWs(port: number, role: 'overlay' | 'panel' | 'design'): Promise<{ ws: WebSocket; messages: any[] }> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`ws://localhost:${port}`);
     const messages: any[] = [];
@@ -127,10 +131,13 @@ describe('Server integration tests', () => {
       broadcastPatchUpdate,
       getNextCommitted,
       onCommitted,
+      markCommitImplementing,
+      markCommitImplemented,
       markImplementing,
       markImplemented,
       getByStatus,
       getCounts,
+      getQueueUpdate,
       clearAll,
     });
     await mcpServer.connect(serverTransport);
@@ -165,40 +172,41 @@ describe('Server integration tests', () => {
   // -----------------------------------------------------------------------
   // a. Stage → WS notification
   // -----------------------------------------------------------------------
-  it('PATCH_STAGED → panel receives PATCH_UPDATE with staged: 1', async () => {
+  it('PATCH_STAGED → panel receives QUEUE_UPDATE with draftCount: 1', async () => {
     const patch = makePatch();
 
-    // Clear the initial PATCH_UPDATE the panel got on registration
+    // Clear the initial QUEUE_UPDATE the panel got on registration
     panelMessages.length = 0;
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
 
     const msg = await waitForPanelMessage(panelMessages, (m) =>
-      m.type === 'PATCH_UPDATE' && m.staged === 1,
+      m.type === 'QUEUE_UPDATE' && m.draftCount === 1,
     );
-    expect(msg.staged).toBe(1);
-    expect(msg.patches.staged).toHaveLength(1);
-    expect(msg.patches.staged[0].id).toBe(patch.id);
+    expect(msg.draftCount).toBe(1);
+    expect(msg.draft).toHaveLength(1);
+    expect(msg.draft[0].id).toBe(patch.id);
   });
 
   // -----------------------------------------------------------------------
   // b. Commit → WS notification
   // -----------------------------------------------------------------------
-  it('PATCH_COMMIT → panel receives PATCH_UPDATE with committed: 1', async () => {
+  it('PATCH_COMMIT → panel receives QUEUE_UPDATE with committedCount: 1', async () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
 
     panelMessages.length = 0;
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
 
     const msg = await waitForPanelMessage(panelMessages, (m) =>
-      m.type === 'PATCH_UPDATE' && m.committed === 1,
+      m.type === 'QUEUE_UPDATE' && m.committedCount === 1,
     );
-    expect(msg.committed).toBe(1);
-    expect(msg.patches.committed).toHaveLength(1);
-    expect(msg.patches.committed[0].id).toBe(patch.id);
+    expect(msg.committedCount).toBe(1);
+    expect(msg.commits).toHaveLength(1);
+    expect(msg.commits[0].patches).toHaveLength(1);
+    expect(msg.commits[0].patches[0].id).toBe(patch.id);
   });
 
   // -----------------------------------------------------------------------
@@ -208,10 +216,10 @@ describe('Server integration tests', () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
 
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
 
     const res = await fetch(`http://localhost:${port}/patches?status=committed`);
     const data = await res.json();
@@ -222,34 +230,35 @@ describe('Server integration tests', () => {
   });
 
   // -----------------------------------------------------------------------
-  // d. get_next_change returns immediately when committed patch exists
+  // d. get_next_change returns immediately when committed commit exists
   // -----------------------------------------------------------------------
-  it('get_next_change returns committed patch as raw JSON (single content item)', async () => {
+  it('get_next_change returns committed commit as raw JSON (single content item)', async () => {
     const patch = makePatch();
 
     // Stage + commit
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
 
     panelMessages.length = 0;
 
     const result = await mcpClient.callTool({ name: 'get_next_change' });
 
-    // Single content item: raw patch JSON only
+    // Single content item: raw commit JSON only
     expect(result.content).toHaveLength(1);
 
-    const [patchContent] = result.content as any[];
-    expect(patchContent.type).toBe('text');
-    const patchData = JSON.parse(patchContent.text);
-    expect(patchData.id).toBe(patch.id);
+    const [commitContent] = result.content as any[];
+    expect(commitContent.type).toBe('text');
+    const commitData = JSON.parse(commitContent.text);
+    expect(commitData.patches).toHaveLength(1);
+    expect(commitData.patches[0].id).toBe(patch.id);
 
-    // Panel should get PATCH_UPDATE with implementing: 1
+    // Panel should get QUEUE_UPDATE with implementingCount: 1
     const msg = await waitForPanelMessage(panelMessages, (m) =>
-      m.type === 'PATCH_UPDATE' && m.implementing === 1,
+      m.type === 'QUEUE_UPDATE' && m.implementingCount === 1,
     );
-    expect(msg.implementing).toBe(1);
+    expect(msg.implementingCount).toBe(1);
   });
 
   // -----------------------------------------------------------------------
@@ -265,7 +274,7 @@ describe('Server integration tests', () => {
     await new Promise((r) => setTimeout(r, 200));
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
 
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
 
@@ -273,20 +282,21 @@ describe('Server integration tests', () => {
     const result = await resultPromise;
     expect(result.content).toHaveLength(1);
 
-    const patchData = JSON.parse((result.content as any[])[0].text);
-    expect(patchData.id).toBe(patch.id);
+    const commitData = JSON.parse((result.content as any[])[0].text);
+    expect(commitData.patches).toHaveLength(1);
+    expect(commitData.patches[0].id).toBe(patch.id);
   });
 
   // -----------------------------------------------------------------------
-  // e2. implement_next_change returns patch + loop instructions
+  // e2. implement_next_change returns commit + loop instructions
   // -----------------------------------------------------------------------
-  it('implement_next_change returns committed patch with loop instructions', async () => {
+  it('implement_next_change returns committed commit with loop instructions', async () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
 
     panelMessages.length = 0;
 
@@ -297,11 +307,12 @@ describe('Server integration tests', () => {
 
     const [jsonContent, mdContent] = result.content as any[];
 
-    // First: structured data with isComplete + patch
+    // First: structured data with isComplete + commit
     expect(jsonContent.type).toBe('text');
     const data = JSON.parse(jsonContent.text);
     expect(data.isComplete).toBe(false);
-    expect(data.patch.id).toBe(patch.id);
+    expect(data.commit.patches).toHaveLength(1);
+    expect(data.commit.patches[0].id).toBe(patch.id);
     expect(data.nextAction).toContain('implement_next_change');
 
     // Second: markdown instructions
@@ -323,13 +334,13 @@ describe('Server integration tests', () => {
     await new Promise((r) => setTimeout(r, 200));
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
 
     const result = await resultPromise;
     expect(result.content).toHaveLength(2);
     const resultData = JSON.parse((result.content as any[])[0].text);
-    expect(resultData.patch.id).toBe(patch.id);
+    expect(resultData.commit.patches[0].id).toBe(patch.id);
   });
 
   // -----------------------------------------------------------------------
@@ -339,9 +350,9 @@ describe('Server integration tests', () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
 
     await mcpClient.callTool({ name: 'get_next_change' });
 
@@ -353,18 +364,18 @@ describe('Server integration tests', () => {
   });
 
   // -----------------------------------------------------------------------
-  // g. mark_change_implemented
+  // g. mark_change_implemented (legacy ids)
   // -----------------------------------------------------------------------
-  it('mark_change_implemented → panel receives PATCH_UPDATE with implemented: 1', async () => {
+  it('mark_change_implemented → panel receives QUEUE_UPDATE with implementedCount: 1', async () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
 
     await mcpClient.callTool({ name: 'get_next_change' });
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.implementing === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.implementingCount === 1);
 
     panelMessages.length = 0;
 
@@ -384,9 +395,9 @@ describe('Server integration tests', () => {
     expect(loopText).toContain('implement_next_change');
 
     const msg = await waitForPanelMessage(panelMessages, (m) =>
-      m.type === 'PATCH_UPDATE' && m.implemented === 1,
+      m.type === 'QUEUE_UPDATE' && m.implementedCount === 1,
     );
-    expect(msg.implemented).toBe(1);
+    expect(msg.implementedCount).toBe(1);
   });
 
   // -----------------------------------------------------------------------
@@ -396,11 +407,11 @@ describe('Server integration tests', () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
     await mcpClient.callTool({ name: 'get_next_change' });
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.implementing === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.implementingCount === 1);
     await mcpClient.callTool({ name: 'mark_change_implemented', arguments: { ids: [patch.id] } });
 
     const res = await fetch(`http://localhost:${port}/patches?status=implemented`);
@@ -417,9 +428,9 @@ describe('Server integration tests', () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
     panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.committed === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
     await mcpClient.callTool({ name: 'implement_next_change' });
     await mcpClient.callTool({ name: 'mark_change_implemented', arguments: { ids: [patch.id] } });
 
@@ -434,22 +445,22 @@ describe('Server integration tests', () => {
   });
 
   // -----------------------------------------------------------------------
-  // j. list_changes without filter
+  // j. list_changes without filter returns queue state
   // -----------------------------------------------------------------------
-  it('list_changes without filter returns all patches grouped by status', async () => {
+  it('list_changes without filter returns queue state', async () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
 
     const result = await mcpClient.callTool({
       name: 'list_changes',
       arguments: {},
     });
     const data = JSON.parse((result.content as any[])[0].text);
-    expect(data.staged).toBe(1);
-    expect(data.patches.staged).toHaveLength(1);
-    expect(data.patches.staged[0].id).toBe(patch.id);
+    expect(data.draftCount).toBe(1);
+    expect(data.draft).toHaveLength(1);
+    expect(data.draft[0].id).toBe(patch.id);
   });
 
   // -----------------------------------------------------------------------
@@ -459,7 +470,7 @@ describe('Server integration tests', () => {
     const patch = makePatch();
 
     overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
-    await waitForPanelMessage(panelMessages, (m) => m.type === 'PATCH_UPDATE' && m.staged === 1);
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
 
     panelMessages.length = 0;
 
@@ -468,11 +479,220 @@ describe('Server integration tests', () => {
     expect(counts.staged).toBe(1);
 
     const msg = await waitForPanelMessage(panelMessages, (m) =>
-      m.type === 'PATCH_UPDATE' && m.staged === 0 && m.committed === 0,
+      m.type === 'QUEUE_UPDATE' && m.draftCount === 0 && m.committedCount === 0,
     );
-    expect(msg.staged).toBe(0);
-    expect(msg.committed).toBe(0);
-    expect(msg.implementing).toBe(0);
-    expect(msg.implemented).toBe(0);
+    expect(msg.draftCount).toBe(0);
+    expect(msg.committedCount).toBe(0);
+    expect(msg.implementingCount).toBe(0);
+    expect(msg.implementedCount).toBe(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // l. MESSAGE_STAGE → message patch in draft
+  // -----------------------------------------------------------------------
+  it('MESSAGE_STAGE → panel receives QUEUE_UPDATE with message in draft', async () => {
+    panelMessages.length = 0;
+
+    panelWs.send(JSON.stringify({
+      type: 'MESSAGE_STAGE',
+      id: 'msg-1',
+      message: 'Make description more readable',
+      elementKey: 'Card',
+    }));
+
+    const msg = await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.draftCount === 1,
+    );
+    expect(msg.draftCount).toBe(1);
+    expect(msg.draft).toHaveLength(1);
+    expect(msg.draft[0].kind).toBe('message');
+    expect(msg.draft[0].message).toBe('Make description more readable');
+  });
+
+  // -----------------------------------------------------------------------
+  // m. Mixed class-change + message commit
+  // -----------------------------------------------------------------------
+  it('commit with class-change + message preserves order', async () => {
+    const patch = makePatch();
+
+    overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
+
+    panelWs.send(JSON.stringify({
+      type: 'MESSAGE_STAGE',
+      id: 'msg-1',
+      message: 'Explain this change',
+      elementKey: 'Card',
+    }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 2);
+
+    panelMessages.length = 0;
+    panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id, 'msg-1'] }));
+
+    const msg = await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.committedCount === 1,
+    );
+    expect(msg.commits).toHaveLength(1);
+    expect(msg.commits[0].patches).toHaveLength(2);
+    expect(msg.commits[0].patches[0].kind).toBe('class-change');
+    expect(msg.commits[0].patches[1].kind).toBe('message');
+  });
+
+  // -----------------------------------------------------------------------
+  // n. mark_change_implemented with commitId + results
+  // -----------------------------------------------------------------------
+  it('mark_change_implemented with commitId and per-patch results', async () => {
+    const patch = makePatch();
+
+    overlayWs.send(JSON.stringify({ type: 'PATCH_STAGED', patch }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.draftCount === 1);
+    panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [patch.id] }));
+    await waitForPanelMessage(panelMessages, (m) => m.type === 'QUEUE_UPDATE' && m.committedCount === 1);
+
+    const implResult = await mcpClient.callTool({ name: 'implement_next_change' });
+    const implData = JSON.parse((implResult.content as any[])[0].text);
+    const commitId = implData.commit.id;
+
+    panelMessages.length = 0;
+
+    const result = await mcpClient.callTool({
+      name: 'mark_change_implemented',
+      arguments: {
+        commitId,
+        results: [{ patchId: patch.id, success: true }],
+      },
+    });
+    expect(result.content).toHaveLength(2);
+    const resultData = JSON.parse((result.content as any[])[0].text);
+    expect(resultData.moved).toBe(1);
+
+    const msg = await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.implementedCount === 1,
+    );
+    expect(msg.implementedCount).toBe(1);
+  });
+
+  // -----------------------------------------------------------------------
+  // o. DESIGN_SUBMIT → design patch in draft with image
+  // -----------------------------------------------------------------------
+  it('DESIGN_SUBMIT → panel receives QUEUE_UPDATE with design patch including image', async () => {
+    const designWsConn = await connectWs(port, 'design');
+    const designWs = designWsConn.ws;
+
+    // A small 1x1 red PNG as a data URL
+    const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+    panelMessages.length = 0;
+
+    designWs.send(JSON.stringify({
+      type: 'DESIGN_SUBMIT',
+      image: testImage,
+      componentName: 'Hero',
+      target: { tag: 'div', classes: 'flex items-center', innerText: 'Hello' },
+      context: '<div class="flex items-center">Hello</div>',
+      insertMode: 'before',
+      canvasWidth: 400,
+      canvasHeight: 300,
+    }));
+
+    const msg = await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.draftCount === 1,
+    );
+    expect(msg.draftCount).toBe(1);
+    expect(msg.draft).toHaveLength(1);
+    expect(msg.draft[0].kind).toBe('design');
+    expect(msg.draft[0].image).toBe(testImage);
+    expect(msg.draft[0].component?.name).toBe('Hero');
+
+    designWs.close();
+  });
+
+  // -----------------------------------------------------------------------
+  // p. DESIGN_SUBMIT → overlay receives DESIGN_SUBMITTED with image
+  // -----------------------------------------------------------------------
+  it('DESIGN_SUBMIT → overlay receives DESIGN_SUBMITTED echo', async () => {
+    const designWsConn = await connectWs(port, 'design');
+    const designWs = designWsConn.ws;
+
+    const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+    overlayMessages.length = 0;
+
+    designWs.send(JSON.stringify({
+      type: 'DESIGN_SUBMIT',
+      image: testImage,
+      componentName: 'Card',
+      target: { tag: 'section', classes: 'p-4', innerText: 'Content' },
+      context: '<section class="p-4">Content</section>',
+      insertMode: 'after',
+      canvasWidth: 600,
+      canvasHeight: 400,
+    }));
+
+    const msg = await waitForPanelMessage(overlayMessages, (m) =>
+      m.type === 'DESIGN_SUBMITTED',
+    );
+    expect(msg.type).toBe('DESIGN_SUBMITTED');
+    expect(msg.image).toBe(testImage);
+
+    designWs.close();
+  });
+
+  // -----------------------------------------------------------------------
+  // q. Design patch full lifecycle: stage → commit → implement
+  // -----------------------------------------------------------------------
+  it('design patch flows through commit → implement_next_change → mark_change_implemented', async () => {
+    const designWsConn = await connectWs(port, 'design');
+    const designWs = designWsConn.ws;
+
+    const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+    panelMessages.length = 0;
+
+    designWs.send(JSON.stringify({
+      type: 'DESIGN_SUBMIT',
+      image: testImage,
+      componentName: 'Nav',
+      target: { tag: 'nav', classes: 'flex', innerText: 'Menu' },
+      context: '<nav class="flex">Menu</nav>',
+      insertMode: 'first-child',
+      canvasWidth: 500,
+      canvasHeight: 350,
+    }));
+
+    // Wait for draft
+    const draftMsg = await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.draftCount === 1,
+    );
+    const designPatchId = draftMsg.draft[0].id;
+
+    // Commit the design patch
+    panelMessages.length = 0;
+    panelWs.send(JSON.stringify({ type: 'PATCH_COMMIT', ids: [designPatchId] }));
+    await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.committedCount === 1,
+    );
+
+    // implement_next_change should return the design commit with image
+    panelMessages.length = 0;
+    const implResult = await mcpClient.callTool({ name: 'implement_next_change' });
+    const implData = JSON.parse((implResult.content as any[])[0].text);
+    expect(implData.commit.patches).toHaveLength(1);
+    expect(implData.commit.patches[0].kind).toBe('design');
+    expect(implData.commit.patches[0].image).toBe(testImage);
+
+    // Mark implemented
+    panelMessages.length = 0;
+    await mcpClient.callTool({
+      name: 'mark_change_implemented',
+      arguments: { commitId: implData.commit.id, results: [{ patchId: designPatchId, success: true }] },
+    });
+
+    const finalMsg = await waitForPanelMessage(panelMessages, (m) =>
+      m.type === 'QUEUE_UPDATE' && m.implementedCount === 1,
+    );
+    expect(finalMsg.implementedCount).toBe(1);
+
+    designWs.close();
   });
 });

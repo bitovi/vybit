@@ -102,17 +102,40 @@ export function PatchPopover({
             {items.length === 0 ? (
               <div className="px-3 py-2 text-[11px] text-bv-muted italic">No patches</div>
             ) : (
-              items.map((item) => (
+              items.map((item) => {
+                const isMessage = 'kind' in item && item.kind === 'message';
+                const isDesign = 'kind' in item && item.kind === 'design';
+                return (
                 <div
                   key={item.id}
                   className="flex items-center gap-1.5 px-3 py-1.5 border-b border-bv-border last:border-b-0 group"
                 >
                   <div className="flex-1 min-w-0">
-                    {item.component?.name && (
+                    {!isMessage && !isDesign && item.component?.name && (
                       <div className="text-[10px] text-bv-muted truncate">
                         {item.component.name}
                       </div>
                     )}
+                    {isDesign ? (
+                      <div className="text-[11px] text-bv-text">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span>✏️</span>
+                          <span className="truncate">Drawing{item.component?.name ? ` in ${item.component.name}` : ''}</span>
+                        </div>
+                        {'image' in item && item.image && (
+                          <img
+                            src={item.image as string}
+                            alt="Design drawing"
+                            className="w-full max-h-16 object-contain rounded border border-bv-border bg-white"
+                          />
+                        )}
+                      </div>
+                    ) : isMessage ? (
+                      <div className="text-[11px] text-bv-text truncate">
+                        <span className="mr-1">💬</span>
+                        "{('message' in item && item.message) || ''}"
+                      </div>
+                    ) : (
                     <div className="text-[11px] font-mono text-bv-text truncate">
                       {item.originalClass ? (
                         <>
@@ -124,6 +147,7 @@ export function PatchPopover({
                         <span className="text-bv-teal">+{item.newClass}</span>
                       )}
                     </div>
+                    )}
                   </div>
 
                   {/* Per-item actions (only for staged) */}
@@ -152,7 +176,8 @@ export function PatchPopover({
                     </div>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 

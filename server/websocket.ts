@@ -3,7 +3,9 @@
 import { WebSocketServer, type WebSocket } from "ws";
 import type { Server } from "http";
 
-import { addPatch, commitPatches, getPatchUpdate } from "./queue.js";
+import { addPatch, commitDraft, getQueueUpdate, discardDraftPatch } from "./queue.js";
+import type { Patch } from "../shared/types.js";
+import { addDesignRequest } from "./design-queue.js";
 
 export interface WebSocketDeps {
   broadcastPatchUpdate: () => void;
@@ -11,7 +13,7 @@ export interface WebSocketDeps {
 }
 
 export function setupWebSocket(httpServer: Server): WebSocketDeps {
-  const wss = new WebSocketServer({ server: httpServer });
+  const wss = new WebSocketServer({ server: httpServer, maxPayload: 10 * 1024 * 1024 });
   const clientRoles = new Map<WebSocket, string>();
 
   function broadcastTo(role: string, data: object, exclude?: WebSocket): void {
@@ -24,7 +26,7 @@ export function setupWebSocket(httpServer: Server): WebSocketDeps {
   }
 
   function broadcastPatchUpdate(): void {
-    broadcastTo("panel", { type: "PATCH_UPDATE", ...getPatchUpdate() });
+    broadcastTo("panel", { type: "QUEUE_UPDATE", ...getQueueUpdate() });
   }
 
   wss.on("connection", (ws: WebSocket) => {
@@ -36,11 +38,11 @@ export function setupWebSocket(httpServer: Server): WebSocketDeps {
 
         if (msg.type === "REGISTER") {
           const role = msg.role;
-          if (role === "overlay" || role === "panel") {
+          if (role === "overlay" || role === "panel" || role === "design") {
             clientRoles.set(ws, role);
             console.error(`[ws] Client registered as: ${role}`);
             if (role === "panel") {
-              ws.send(JSON.stringify({ type: "PATCH_UPDATE", ...getPatchUpdate() }));
+              ws.send(JSON.stringify({ type: "QUEUE_UPDATE", ...getQueueUpdate() }));
             }
           }
           return;
@@ -54,15 +56,75 @@ export function setupWebSocket(httpServer: Server): WebSocketDeps {
 
         // Server-handled messages (no "to" field)
         if (msg.type === "PATCH_STAGED") {
-          const patch = addPatch(msg.patch);
+          const patch = addPatch({ ...msg.patch, kind: msg.patch.kind ?? 'class-change' });
           console.error(`[ws] Patch staged: #${patch.id}`);
           broadcastPatchUpdate();
+        } else if (msg.type === "MESSAGE_STAGE") {
+          const patch = addPatch({
+            id: msg.id,
+            kind: 'message',
+            elementKey: msg.elementKey ?? '',
+            status: 'staged',
+            originalClass: '',
+            newClass: '',
+            property: '',
+            timestamp: new Date().toISOString(),
+            message: msg.message,
+            component: msg.component,
+          });
+          console.error(`[ws] Message patch staged: #${patch.id}`);
+          broadcastPatchUpdate();
         } else if (msg.type === "PATCH_COMMIT") {
-          const moved = commitPatches(msg.ids);
-          console.error(`[ws] Patches committed: ${moved}`);
+          const commit = commitDraft(msg.ids);
+          console.error(`[ws] Commit created: #${commit.id} (${commit.patches.length} patches)`);
+          broadcastPatchUpdate();
+        } else if (msg.type === "DISCARD_DRAFTS") {
+          const ids: string[] = msg.ids ?? [];
+          for (const id of ids) {
+            discardDraftPatch(id);
+          }
+          console.error(`[ws] Discarded ${ids.length} draft patch(es)`);
           broadcastPatchUpdate();
         } else if (msg.type === "PING") {
           ws.send(JSON.stringify({ type: "PONG" }));
+        } else if (msg.type === "DESIGN_SUBMIT") {
+          addDesignRequest({
+            image: msg.image,
+            componentName: msg.componentName,
+            target: msg.target,
+            context: msg.context,
+            insertMode: msg.insertMode,
+            canvasWidth: msg.canvasWidth,
+            canvasHeight: msg.canvasHeight,
+          });
+          // Also add as a patch so draft count increases and panel sees it
+          const patch: Patch = {
+            id: crypto.randomUUID(),
+            kind: 'design',
+            elementKey: `${msg.target?.tag ?? ''}.${(msg.target?.classes ?? '').split(' ')[0]}`,
+            status: 'staged',
+            originalClass: '',
+            newClass: '',
+            property: 'design',
+            timestamp: new Date().toISOString(),
+            component: msg.componentName ? { name: msg.componentName } : undefined,
+            target: msg.target,
+            context: msg.context,
+            image: msg.image,
+            insertMode: msg.insertMode,
+            canvasWidth: msg.canvasWidth,
+            canvasHeight: msg.canvasHeight,
+          };
+          addPatch(patch);
+          broadcastPatchUpdate();
+          // Tell the overlay to replace the canvas with a static preview
+          broadcastTo("overlay", {
+            type: "DESIGN_SUBMITTED",
+            image: msg.image,
+          }, ws);
+          console.error(`[ws] Design patch staged: ${patch.id}`);
+        } else if (msg.type === "DESIGN_CLOSE") {
+          broadcastTo("overlay", { type: "DESIGN_CLOSE" }, ws);
         }
       } catch (err) {
         console.error("[ws] Bad message:", err);

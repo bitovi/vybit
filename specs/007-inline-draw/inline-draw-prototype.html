@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inline Drawing Canvas — Prototype Exploration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── DESIGN TOKENS (Bitovi) ──────────────────────────────── */
+    :root {
+      --bg:           #FFFFFF;
+      --page-bg:      #EAECED;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-dark:    #005A5F;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+      --selection-blue: rgba(0, 132, 139, 0.5);
+      --selection-fill: rgba(0, 132, 139, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 24px;
+      max-width: 800px;
+      line-height: 1.6;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────── */
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .section-tag.blue    { background: #3B82F6; }
+    .section-tag.purple  { background: #8B5CF6; }
+    .section-tag.green   { background: #10B981; }
+    .section-tag.amber   { background: #F59E0B; }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    /* ─── SIMULATED PAGE CONTENT ──────────────────────────────── */
+    .page-sim {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: hidden;
+      width: 520px;
+    }
+
+    .page-sim-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .page-sim-bar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+
+    .page-sim-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ─── CARD (target element) ───────────────────────────────── */
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .card p {
+      font-size: 12px;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    .card-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .card-row .card {
+      flex: 1;
+    }
+
+    /* ─── ELEMENT SELECTION HIGHLIGHT ─────────────────────────── */
+    .selected {
+      outline: 2px solid var(--selection-blue);
+      outline-offset: 0px;
+      background: var(--selection-fill);
+    }
+
+    /* ─── INSERT DRAW CONTROL (the pencil button) ─────────────── */
+    .draw-insert-control {
+      position: absolute;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .draw-insert-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      border: 1.5px solid var(--teal);
+      background: var(--bg);
+      color: var(--teal);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--t-fast);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+      position: relative;
+    }
+
+    .draw-insert-btn:hover {
+      background: var(--teal);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0, 132, 139, 0.3);
+    }
+
+    .draw-insert-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ─── INSERT POSITION MENU ────────────────────────────────── */
+    .insert-menu {
+      position: absolute;
+      z-index: 200;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      padding: 4px;
+      min-width: 160px;
+      font-size: 11px;
+    }
+
+    .insert-menu-title {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      padding: 6px 8px 4px;
+    }
+
+    .insert-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      color: var(--text-mid);
+      transition: all var(--t-fast);
+    }
+
+    .insert-menu-item:hover {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .insert-menu-item .im-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      color: var(--muted);
+      transition: all var(--t-fast);
+    }
+
+    .insert-menu-item:hover .im-icon {
+      background: rgba(0, 132, 139, 0.15);
+      color: var(--teal);
+    }
+
+    .insert-menu-item .im-label {
+      font-weight: 500;
+    }
+
+    .insert-menu-item .im-hint {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .insert-menu-item:hover .im-hint {
+      color: var(--teal);
+      opacity: 0.6;
+    }
+
+    .insert-menu-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 3px 0;
+    }
+
+    /* ─── DRAWING FRAME (injected into page) ──────────────────── */
+    .draw-frame {
+      border: 2px dashed var(--teal);
+      border-radius: 6px;
+      background: #FAFBFB;
+      position: relative;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .draw-frame-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 6px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .draw-tool {
+      width: 28px;
+      height: 26px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-mid);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all var(--t-fast);
+    }
+
+    .draw-tool:hover {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .draw-tool.active {
+      background: var(--teal-dim);
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    .draw-tool.disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .draw-tool svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .draw-toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .draw-color-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .draw-color-btn:hover {
+      border-color: var(--teal);
+      transform: scale(1.1);
+    }
+
+    .draw-toolbar-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      margin-left: 2px;
+      margin-right: 4px;
+    }
+
+    .draw-canvas-area {
+      height: 200px;
+      background: #fff;
+      position: relative;
+      cursor: crosshair;
+      overflow: hidden;
+    }
+
+    .draw-canvas-area svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* resize handle */
+    .draw-resize-handle {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      cursor: ns-resize;
+      background: linear-gradient(transparent, rgba(0,132,139,0.06));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .draw-resize-handle::after {
+      content: '';
+      width: 32px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background var(--t-fast);
+    }
+
+    .draw-resize-handle:hover::after {
+      background: var(--teal);
+    }
+
+    /* corner resize */
+    .draw-resize-corner {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+      z-index: 5;
+    }
+
+    .draw-resize-corner::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid var(--border);
+      border-bottom: 2px solid var(--border);
+      transition: border-color var(--t-fast);
+    }
+
+    .draw-resize-corner:hover::after {
+      border-color: var(--teal);
+    }
+
+    /* ─── DRAW FRAME FOOTER BAR ───────────────────────────────── */
+    .draw-frame-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .draw-frame-footer .position-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--muted);
+    }
+
+    .draw-frame-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .draw-btn {
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      font-size: 10px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .draw-btn:hover {
+      border-color: var(--text-mid);
+      color: var(--text);
+    }
+
+    .draw-btn.primary {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #fff;
+    }
+
+    .draw-btn.primary:hover {
+      background: var(--teal-dark);
+      border-color: var(--teal-dark);
+    }
+
+    .draw-btn.danger {
+      color: var(--muted);
+    }
+
+    .draw-btn.danger:hover {
+      background: var(--orange-dim);
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    /* ─── RIGHT PANEL (panel sim) ─────────────────────────────── */
+    .panel-sim {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .comp-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .comp-instances {
+      font-size: 11px;
+      color: var(--text-mid);
+      font-weight: 400;
+    }
+
+    .panel-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-tab {
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-mid);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .panel-tab:hover {
+      color: var(--text);
+    }
+
+    .panel-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--teal);
+    }
+
+    .panel-tab.disabled {
+      color: var(--muted);
+      cursor: default;
+      opacity: 0.5;
+    }
+
+    .panel-body {
+      padding: 12px;
+    }
+
+    /* ─── PATCH CARD (in panel) ────────────────────────────────── */
+    .patch-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .patch-card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .patch-type-badge {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .patch-type-badge.drawing {
+      background: rgba(139, 92, 246, 0.12);
+      color: #7C3AED;
+    }
+
+    .patch-type-badge.classes {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .patch-card-target {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+    }
+
+    .patch-image-preview {
+      width: 100%;
+      height: 60px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      overflow: hidden;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .patch-image-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .patch-image-preview .placeholder-sketch {
+      color: var(--muted);
+      font-size: 10px;
+      font-style: italic;
+    }
+
+    .patch-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+
+    .patch-status {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .patch-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .patch-status-dot.draft { background: var(--muted); }
+    .patch-status-dot.committed { background: var(--teal); }
+
+    /* ─── QUEUE FOOTER (panel) ────────────────────────────────── */
+    .queue-footer {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      background: var(--surface);
+    }
+
+    .queue-footer span { display: flex; align-items: center; gap: 4px; }
+
+    /* ─── NOTE BOX ────────────────────────────────────────────── */
+    .note {
+      background: rgba(59, 130, 246, 0.06);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #445566;
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .note strong { color: #3B82F6; }
+
+    /* ─── ANNOTATED DIAGRAM ───────────────────────────────────── */
+    .annotation {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--teal-dark);
+      letter-spacing: 0.3px;
+      padding: 2px 6px;
+      background: rgba(0, 132, 139, 0.08);
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .callout-arrow {
+      color: var(--teal);
+      font-size: 10px;
+    }
+
+    /* ─── INTERACTIVE DEMOS ───────────────────────────────────── */
+    .draw-insert-hoverable {
+      position: relative;
+    }
+
+    .draw-insert-hoverable .insert-menu {
+      display: none;
+    }
+
+    .draw-insert-hoverable:hover .insert-menu,
+    .draw-insert-hoverable.show-menu .insert-menu {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Inline Drawing Canvas — UX Exploration</h1>
+  <p class="page-subtitle">
+    Prototyping how users insert a drawing canvas into the page flow, the drawing tools available,
+    resizing behavior, and how sketches become queued patches for an AI agent to implement.
+  </p>
+
+  <div class="sections">
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 1: INSERT CONTROL — the Draw button on the highlight
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag blue">1</span>
+        <span class="section-title">Insert Control — Draw Button on Selection Highlight</span>
+      </div>
+      <p class="section-desc">
+        When an element is selected (teal highlight), a small pencil button appears anchored to the
+        selection box. Clicking or hovering reveals a menu to choose insert position:
+        <strong>Before</strong>, <strong>After</strong>, <strong>First child</strong>, or <strong>Last child</strong>.
+      </p>
+
+      <div class="demo-row">
+
+        <!-- Demo: Button placement options -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <span class="annotation">Option A — Button on top-right of selection box</span>
+          <div class="page-sim" style="width: 440px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              localhost:5173
+            </div>
+            <div class="page-sim-body">
+              <div class="card selected" style="position: relative;">
+                <h3>Product Card</h3>
+                <p>A flexible card component with image, title, description and CTA.</p>
+
+                <!-- Draw insert button — anchored top-right outside -->
+                <div class="draw-insert-control" style="top: -13px; right: -13px;">
+                  <div class="draw-insert-hoverable show-menu">
+                    <button class="draw-insert-btn" title="Insert drawing canvas">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                      </svg>
+                    </button>
+
+                    <!-- dropdown menu — open state -->
+                    <div class="insert-menu" style="top: calc(100% + 4px); right: 0;">
+                      <div class="insert-menu-title">Insert Drawing Canvas</div>
+                      <div class="insert-menu-item">
+                        <span class="im-icon">↑</span>
+                        <span class="im-label">Before element</span>
+                        <span class="im-hint">sibling</span>
+                      </div>
+                      <div class="insert-menu-item" style="background: var(--teal-dim); color: var(--teal);">
+                        <span class="im-icon" style="background: rgba(0,132,139,0.15); color: var(--teal);">↓</span>
+                        <span class="im-label">After element</span>
+                        <span class="im-hint" style="color: var(--teal); opacity: 0.6;">sibling</span>
+                      </div>
+                      <div class="insert-menu-sep"></div>
+                      <div class="insert-menu-item">
+                        <span class="im-icon">⤒</span>
+                        <span class="im-label">First child</span>
+                        <span class="im-hint">child</span>
+                      </div>
+                      <div class="insert-menu-item">
+                        <span class="im-icon">⤓</span>
+                        <span class="im-label">Last child</span>
+                        <span class="im-hint">child</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="opacity: 0.5;">
+                <h3>Another Card</h3>
+                <p>Other content below…</p>
+              </div>
+            </div>
+          </div>
+
+          <span class="annotation">Option B — Button on bottom-right of selection box</span>
+          <div class="page-sim" style="width: 440px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              localhost:5173
+            </div>
+            <div class="page-sim-body">
+              <div class="card selected" style="position: relative;">
+                <h3>Product Card</h3>
+                <p>A flexible card component with image, title, description and CTA.</p>
+
+                <!-- Draw insert button — bottom-right -->
+                <div class="draw-insert-control" style="bottom: -13px; right: -13px;">
+                  <div class="draw-insert-hoverable">
+                    <button class="draw-insert-btn" title="Insert drawing canvas">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="opacity: 0.5;">
+                <h3>Another Card</h3>
+                <p>Other content below…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side note -->
+        <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+          <div class="note">
+            <strong>Recommendation:</strong> Place the draw button on the <strong>top-right corner</strong>
+            of the selection highlight. This position is:
+            <ul style="margin-top: 6px; padding-left: 16px;">
+              <li>Close to the existing container switcher button</li>
+              <li>Out of the way of content</li>
+              <li>Consistent with other floating controls in dev tools</li>
+            </ul>
+          </div>
+          <div class="note">
+            <strong>Hover vs click:</strong> The menu should appear on <strong>click</strong> (not hover)
+            to avoid accidental reveals while selecting elements. A click is intentional;
+            hover would be annoying during normal inspection.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 2: THE DRAWING FRAME — injected inline
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag purple">2</span>
+        <span class="section-title">Drawing Frame — Injected Inline in Page Flow</span>
+      </div>
+      <p class="section-desc">
+        After choosing an insert position, a dashed-border frame appears in the page DOM as a sibling/child.
+        It contains a toolbar, a drawing area (Fabric.js canvas), and a footer with actions.
+        The frame is resizable by dragging the bottom edge or corner.
+      </p>
+
+      <div class="demo-row">
+
+        <!-- Demo: Frame inserted AFTER a card -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="annotation"> Inserted after selected element (sibling)</span>
+          <div class="page-sim" style="width: 520px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              localhost:5173
+            </div>
+            <div class="page-sim-body">
+              <!-- Selected element -->
+              <div class="card selected">
+                <h3>Product Card</h3>
+                <p>A flexible card component with image, title, and CTA button.</p>
+              </div>
+
+              <!-- Drawing frame (injected after) -->
+              <div class="draw-frame">
+                <!-- Toolbar -->
+                <div class="draw-frame-toolbar">
+                  <button class="draw-tool active" title="Freehand draw">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 20h9"/>
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Rectangle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Line">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="5" y1="19" x2="19" y2="5"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Arrow">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                      <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Text">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="4 7 4 4 20 4 20 7"/>
+                      <line x1="12" y1="4" x2="12" y2="20"/>
+                      <line x1="8" y1="20" x2="16" y2="20"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Eraser">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
+                      <path d="M22 21H7"/>
+                      <path d="m5 11 9 9"/>
+                    </svg>
+                  </button>
+
+                  <span class="draw-toolbar-sep"></span>
+
+                  <span class="draw-toolbar-label">Fill</span>
+                  <button class="draw-color-btn" style="background: var(--teal);" title="Teal (active color)"></button>
+
+                  <span class="draw-toolbar-label" style="margin-left: 6px;">Stroke</span>
+                  <button class="draw-color-btn" style="background: var(--text);" title="Dark (stroke color)"></button>
+
+                  <span class="draw-toolbar-sep"></span>
+
+                  <button class="draw-tool" title="Undo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="1 4 1 10 7 10"/>
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool disabled" title="Redo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="23 4 23 10 17 10"/>
+                      <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/>
+                    </svg>
+                  </button>
+                  <button class="draw-tool" title="Clear canvas">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Canvas area (simulated with SVG drawings) -->
+                <div class="draw-canvas-area">
+                  <svg viewBox="0 0 480 200">
+                    <!-- Simulated user drawings -->
+                    <rect x="30" y="25" width="120" height="70" rx="6" fill="rgba(0, 132, 139, 0.12)" stroke="#00848B" stroke-width="2"/>
+                    <text x="55" y="65" font-family="Inter, sans-serif" font-size="11" fill="#334041">🖼 Image</text>
+
+                    <rect x="170" y="25" width="180" height="30" rx="4" fill="rgba(245, 83, 45, 0.08)" stroke="#F5532D" stroke-width="1.5" stroke-dasharray="4 2"/>
+                    <text x="185" y="44" font-family="Inter, sans-serif" font-size="10" fill="#687879">Product Title Here</text>
+
+                    <rect x="170" y="65" width="180" height="30" rx="4" fill="rgba(0,0,0,0.03)" stroke="#A3ADAD" stroke-width="1" stroke-dasharray="3 2"/>
+                    <text x="185" y="84" font-family="Inter, sans-serif" font-size="9" fill="#A3ADAD">Description text...</text>
+
+                    <rect x="170" y="110" width="80" height="28" rx="14" fill="#00848B" stroke="none"/>
+                    <text x="185" y="128" font-family="Inter, sans-serif" font-size="10" fill="white" font-weight="600">Buy Now</text>
+
+                    <!-- freehand arrow -->
+                    <path d="M 360 80 Q 380 40 420 30" fill="none" stroke="#F5532D" stroke-width="2" stroke-linecap="round"/>
+                    <polygon points="420,30 415,40 425,38" fill="#F5532D"/>
+                    <text x="365" y="100" font-family="Inter, sans-serif" font-size="9" fill="#F5532D">new badge</text>
+                  </svg>
+
+                  <!-- Resize handles -->
+                  <div class="draw-resize-handle"></div>
+                  <div class="draw-resize-corner"></div>
+                </div>
+
+                <!-- Footer with actions -->
+                <div class="draw-frame-footer">
+                  <span class="position-label">↓ after &lt;div.card&gt; (sibling)</span>
+                  <div class="draw-frame-actions">
+                    <button class="draw-btn danger" title="Remove this canvas">✕ Close</button>
+                    <button class="draw-btn primary">✓ Queue as Change</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Next card (pushed down) -->
+              <div class="card" style="opacity: 0.5;">
+                <h3>Another Card</h3>
+                <p>Content that got pushed down by the drawing frame.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side notes -->
+        <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+          <div class="note">
+            <strong>Styling:</strong> 2px dashed <strong style="color: #00848B;">teal border</strong> distinguishes the canvas
+            from page content. Inline styles only (no class conflicts with target page).
+          </div>
+          <div class="note">
+            <strong>Resize:</strong> Drag bottom edge (↕), right edge (↔), or corner (↘) to resize.
+            Min 200×150px. Width defaults to the selected element's width.
+          </div>
+          <div class="note">
+            <strong>Footer:</strong> Shows insert position context. "Queue as Change" captures the canvas as a
+            PNG + element context and adds it to the draft queue. "Close" removes the frame.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 3: CHILD INSERTION MODE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag green">3</span>
+        <span class="section-title">Child Insertion — Canvas Inside the Selected Element</span>
+      </div>
+      <p class="section-desc">
+        When "First child" or "Last child" is chosen, the canvas is injected inside the element
+        rather than as a sibling. This is useful when designing new content within a container (e.g. adding
+        a new card to a grid, a new row to a list).
+      </p>
+
+      <div class="demo-row">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="annotation">Drawing canvas as last child of a card grid</span>
+          <div class="page-sim" style="width: 560px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              localhost:5173
+            </div>
+            <div class="page-sim-body">
+              <!-- Selected: the grid container -->
+              <div class="selected" style="padding: 8px; border-radius: 6px;">
+                <div class="card-row">
+                  <div class="card">
+                    <h3>Design System</h3>
+                    <p>Reusable component patterns</p>
+                  </div>
+                  <div class="card">
+                    <h3>Performance</h3>
+                    <p>Bundle optimization</p>
+                  </div>
+                </div>
+
+                <!-- Drawing frame as last child -->
+                <div class="draw-frame" style="margin-top: 12px;">
+                  <div class="draw-frame-toolbar">
+                    <button class="draw-tool active" title="Freehand">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                      </svg>
+                    </button>
+                    <button class="draw-tool" title="Rectangle">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                    </button>
+                    <button class="draw-tool" title="Circle">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                    </button>
+                    <button class="draw-tool" title="Line">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg>
+                    </button>
+                    <button class="draw-tool" title="Arrow">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </button>
+                    <button class="draw-tool" title="Text">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg>
+                    </button>
+                    <button class="draw-tool" title="Eraser">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+                    </button>
+                    <span class="draw-toolbar-sep"></span>
+                    <span class="draw-toolbar-label">Fill</span>
+                    <button class="draw-color-btn" style="background: #3B82F6;"></button>
+                    <span class="draw-toolbar-label" style="margin-left: 4px;">Stroke</span>
+                    <button class="draw-color-btn" style="background: var(--text);"></button>
+                    <span class="draw-toolbar-sep"></span>
+                    <button class="draw-tool" title="Undo">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    </button>
+                    <button class="draw-tool disabled" title="Redo">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+                    </button>
+                    <button class="draw-tool" title="Clear">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+
+                  <div class="draw-canvas-area" style="height: 130px;">
+                    <svg viewBox="0 0 520 130">
+                      <!-- Sketched card with "Accessibility" label -->
+                      <rect x="20" y="15" width="200" height="100" rx="8" fill="rgba(59, 130, 246, 0.08)" stroke="#3B82F6" stroke-width="2"/>
+                      <text x="40" y="50" font-family="Inter, sans-serif" font-size="12" fill="#334041" font-weight="600">Accessibility</text>
+                      <text x="40" y="70" font-family="Inter, sans-serif" font-size="10" fill="#687879">Ensure your app is</text>
+                      <text x="40" y="82" font-family="Inter, sans-serif" font-size="10" fill="#687879">usable by everyone</text>
+
+                      <!-- Second sketched card -->
+                      <rect x="240" y="15" width="200" height="100" rx="8" fill="rgba(59, 130, 246, 0.08)" stroke="#3B82F6" stroke-width="2" stroke-dasharray="6 3"/>
+                      <text x="290" y="55" font-family="Inter, sans-serif" font-size="11" fill="#A3ADAD">+ New card?</text>
+                    </svg>
+                    <div class="draw-resize-handle"></div>
+                    <div class="draw-resize-corner"></div>
+                  </div>
+
+                  <div class="draw-frame-footer">
+                    <span class="position-label">⤓ last child of &lt;section.grid&gt;</span>
+                    <div class="draw-frame-actions">
+                      <button class="draw-btn danger">✕ Close</button>
+                      <button class="draw-btn primary">✓ Queue as Change</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 4: PANEL — DRAW TAB & QUEUED PATCHES
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag amber">4</span>
+        <span class="section-title">Panel — Draw Tab & How Drawing Patches Appear in the Queue</span>
+      </div>
+      <p class="section-desc">
+        After "Queue as Change", the drawing becomes a patch in the queue — visible in the panel's footer
+        and in the Draw tab. The patch carries a thumbnail preview of the sketch, the target element context,
+        and the insert position. The AI agent receives this as a multi-part message with the image inline.
+      </p>
+
+      <div class="demo-row">
+        <!-- Panel with Draw tab active, showing queued drawing patches -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="annotation">Panel — Draw tab showing queued design patches</span>
+          <div class="panel-sim">
+            <div class="panel-header">
+              <div class="panel-header-row">
+                <div>
+                  <span class="comp-name">ProductCard</span>
+                  <span class="comp-instances">— 3 instances on this page</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-tabs">
+              <div class="panel-tab">Design</div>
+              <div class="panel-tab">Message</div>
+              <div class="panel-tab active">Draw</div>
+            </div>
+
+            <div class="panel-body" style="max-height: 360px; overflow-y: auto;">
+              <!-- Queued drawing patch #1 -->
+              <div class="patch-card">
+                <div class="patch-card-header">
+                  <span class="patch-type-badge drawing">Drawing</span>
+                  <span class="patch-card-target">&lt;div.card&gt; → after (sibling)</span>
+                </div>
+                <div class="patch-image-preview">
+                  <svg viewBox="0 0 280 55" style="width: 100%; height: 100%;">
+                    <rect x="5" y="5" width="60" height="40" rx="3" fill="rgba(0,132,139,0.1)" stroke="#00848B" stroke-width="1"/>
+                    <text x="14" y="28" font-family="Inter" font-size="6" fill="#687879">🖼 Image</text>
+                    <rect x="75" y="5" width="100" height="15" rx="2" fill="rgba(245,83,45,0.08)" stroke="#F5532D" stroke-width="0.5"/>
+                    <rect x="75" y="25" width="100" height="10" rx="2" fill="rgba(0,0,0,0.03)" stroke="#ccc" stroke-width="0.5"/>
+                    <rect x="75" y="40" width="40" height="12" rx="6" fill="#00848B"/>
+                    <text x="82" y="49" font-family="Inter" font-size="5" fill="white">Buy Now</text>
+                  </svg>
+                </div>
+                <div class="patch-card-meta">
+                  <span class="patch-status">
+                    <span class="patch-status-dot draft"></span>
+                    draft
+                  </span>
+                  <span>12:34 PM</span>
+                </div>
+              </div>
+
+              <!-- Queued drawing patch #2 -->
+              <div class="patch-card">
+                <div class="patch-card-header">
+                  <span class="patch-type-badge drawing">Drawing</span>
+                  <span class="patch-card-target">&lt;section.grid&gt; → last child</span>
+                </div>
+                <div class="patch-image-preview">
+                  <svg viewBox="0 0 280 55" style="width: 100%; height: 100%;">
+                    <rect x="5" y="5" width="90" height="42" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3B82F6" stroke-width="1"/>
+                    <text x="15" y="22" font-family="Inter" font-size="6" fill="#334041" font-weight="600">Accessibility</text>
+                    <text x="15" y="33" font-family="Inter" font-size="5" fill="#687879">Ensure your app</text>
+                    <rect x="110" y="5" width="90" height="42" rx="4" fill="rgba(59,130,246,0.06)" stroke="#3B82F6" stroke-width="1" stroke-dasharray="3 2"/>
+                    <text x="130" y="28" font-family="Inter" font-size="6" fill="#A3ADAD">+ New card?</text>
+                  </svg>
+                </div>
+                <div class="patch-card-meta">
+                  <span class="patch-status">
+                    <span class="patch-status-dot committed"></span>
+                    committed
+                  </span>
+                  <span>12:31 PM</span>
+                </div>
+              </div>
+
+              <!-- Existing class-change patch for comparison -->
+              <div class="patch-card" style="opacity: 0.6;">
+                <div class="patch-card-header">
+                  <span class="patch-type-badge classes">Classes</span>
+                  <span class="patch-card-target">&lt;div.card&gt; → px-4 → px-6</span>
+                </div>
+                <div class="patch-card-meta">
+                  <span class="patch-status">
+                    <span class="patch-status-dot draft"></span>
+                    draft
+                  </span>
+                  <span>12:28 PM</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="queue-footer">
+              <span><span class="patch-status-dot draft" style="display: inline-block;"></span> 2 draft</span>
+              <span><span class="patch-status-dot committed" style="display: inline-block;"></span> 1 committed</span>
+              <span>0 implementing</span>
+              <span>0 implemented</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side notes about MCP delivery -->
+        <div style="max-width: 360px; display: flex; flex-direction: column; gap: 12px;">
+          <div class="note">
+            <strong>Patch types:</strong> The queue now holds two types of patches:
+            <ul style="margin-top: 6px; padding-left: 16px;">
+              <li><strong style="color: #7C3AED;">Drawing</strong> — base64 PNG image + element context + insert position</li>
+              <li><strong style="color: #00848B;">Classes</strong> — existing Tailwind class change patches</li>
+            </ul>
+          </div>
+          <div class="note">
+            <strong>MCP delivery:</strong> When the agent calls <code style="font-family: var(--font-mono); font-size: 10px; background: var(--surface); padding: 1px 4px; border-radius: 3px;">implement_next_change</code>,
+            drawing patches are returned as <strong>multi-part content</strong> — an image block (PNG)
+            alongside a text block with the element context, component name, and instructions
+            for what to build. This lets vision-capable models "see" the sketch.
+          </div>
+          <div class="note">
+            <strong>Drawing patch payload:</strong>
+            <pre style="font-family: var(--font-mono); font-size: 9px; margin-top: 6px; background: var(--surface); padding: 6px; border-radius: 4px; overflow-x: auto; white-space: pre; line-height: 1.5;">{
+  type: "drawing",
+  image: "data:image/png;base64,…",
+  componentName: "ProductCard",
+  target: {
+    tag: "div",
+    classes: "flex flex-col gap-4 p-6"
+  },
+  context: "&lt;section class=\"grid\"&gt;…",
+  insertMode: "sibling",
+  position: "after"
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 5: FULL FLOW — End to End
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag blue">5</span>
+        <span class="section-title">Full Flow — Step by Step</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px; max-width: 800px;">
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #3B82F6; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">1</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Click element on page</div>
+            <div style="font-size: 11px; color: var(--text-mid);">Teal selection highlight appears. Pencil (✎) button shows on the highlight corner.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #3B82F6; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">2</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Click the pencil button</div>
+            <div style="font-size: 11px; color: var(--text-mid);">Position menu opens: Before, After, First child, Last child</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #3B82F6; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">3</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Choose insert position</div>
+            <div style="font-size: 11px; color: var(--text-mid);">Drawing frame appears in the page flow at the chosen position. Toolbar, canvas, and footer render inline.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #3B82F6; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">4</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Draw your design</div>
+            <div style="font-size: 11px; color: var(--text-mid);">Use freehand, shapes, text, colors. Resize the frame by dragging edges/corners. Undo/redo as needed.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #3B82F6; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">5</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Click "Queue as Change"</div>
+            <div style="font-size: 11px; color: var(--text-mid);">Canvas → PNG → queued as a draft drawing patch. Thumbnail shows in the Draw tab. Drawing frame stays open for edits.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #3B82F6; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">6</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Commit the change</div>
+            <div style="font-size: 11px; color: var(--text-mid);">Commit from the queue footer (same flow as class changes). Drawing patch transitions to "committed" status.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-start; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+          <div style="background: #10B981; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">7</div>
+          <div>
+            <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">Agent receives multi-part content</div>
+            <div style="font-size: 11px; color: var(--text-mid);">
+              MCP <code style="font-family: var(--font-mono); font-size: 10px; background: var(--surface); padding: 1px 4px; border-radius: 2px;">implement_next_change</code> returns:
+              <strong>image block</strong> (PNG of sketch) + <strong>text block</strong> (component name, DOM context, insert position, instructions).
+              Vision-capable agents "see" what to build.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 6: COLOR PALETTE POPUP
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag green">6</span>
+        <span class="section-title">Color Palette — In the Drawing Toolbar</span>
+      </div>
+      <p class="section-desc">
+        Clicking the fill or stroke color button opens a small inline palette.
+        Starts with basic drawing colors. In the future, the palette will be populated from the user's
+        Tailwind theme (their app's color tokens) — but a sensible default set works for v1.
+      </p>
+
+      <div class="demo-row">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="annotation">Color palette popup from toolbar</span>
+
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; width: 360px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+            <!-- mini toolbar context -->
+            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+              <span class="draw-toolbar-label">Fill color</span>
+              <button class="draw-color-btn" style="background: #3B82F6; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.3);"></button>
+              <span style="font-size: 9px; color: var(--muted); margin-left: 4px;">← active</span>
+            </div>
+
+            <!-- Palette popup -->
+            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); padding: 8px; width: 200px;">
+              <div style="font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px;">Basic</div>
+              <div style="display: grid; grid-template-columns: repeat(6, 22px); gap: 4px; margin-bottom: 8px;">
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #000000; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #ffffff; border: 1px solid #ddd; cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #9CA3AF; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #EF4444; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #F97316; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #EAB308; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #22C55E; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #3B82F6; border: 2px solid #3B82F6; cursor: pointer; box-shadow: 0 0 0 2px rgba(59,130,246,0.3);"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #8B5CF6; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #EC4899; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #14B8A6; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: #6366F1; border: 1px solid rgba(0,0,0,0.1); cursor: pointer;"></div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border);">
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 50%/10px 10px; border: 1px solid #ddd; cursor: pointer;"></div>
+                <span style="font-size: 9px; color: var(--muted);">None (transparent)</span>
+              </div>
+            </div>
+
+            <!-- Future enhancement note -->
+            <div style="margin-top: 12px; padding: 8px 10px; background: rgba(59,130,246,0.06); border: 1px dashed rgba(59,130,246,0.25); border-radius: 6px; font-size: 10px; color: #556677; line-height: 1.5;">
+              <strong style="color: #3B82F6;">Future:</strong> Palette populated from the user's Tailwind theme colors
+              (via <code style="font-family: var(--font-mono); font-size: 9px; background: var(--surface); padding: 1px 3px; border-radius: 2px;">/tailwind-config</code> endpoint).
+              The server already resolves theme tokens — we'd add a "Theme Colors" section above "Basic" showing the app's actual palette.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 7: RESIZE BEHAVIOR
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag purple">7</span>
+        <span class="section-title">Resize Behavior — Drag Handles</span>
+      </div>
+      <p class="section-desc">
+        The drawing frame has three resize zones matching the existing SidebarContainer pattern.
+      </p>
+
+      <div class="demo-row">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="annotation">Resize handle zones</span>
+          <div style="position: relative; width: 400px; height: 220px; border: 2px dashed var(--teal); border-radius: 6px; background: #fff;">
+            <!-- Labels -->
+            <div style="position: absolute; top: 50%; right: -3px; transform: translateY(-50%); width: 6px; height: 60px; background: rgba(0,132,139,0.15); border-radius: 3px; cursor: ew-resize;"></div>
+            <div style="position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); width: 60px; height: 6px; background: rgba(0,132,139,0.15); border-radius: 3px; cursor: ns-resize;"></div>
+            <div style="position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; cursor: nwse-resize;">
+              <div style="position: absolute; bottom: 2px; right: 2px; width: 10px; height: 10px; border-right: 2.5px solid var(--teal); border-bottom: 2.5px solid var(--teal); opacity: 0.5;"></div>
+            </div>
+
+            <!-- Zone labels -->
+            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--teal); font-family: var(--font-mono);">↔ ew-resize</div>
+            <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--teal); font-family: var(--font-mono);">↕ ns-resize</div>
+            <div style="position: absolute; bottom: 22px; right: 24px; font-size: 9px; color: var(--teal); font-family: var(--font-mono);">↘ nwse-resize</div>
+
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; color: var(--muted); text-align: center;">
+              Drawing canvas area<br>
+              <span style="font-size: 9px; font-family: var(--font-mono);">min: 200×150px</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="max-width: 300px;">
+          <div class="note">
+            <strong>Behavior:</strong>
+            <ul style="margin-top: 6px; padding-left: 16px; line-height: 1.8;">
+              <li><strong>Right edge</strong> — horizontal resize (ew-resize cursor)</li>
+              <li><strong>Bottom edge</strong> — vertical resize (ns-resize cursor)</li>
+              <li><strong>Bottom-right corner</strong> — both axes (nwse-resize cursor)</li>
+              <li>Minimum size: 200px × 150px</li>
+              <li>Default width: match selected element's width</li>
+              <li>Default height: 300px</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 8: MULTI-PART MCP RESPONSE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag amber">8</span>
+        <span class="section-title">Agent Delivery — Multi-Part MCP Content</span>
+      </div>
+      <p class="section-desc">
+        When the agent calls <code style="font-family: var(--font-mono); font-size: 11px; background: var(--surface); padding: 1px 4px; border-radius: 3px;">implement_next_change</code>
+        and the next change is a drawing, the MCP response includes both image and text content blocks.
+      </p>
+
+      <div style="max-width: 700px;">
+        <pre style="font-family: var(--font-mono); font-size: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; line-height: 1.7; overflow-x: auto; white-space: pre; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">{
+  <span style="color: #8B5CF6;">"content"</span>: [
+    {
+      <span style="color: #8B5CF6;">"type"</span>: <span style="color: #22C55E;">"text"</span>,
+      <span style="color: #8B5CF6;">"text"</span>: <span style="color: #22C55E;">"## Design Request\n\nThe user has drawn a design sketch for a new UI element.\n\n**Component:** ProductCard\n**Target:** &lt;div class=\"flex flex-col gap-4 p-6\"&gt;\n**Position:** Insert AFTER the target element (as sibling)\n**Canvas size:** 480×200px\n\n**Context (surrounding DOM):**\n```html\n&lt;section class=\"grid grid-cols-3\"&gt;\n  &lt;div class=\"flex flex-col gap-4 p-6\"&gt; &lt;!-- TARGET --&gt;\n    ...\n  &lt;/div&gt;\n&lt;/section&gt;\n```\n\nPlease implement what the user has sketched in the attached image. The sketch shows the intended layout and visual hierarchy. Create appropriate React JSX with Tailwind classes.\n\nAfter implementing, call mark_change_implemented."</span>
+    },
+    {
+      <span style="color: #8B5CF6;">"type"</span>: <span style="color: #22C55E;">"image"</span>,
+      <span style="color: #8B5CF6;">"data"</span>: <span style="color: #687879;">"iVBORw0KGgoAAAANSUhEUgAA..."</span>,
+      <span style="color: #8B5CF6;">"mimeType"</span>: <span style="color: #22C55E;">"image/png"</span>
+    }
+  ]
+}</pre>
+      </div>
+
+      <div style="max-width: 700px; margin-top: 12px;">
+        <div class="note">
+          <strong>Why multi-part?</strong> MCP content arrays support mixed types. By sending the sketch as an
+          <code style="font-family: var(--font-mono); font-size: 10px;">image</code> content block (not base64 in a text string),
+          vision-capable models like GPT-4o or Claude can directly "see" the drawing.
+          The text block provides structured context the model needs to know <em>where</em> in the code to implement it.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Spacer -->
+  <div style="height: 80px;"></div>
+
+</body>
+</html>

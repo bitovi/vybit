@@ -9,7 +9,7 @@ import path from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { getByStatus, getCounts, getNextCommitted, markImplementing, markImplemented, clearAll, onCommitted } from "./queue.js";
+import { getByStatus, getCounts, getNextCommitted, markCommitImplementing, markCommitImplemented, markImplementing, markImplemented, clearAll, onCommitted, getQueueUpdate } from "./queue.js";
 import { createApp } from "./app.js";
 import { setupWebSocket } from "./websocket.js";
 import { registerMcpTools } from "./mcp-tools.js";
@@ -41,10 +41,13 @@ registerMcpTools(mcp, {
   broadcastPatchUpdate,
   getNextCommitted,
   onCommitted,
+  markCommitImplementing,
+  markCommitImplemented,
   markImplementing,
   markImplemented,
   getByStatus,
   getCounts,
+  getQueueUpdate,
   clearAll,
 });
 

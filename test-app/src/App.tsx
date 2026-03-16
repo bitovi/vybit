@@ -2,6 +2,44 @@ import { Button } from './components/Button'
 import { Card } from './components/Card'
 import { Badge } from './components/Badge'
 
+const CASES = [
+  { id: 1, title: 'Vehicle Accident Report', code: '#CAS-001' },
+  { id: 2, title: 'Insurance Claim Dispute', code: '#CAS-002' },
+  { id: 3, title: 'Policy Coverage Inquiry', code: '#CAS-003' },
+  { id: 4, title: 'Premium Adjustment Request', code: '#CAS-004' },
+  { id: 5, title: 'Billing Discrepancy', code: '#CAS-005' },
+]
+
+// Intentionally no CaseListItem component — items rendered inline via .map()
+// This tests the findInlineRepeatedNodes fallback.
+function CaseList() {
+  const activeId = 2
+  return (
+    <div className="flex flex-col gap-2">
+      {CASES.map(c => (
+        <a
+          key={c.id}
+          href="#"
+          className={`flex items-center justify-between px-4 py-4 rounded-lg transition-colors ${
+            c.id === activeId ? 'bg-teal-50 border border-teal-300' : 'hover:bg-gray-100 border border-transparent'
+          }`}
+        >
+          <div className="flex flex-col items-start text-sm leading-snug">
+            <p className="font-semibold text-teal-700 truncate">{c.title}</p>
+            <p className="font-normal text-gray-600 truncate">{c.code}</p>
+          </div>
+          <div className="flex items-center gap-2 ml-3 shrink-0">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">open</span>
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function App() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -56,6 +94,12 @@ function App() {
           <Badge color="yellow">Pending</Badge>
           <Badge color="red">Rejected</Badge>
           <Badge color="gray">Draft</Badge>
+        </div>
+
+        {/* Inline list — tests findInlineRepeatedNodes fallback (no CaseListItem component) */}
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Case List (inline .map(), no item component)</h2>
+        <div className="bg-white rounded-lg shadow p-4 mb-12 w-72">
+          <CaseList />
         </div>
 
         {/* Nested structure — tests deep fiber walking */}

@@ -149,7 +149,11 @@ test.describe('BoxModel panel integration', () => {
     const panel = await openPanelForPrimaryButton(page);
 
     // The Primary button has px-4 py-2 — the 'l' slot (pl) is empty and shows placeholder 'l'.
-    // Target the 'l' slot within the padding ring specifically.
+    // Hover the padding ring first to reveal empty slots, then click the 'l' slot.
+    const paddingRing = panel.locator('[data-layer="padding"]');
+    await paddingRing.hover();
+    await page.waitForTimeout(300);
+
     const lSlot = panel.locator('[data-layer="padding"] span.bm-slot', { hasText: /^l$/ });
     await lSlot.click();
     await page.waitForTimeout(300);

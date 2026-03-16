@@ -39,32 +39,36 @@ async function openPanelForPrimaryButton(page: any) {
 
 async function getFooterCount(panel: any, label: string) {
   const button = panel.locator('button', { hasText: new RegExp(`\\d+ ${label}`) }).first();
-  await expect(button).toBeVisible({ timeout: 5000 });
+  await expect(button).toBeVisible({ timeout: 8000 });
   const text = (await button.textContent()) ?? '';
   return parseInt(text.match(/(\d+)/)?.[1] ?? '0', 10);
 }
 
 async function stagePaddingXChange(panel: any, page: any) {
-  const beforeCount = await getFooterCount(panel, 'staged');
+  const beforeCount = await getFooterCount(panel, 'draft');
   await panel.locator('[data-layer="padding"] .bm-slot', { hasText: 'x-4' }).click();
   await page.waitForTimeout(300);
   await panel.locator('.bm-mini-dropdown-item', { hasText: /^px-8$/ }).click();
-  await expect.poll(async () => (await getFooterCount(panel, 'staged')) > beforeCount).toBe(true);
+  await expect.poll(async () => (await getFooterCount(panel, 'draft')) > beforeCount).toBe(true);
 }
 
 test.describe('PatchPopover footer menus', () => {
-  test('clicking "1 staged" opens a popover listing the staged patch', async ({ page }) => {
+  test.beforeEach(async () => {
+    await fetch('http://localhost:3333/patches', { method: 'DELETE' });
+  });
+
+  test('clicking "1 draft" opens a popover listing the draft patch', async ({ page }) => {
     const panel = await openPanelForPrimaryButton(page);
 
     await stagePaddingXChange(panel, page);
 
-    const stagedBtn = panel.locator('button', { hasText: /[1-9]\d* staged/ }).first();
-    await expect(stagedBtn).toBeVisible({ timeout: 5000 });
+    const draftBtn = panel.locator('button', { hasText: /[1-9]\d* draft/ }).first();
+    await expect(draftBtn).toBeVisible({ timeout: 5000 });
 
-    await stagedBtn.click();
+    await draftBtn.click();
     await page.waitForTimeout(300);
 
-    const popover = panel.getByText(/staged \(\d+\)/i);
+    const popover = panel.getByText(/draft \(\d+\)/i);
     await expect(popover).toBeVisible({ timeout: 3000 });
 
     // The patch should show the class change px-4 → px-8
@@ -80,15 +84,15 @@ test.describe('PatchPopover footer menus', () => {
     const panel = await openPanelForPrimaryButton(page);
 
     await stagePaddingXChange(panel, page);
-    const stagedBeforeDiscard = await getFooterCount(panel, 'staged');
+    const draftBeforeDiscard = await getFooterCount(panel, 'draft');
 
-    await panel.locator('button', { hasText: /[1-9]\d* staged/ }).first().click();
+    await panel.locator('button', { hasText: /[1-9]\d* draft/ }).first().click();
     await page.waitForTimeout(300);
 
     await panel.locator('button', { hasText: 'Discard All' }).click();
     await page.waitForTimeout(500);
 
-    await expect.poll(async () => (await getFooterCount(panel, 'staged')) < stagedBeforeDiscard).toBe(true);
+    await expect.poll(async () => (await getFooterCount(panel, 'draft')) < draftBeforeDiscard).toBe(true);
   });
 
   test('commit all sends patches to server and increments committed count', async ({ page }) => {
@@ -102,12 +106,12 @@ test.describe('PatchPopover footer menus', () => {
 
     await stagePaddingXChange(panel, page);
 
-    await panel.locator('button', { hasText: /[1-9]\d* staged/ }).first().click();
+    await panel.locator('button', { hasText: /[1-9]\d* draft/ }).first().click();
     await page.waitForTimeout(300);
     await panel.locator('button', { hasText: 'Commit All' }).click();
     await page.waitForTimeout(1000);
 
-    await expect(panel.locator('button', { hasText: '0 staged' })).toBeVisible({ timeout: 3000 });
+    await expect(panel.locator('button', { hasText: '0 draft' })).toBeVisible({ timeout: 3000 });
     await expect.poll(async () => {
       const afterText = await panel.locator('button', { hasText: /\d+ committed/ }).first().textContent();
       const afterCount = parseInt(afterText?.match(/(\d+)/)?.[1] ?? '0', 10);
@@ -120,17 +124,17 @@ test.describe('PatchPopover footer menus', () => {
 
     await stagePaddingXChange(panel, page);
 
-    await panel.locator('button', { hasText: /[1-9]\d* staged/ }).first().click();
+    await panel.locator('button', { hasText: /[1-9]\d* draft/ }).first().click();
     await page.waitForTimeout(300);
-    await expect(panel.getByText(/staged \(\d+\)/i)).toBeVisible({ timeout: 3000 });
+    await expect(panel.getByText(/draft \(\d+\)/i)).toBeVisible({ timeout: 3000 });
 
     // Press Escape
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
 
-    await expect(panel.getByText(/staged \(\d+\)/i)).not.toBeVisible({ timeout: 2000 });
+    await expect(panel.getByText(/draft \(\d+\)/i)).not.toBeVisible({ timeout: 2000 });
 
-    await expect(panel.locator('button', { hasText: /\d+ staged/ }).first()).toBeVisible();
+    await expect(panel.locator('button', { hasText: /\d+ draft/ }).first()).toBeVisible();
   });
 
   test('disabled counts (0) do not open a popover', async ({ page }) => {

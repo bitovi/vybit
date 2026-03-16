@@ -5,11 +5,11 @@ import cors from "cors";
 import { request as makeRequest } from "http";
 import path from "path";
 
-import { getByStatus, getPatchUpdate } from "./queue.js";
+import { getByStatus, getQueueUpdate, clearAll } from "./queue.js";
 import { resolveTailwindConfig, generateCssForClasses, getTailwindVersion } from "./tailwind.js";
 import type { PatchStatus } from "../shared/types.js";
 
-const VALID_STATUSES = new Set<string>(['staged', 'committed', 'implementing', 'implemented']);
+const VALID_STATUSES = new Set<string>(['staged', 'committed', 'implementing', 'implemented', 'error']);
 
 export function createApp(packageRoot: string): express.Express {
   const app = express();
@@ -70,9 +70,14 @@ export function createApp(packageRoot: string): express.Express {
       }
       res.json(getByStatus(status as PatchStatus));
     } else {
-      const update = getPatchUpdate();
+      const update = getQueueUpdate();
       res.json(update);
     }
+  });
+
+  app.delete("/patches", (_req, res) => {
+    clearAll();
+    res.json({ ok: true });
   });
 
   // --- Serve Panel app ---

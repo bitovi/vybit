@@ -1,53 +1,69 @@
 import { useState, useCallback, useRef } from 'react';
-import type { Patch, PatchStatus, PatchSummary } from '../../../shared/types';
+import type { Patch, PatchStatus, PatchSummary, CommitSummary } from '../../../shared/types';
 import { sendTo, send } from '../ws';
 
 export interface PatchCounts {
-  staged: number;
+  /** Number of patches in the draft (local staged count) */
+  draft: number;
+  /** Number of commits with status 'committed' */
   committed: number;
+  /** Number of commits with status 'implementing' */
   implementing: number;
+  /** Number of commits with status 'implemented' */
   implemented: number;
+  /** Number of commits with status 'partial' */
+  partial: number;
+  /** Number of commits with status 'error' */
+  error: number;
 }
 
-export interface ServerPatches {
-  staged: PatchSummary[];
-  committed: PatchSummary[];
-  implementing: PatchSummary[];
-  implemented: PatchSummary[];
+export interface QueueState {
+  draft: PatchSummary[];
+  commits: CommitSummary[];
 }
 
 export interface PatchManager {
-  /** All patches for the current element (staged only — committed patches live on the server) */
+  /** All local draft patches (staged only — committed patches live on the server) */
   patches: Patch[];
-  /** Counts across all statuses (staged is local, rest from server) */
+  /** Counts across all statuses */
   counts: PatchCounts;
-  /** Server-side patch summaries by status */
-  serverPatches: ServerPatches;
+  /** Full queue state from server */
+  queueState: QueueState;
   /** Live-preview a class swap in the overlay */
   preview: (oldClass: string, newClass: string) => void;
   /** Revert any active preview in the overlay */
   revertPreview: () => void;
-  /** Stage a change — upserts by (elementKey, property). Removes if newClass === originalClass. */
+  /** Stage a class-change — upserts by (elementKey, property). Removes if newClass === originalClass. */
   stage: (elementKey: string, property: string, originalClass: string, newClass: string) => void;
+  /** Stage a message patch */
+  stageMessage: (message: string, elementKey: string, componentName?: string) => void;
   /** Commit all staged patches to the server */
   commitAll: () => void;
   /** Discard a single staged patch by id */
   discard: (id: string) => void;
   /** Discard all staged patches */
   discardAll: () => void;
-  /** Reset all local state (on element change) */
+  /** Reset local UI state (on element change) — does NOT clear patches */
   reset: () => void;
-  /** Handle a PATCH_UPDATE message from the server */
+  /** Handle a QUEUE_UPDATE message from the server */
+  handleQueueUpdate: (data: {
+    draftCount: number; committedCount: number; implementingCount: number;
+    implementedCount: number; partialCount: number; errorCount: number;
+    draft: PatchSummary[]; commits: CommitSummary[];
+  }) => void;
+  /** @deprecated Handle a legacy PATCH_UPDATE message */
   handlePatchUpdate: (data: {
     staged: number; committed: number; implementing: number; implemented: number;
-    patches: ServerPatches;
+    patches: { staged: PatchSummary[]; committed: PatchSummary[]; implementing: PatchSummary[]; implemented: PatchSummary[] };
   }) => void;
 }
 
 export function usePatchManager(): PatchManager {
   const [patches, setPatches] = useState<Patch[]>([]);
-  const [serverCounts, setServerCounts] = useState({ staged: 0, committed: 0, implementing: 0, implemented: 0 });
-  const [serverPatches, setServerPatches] = useState<ServerPatches>({ staged: [], committed: [], implementing: [], implemented: [] });
+  const [serverCounts, setServerCounts] = useState<PatchCounts>({
+    draft: 0, committed: 0, implementing: 0, implemented: 0, partial: 0, error: 0,
+  });
+  const [queueState, setQueueState] = useState<QueueState>({ draft: [], commits: [] });
   const patchesRef = useRef(patches);
   patchesRef.current = patches;
 
@@ -62,7 +78,7 @@ export function usePatchManager(): PatchManager {
   const stage = useCallback((elementKey: string, property: string, originalClass: string, newClass: string) => {
     // Self-removal: if reverting to original, remove the patch
     if (newClass === originalClass) {
-      setPatches(prev => prev.filter(p => !(p.elementKey === elementKey && p.property === property)));
+      setPatches(prev => prev.filter(p => !(p.kind === 'class-change' && p.elementKey === elementKey && p.property === property)));
       sendTo('overlay', { type: 'PATCH_REVERT' });
       return;
     }
@@ -70,10 +86,11 @@ export function usePatchManager(): PatchManager {
     const id = crypto.randomUUID();
 
     setPatches(prev => {
-      // Dedup: remove existing patch for same element+property
-      const filtered = prev.filter(p => !(p.elementKey === elementKey && p.property === property));
+      // Dedup: remove existing class-change patch for same element+property
+      const filtered = prev.filter(p => !(p.kind === 'class-change' && p.elementKey === elementKey && p.property === property));
       const patch: Patch = {
         id,
+        kind: 'class-change',
         elementKey,
         status: 'staged',
         originalClass,
@@ -94,6 +111,32 @@ export function usePatchManager(): PatchManager {
     });
   }, []);
 
+  const stageMessage = useCallback((message: string, elementKey: string, componentName?: string) => {
+    const id = crypto.randomUUID();
+    const component = componentName ? { name: componentName } : undefined;
+
+    setPatches(prev => {
+      const patch: Patch = {
+        id,
+        kind: 'message',
+        elementKey,
+        status: 'staged',
+        originalClass: '',
+        newClass: '',
+        property: '',
+        timestamp: new Date().toISOString(),
+        message,
+        component,
+      };
+      return [...prev, patch];
+    });
+
+    // Send message patch directly to server (no overlay context needed)
+    send(component
+      ? { type: 'MESSAGE_STAGE', id, message, elementKey, component }
+      : { type: 'MESSAGE_STAGE', id, message, elementKey });
+  }, []);
+
   const commitAll = useCallback(() => {
     const current = patchesRef.current;
     const stagedIds = current.filter(p => p.status === 'staged').map(p => p.id);
@@ -102,54 +145,84 @@ export function usePatchManager(): PatchManager {
     // Send commit to server
     send({ type: 'PATCH_COMMIT', ids: stagedIds });
 
-    // Move local patches to committed
-    setPatches(prev =>
-      prev.map(p => stagedIds.includes(p.id) ? { ...p, status: 'committed' as PatchStatus } : p)
-    );
+    // Clear local patches (they now live on the server as a commit)
+    setPatches([]);
   }, []);
 
   const discard = useCallback((id: string) => {
     setPatches(prev => prev.filter(p => p.id !== id));
+    send({ type: 'DISCARD_DRAFTS', ids: [id] });
     sendTo('overlay', { type: 'PATCH_REVERT' });
   }, []);
 
   const discardAll = useCallback(() => {
+    const ids = patchesRef.current.filter(p => p.status === 'staged').map(p => p.id);
     setPatches([]);
+    if (ids.length > 0) {
+      send({ type: 'DISCARD_DRAFTS', ids });
+    }
     sendTo('overlay', { type: 'PATCH_REVERT' });
   }, []);
 
   const reset = useCallback(() => {
-    setPatches([]);
+    // Only reset local UI state — patches persist across element switches
   }, []);
 
+  const handleQueueUpdate = useCallback((data: {
+    draftCount: number; committedCount: number; implementingCount: number;
+    implementedCount: number; partialCount: number; errorCount: number;
+    draft: PatchSummary[]; commits: CommitSummary[];
+  }) => {
+    setServerCounts({
+      draft: data.draftCount,
+      committed: data.committedCount,
+      implementing: data.implementingCount,
+      implemented: data.implementedCount,
+      partial: data.partialCount,
+      error: data.errorCount,
+    });
+    setQueueState({ draft: data.draft, commits: data.commits });
+  }, []);
+
+  // Legacy handler for backward compatibility
   const handlePatchUpdate = useCallback((data: {
     staged: number; committed: number; implementing: number; implemented: number;
-    patches: ServerPatches;
+    patches: { staged: PatchSummary[]; committed: PatchSummary[]; implementing: PatchSummary[]; implemented: PatchSummary[] };
   }) => {
-    setServerCounts({ staged: data.staged, committed: data.committed, implementing: data.implementing, implemented: data.implemented });
-    setServerPatches(data.patches);
+    setServerCounts({
+      draft: data.staged,
+      committed: data.committed,
+      implementing: data.implementing,
+      implemented: data.implemented,
+      partial: 0,
+      error: 0,
+    });
   }, []);
 
   const stagedCount = patches.filter(p => p.status === 'staged').length;
 
   const counts: PatchCounts = {
-    staged: stagedCount,
+    draft: Math.max(stagedCount, serverCounts.draft),
     committed: serverCounts.committed,
     implementing: serverCounts.implementing,
     implemented: serverCounts.implemented,
+    partial: serverCounts.partial,
+    error: serverCounts.error,
   };
 
   return {
     patches,
     counts,
-    serverPatches,
+    queueState,
     preview,
     revertPreview,
     stage,
+    stageMessage,
     commitAll,
     discard,
     discardAll,
     reset,
+    handleQueueUpdate,
     handlePatchUpdate,
   };
 }

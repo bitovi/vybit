@@ -58,11 +58,11 @@ async function stageBoxModelChange(frame: Frame, slotValue: string, newValue: st
 }
 
 async function commitAllStaged(frame: Frame) {
-  await expect.poll(async () => (await getFooterCount(frame, 'staged')) > 0).toBe(true);
+  await expect.poll(async () => (await getFooterCount(frame, 'draft')) > 0).toBe(true);
 
-  const stagedButton = frame.getByRole('button', { name: /[1-9]\d* staged/ }).first();
-  await stagedButton.waitFor({ timeout: 5000 });
-  await stagedButton.click();
+  const draftButton = frame.getByRole('button', { name: /[1-9]\d* draft/ }).first();
+  await draftButton.waitFor({ timeout: 5000 });
+  await draftButton.click();
 
   const commitAllButton = frame.getByRole('button', { name: 'Commit All' });
   await commitAllButton.waitFor({ timeout: 3000 });
