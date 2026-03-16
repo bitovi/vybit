@@ -1,112 +1,44 @@
 # VyBit
 
-Change designs, draw mockups, and provide suggestions in your browser and have them implemented by your favorite coding agent (Claude, Cursor, Copilot, etc). It works with React apps built with Tailwind v3 or v4.
+Change designs, draw mockups, and provide suggestions in your browser and send them to your favorite coding agent (Claude, Cursor, Copilot, etc) to be implemented. VyBit works with React apps built with Tailwind v3 or v4.
 
-VyBit (Pronounced Vie-BIT) is a MCP tool that lets you command the agent by editing your website or web app in the browser.
-
-
-
-
-A browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app. Click any element on the page, scrub values, preview changes live, then let an AI agent apply them to your source code.
-
-## How it works
-
-1. The tool runs a local server (port 3333) that serves an inspector panel and an overlay script
-2. You add the overlay script to your app's `index.html` — it injects a click-to-inspect UI
-3. You click elements on your page → the inspector panel shows their Tailwind classes
-4. You scrub/select new values → changes preview live in the browser
-5. You queue changes → an AI agent (via MCP) reads the queue and applies them to your source files
-
-## Prerequisites
-
-- Node.js 18+
-- A React app using Tailwind CSS v4
-- An MCP-compatible AI agent (e.g. GitHub Copilot, Claude Desktop, Cursor)
+<img width="1546" height="860" alt="image" src="https://github.com/user-attachments/assets/de3450be-abcf-4612-93a5-ae2dd324d583" />
 
 ## Installation
 
-```bash
-npm install -D @bitovi/vybit
-```
+To use VyBit:
 
-Or use it directly with `npx` (no install required):
+1. Add its MCP tools to your agent
+2. Start the MCP connection
+3. Have your app or website load the VyBit Editor script
 
-```bash
-npx @bitovi/vybit
-```
+### Add MCP tools to your agent 
 
-## Setup
+VyBit uses MCP to tell your agent to implement the changes you commit. 
 
-### 1. Start the server
+Add VyBit to your Agent's MCP configuration. Below we've listed what these configurations might look like for different agents.  The most important things to know are:
 
-From your project directory:
+- VyBit is a Node project. So you will need [NodeJS](https://nodejs.org/en) `>= 18`.
+- VyBit runs using STDIO (not HTTP), so you will often need some sort of `command` or `stdio` configuration.
+- VyBit needs to run where your React app's `package.json` is. 
 
-```bash
-npx @bitovi/vybit
-```
-
-This starts the server at `http://localhost:3333`. The inspector panel is at `http://localhost:3333/panel/`.
-
-> **Important:** The server must be started from within your project directory (the directory containing your `node_modules/tailwindcss`). It uses your project's Tailwind installation to resolve class values.
-
-### 2. Inject the overlay into your app
-
-Add the overlay script to your app's `index.html`:
-
-```html
-<script src="http://localhost:3333/overlay.js"></script>
-```
-
-For Vite projects, you can conditionally inject it only in development:
-
-```html
-<!-- index.html -->
-<script>
-  if (location.hostname === 'localhost') {
-    const s = document.createElement('script');
-    s.src = 'http://localhost:3333/overlay.js';
-    document.head.appendChild(s);
-  }
-</script>
-```
-
-### 3. Configure your MCP agent
-
-**GitHub Copilot** — add to `.vscode/mcp.json` in your project:
+__Copilot__ in `.vscode/mcp.json`
 
 ```json
 {
-  "servers": {
-    "vybit": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["@bitovi/vybit"],
-      "cwd": "${workspaceFolder}"
-    }
-  }
+	"servers": {
+		"vybit": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["@bitovi/vybit"],
+			"cwd": "${workspaceFolder}/packages/client"
+		}
+	},
+	"inputs": []
 }
 ```
 
-**Claude Code** — add to `.mcp.json` in your project root, or use the CLI:
-
-```bash
-claude mcp add vybit npx @bitovi/vybit
-```
-
-Or manually in `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "vybit": {
-      "command": "npx",
-      "args": ["@bitovi/vybit"]
-    }
-  }
-}
-```
-
-**Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+__Claude Code__ in `.mcp.json`
 
 ```json
 {
@@ -120,19 +52,83 @@ Or manually in `.mcp.json`:
 }
 ```
 
-## Usage
+### Start the MCP connection
 
-1. Open your app in the browser (e.g. `http://localhost:5173`)
-2. Click the **inspector toggle button** that appears in the bottom-right corner
-3. Click any element to inspect its Tailwind classes
-4. In the panel at `http://localhost:3333/panel/`:
-   - Drag scrubbers to adjust spacing, sizing, and other scalar values
-   - Click color chips to pick a new color
-   - Press **Queue Change** to stage a change
-5. Once you've queued your changes, tell your AI agent: _"Apply the queued Tailwind changes"_
-6. The agent calls `implement_next_change` and keeps looping until the queue is empty
+Different agents connect to an MCP service in different ways:
+
+__Copilot__
+
+Click start
+
+<img width="586" height="341" alt="image" src="https://github.com/user-attachments/assets/1658c2e6-f9f0-4749-8f26-f3c4bc02100b" />
+
+
+### Add the Editor script
+
+The Editor script adds the VyBit editor panel. The script needs to be added to any pages you want to edit.
+
+The best way to add the editor script is to have your agent do it! Paste the following into your agent:
+
+```markdown
+I would like to use [VyBit](https://github.com/bitovi/vybit) on every page of this application.
+Please make sure we can load the overlay script at `http://localhost:3333/overlay.js` in a non-blocking way.
+Here's some suggested code to add in the `<head>` of every page in development mode:
+
+\```html
+<script>
+if (location.hostname === 'localhost') {
+   const s = document.createElement('script');
+   s.src = 'http://localhost:3333/overlay.js';
+   document.head.appendChild(s);
+}
+</script>
+\```
+```
+
+## Use
+
+To start a session, you need to:
+
+1. Tell your agent to start pulling changes and implementing features
+2. Use the Editor to make changes
+3. Commit those changes to send them to the agent
+
+### Telling your agent to start making features
+
+In your agent, run the following prompt:
+
+```
+Please implement the next change and continue implementing changes with VyBit.
+```
+
+This will have your agent start a loop where it waits for changes, implements them, and then waits for new ones.
+
+### Use the Editor to make changes
+
+You should see an editor icon like this:
+
+<img width="78" height="61" alt="image" src="https://github.com/user-attachments/assets/973e707b-d143-44a5-b062-0e607e3e950f" />
+
+Click it. It will open the Editor Panel.
+
+### Using the Editor to make changes
+
+More on this later.  But in short, click an element, then you can adjust the desig of it, or insert a panel to draw out changes.  You can also add contextual messages.  These are all draft changes until you commit.
+
+### Commiting changes
+
+Once you have the changes you want to make, you can click the drafts button. This will show you a list of changes.  Click `Commit All` to send them to the agent to be implemented:
+
+<img width="386" height="157" alt="image" src="https://github.com/user-attachments/assets/7795205b-6e70-43db-bf61-2beec2840231" />
+
+
+
+
+
 
 ## MCP Tools
+
+There are other MCP tools you can use if you don't want to work in the implement loop:
 
 | Tool | Description |
 |------|-------------|
