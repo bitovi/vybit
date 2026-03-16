@@ -1,6 +1,6 @@
 {
   "name": "@bitovi/tailwind-inspector-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app",
   "keywords": ["tailwind", "mcp", "inspector", "react", "devtools", "tailwindcss"],
   "author": "Bitovi",
