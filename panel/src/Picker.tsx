@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useFloating, offset, flip, shift, autoUpdate, FloatingPortal, useDismiss, useInteractions } from '@floating-ui/react';
 import type { ParsedClass } from '../../overlay/src/class-parser';
 import { ColorGrid } from './components/ColorGrid';
 import { ScaleScrubber } from './components/ScaleScrubber';
@@ -114,6 +115,26 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
   const [selectedClass, setSelectedClass] = useState<ParsedClass | null>(null);
   // Local overrides for BoxModel slots staged this session (key: "layer-slotKey" → fullClass)
   const [boxModelOverrides, setBoxModelOverrides] = useState<Map<string, string>>(new Map());
+  // Active color picker for a box model color slot
+  const [boxModelColorPicker, setBoxModelColorPicker] = useState<{ layer: LayerName; prefix: string; currentClass: string; staged: boolean; anchorEl: Element } | null>(null);
+  // Tracks the last hovered color swatch so onLeave can snap back to the staged color
+  const boxModelHoveredColorRef = useRef<string | null>(null);
+
+  const { refs: colorPickerRefs, floatingStyles: colorPickerStyles, context: colorPickerContext } = useFloating({
+    open: boxModelColorPicker !== null,
+    onOpenChange: (open) => { if (!open) setBoxModelColorPicker(null); },
+    placement: 'bottom-start',
+    middleware: [offset(4), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
+  const colorPickerDismiss = useDismiss(colorPickerContext);
+  const { getFloatingProps: getColorPickerFloatingProps } = useInteractions([colorPickerDismiss]);
+
+  useEffect(() => {
+    if (boxModelColorPicker?.anchorEl) {
+      colorPickerRefs.setReference(boxModelColorPicker.anchorEl);
+    }
+  }, [boxModelColorPicker?.anchorEl]);
   // Prefixes activated via the "+" button but not yet staged
   const [pendingPrefixes, setPendingPrefixes] = useState<Set<string>>(new Set());
 
@@ -125,6 +146,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
     if (classesKeyRef.current !== currentClassesKey) {
       classesKeyRef.current = currentClassesKey;
       setBoxModelOverrides(new Map());
+      setBoxModelColorPicker(null);
       setPendingPrefixes(new Set());
     }
   });
@@ -215,7 +237,18 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
       <div className="mb-4">
         <BoxModel
           layers={applyBoxModelOverrides(boxModelLayersFromClasses(parsedClasses, tailwindConfig))}
-          onEditStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+          onEditStart={() => {
+            sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' });
+            setBoxModelColorPicker(null);
+          }}
+          onSlotClick={(layer: LayerName, slotKey: SlotKey | 'shorthand', anchorEl?: Element) => {
+            if (slotKey !== 'color' || !anchorEl) { setBoxModelColorPicker(null); return; }
+            const layerState = boxModelLayersFromClasses(parsedClasses, tailwindConfig).find(l => l.layer === layer);
+            const overrideKey = `${layer}-color`;
+            const currentClass = boxModelOverrides.get(overrideKey) ?? layerState?.slots.find(s => s.key === 'color')?.value ?? '';
+            const prefix = layer === 'outline' ? 'outline-' : 'border-';
+            setBoxModelColorPicker(prev => prev?.layer === layer ? null : { layer, prefix, currentClass, staged: false, anchorEl });
+          }}
           onSlotHover={(layer: LayerName, slotKey: SlotKey | 'shorthand', value: string | null) => {
             if (value === null) {
               patchManager.revertPreview();
@@ -239,6 +272,40 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
             setBoxModelOverrides(prev => new Map(prev).set(overrideKey, value));
           }}
         />
+        {boxModelColorPicker && (
+          <FloatingPortal>
+            <div ref={colorPickerRefs.setFloating} style={{ ...colorPickerStyles, zIndex: 9999 }} {...getColorPickerFloatingProps()}>
+              <ColorGrid
+              prefix={boxModelColorPicker.prefix}
+              currentValue={boxModelColorPicker.currentClass.startsWith(boxModelColorPicker.prefix)
+                ? boxModelColorPicker.currentClass.slice(boxModelColorPicker.prefix.length)
+                : ''}
+              colors={tailwindConfig?.colors || {}}
+              locked={false}
+              lockedValue={stagedPatches.find(p => p.property === boxModelColorPicker.prefix)?.newClass ?? null}
+              onHover={(fullClass) => {
+                boxModelHoveredColorRef.current = fullClass;
+                patchManager.preview(boxModelColorPicker.currentClass, fullClass);
+              }}
+              onLeave={() => {
+                if (boxModelColorPicker.staged && boxModelHoveredColorRef.current) {
+                  // Snap back from last hovered to the staged color
+                  patchManager.preview(boxModelHoveredColorRef.current, boxModelColorPicker.currentClass);
+                  boxModelHoveredColorRef.current = null;
+                } else {
+                  patchManager.revertPreview();
+                }
+              }}
+              onClick={(fullClass) => {
+                const overrideKey = `${boxModelColorPicker.layer}-color`;
+                handleStage(boxModelColorPicker.prefix, boxModelColorPicker.currentClass, fullClass);
+                setBoxModelOverrides(prev => new Map(prev).set(overrideKey, fullClass));
+                setBoxModelColorPicker(prev => prev ? { ...prev, currentClass: fullClass, staged: true } : null);
+              }}
+            />
+            </div>
+          </FloatingPortal>
+        )}
       </div>
 
       {/* ── Priority Sections (always visible) ─────────────── */}
