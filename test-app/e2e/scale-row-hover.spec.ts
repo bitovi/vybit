@@ -1,4 +1,5 @@
 import { test, expect, type Frame, type Page } from '@playwright/test';
+import { clickToggleButton, getPanelFrame, waitForPanelReady, clickSelectElementButton } from './helpers';
 
 /** Get the panel iframe's bounding box in main-page coordinates. */
 async function getIframePageBox(page: Page) {
@@ -8,18 +9,6 @@ async function getIframePageBox(page: Page) {
     const rect = iframe.getBoundingClientRect();
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
-}
-
-/** Wait for the panel iframe frame object. */
-async function getPanelFrame(page: Page): Promise<Frame> {
-  let frame: Frame | null = null;
-  for (let i = 0; i < 20; i++) {
-    frame = page.frames().find(f => f.url().includes('/panel')) || null;
-    if (frame) break;
-    await page.waitForTimeout(250);
-  }
-  if (!frame) throw new Error('Panel frame not found');
-  return frame;
 }
 
 /** Count chips that visually appear highlighted (checks computed/animated colour). */
@@ -38,20 +27,14 @@ async function setupScaleRow(page: Page): Promise<{ frame: Frame; iframeBox: { x
   await page.goto('/');
   await page.waitForTimeout(2000);
 
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
+  await clickToggleButton(page);
 
   const frame = await getPanelFrame(page);
-  await frame.waitForFunction(
-    () => !document.body.textContent?.includes('Waiting for connection'),
-    { timeout: 10000 },
-  );
+  await waitForPanelReady(frame);
 
   await page.waitForTimeout(300);
 
+  await clickSelectElementButton(frame);
   await page.locator('button:has-text("Primary")').first().click();
 
   const scrubber = frame.locator('.cursor-ew-resize').filter({ hasText: 'text-sm' }).first();

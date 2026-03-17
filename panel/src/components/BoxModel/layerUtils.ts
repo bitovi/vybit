@@ -81,7 +81,7 @@ export function deriveLayerState(
   // Look up shorthand
   const shorthandRaw = classMap[prefixes.shorthand] ?? null;
   const shorthandValue = shorthandRaw != null
-    ? `${prefixes.shorthand}-${shorthandRaw}`
+    ? (shorthandRaw === '' ? prefixes.shorthand : `${prefixes.shorthand}-${shorthandRaw}`)
     : null;
 
   // Look up per-slot values
@@ -100,7 +100,16 @@ export function deriveLayerState(
     }
 
     const rawVal = prefix ? classMap[prefix] ?? null : null;
-    const value = rawVal != null && prefix ? `${prefix}-${rawVal}` : null;
+
+    // Color/style slots use classMap keys like 'border-color' / 'border-style',
+    // but the real Tailwind class is  border-{value}  (not border-color-{value}).
+    let value: string | null;
+    if ((key === 'color' || key === 'style') && rawVal != null) {
+      const layerPrefix = layer === 'outline' ? 'outline' : 'border';
+      value = `${layerPrefix}-${rawVal}`;
+    } else {
+      value = rawVal != null && prefix ? `${prefix}-${rawVal}` : null;
+    }
 
     return { key, value, placeholder };
   });
@@ -129,10 +138,17 @@ export function deriveLayerState(
 
 /** Spacing scale steps (Tailwind default) */
 const SPACING_STEPS = ['px', '0', '0.5', '1', '1.5', '2', '2.5', '3', '3.5', '4', '5', '6', '7', '8', '9', '10', '11', '12', '14', '16', '20', '24', '28', '32', '36', '40', '44', '48', '52', '56', '60', '64', '72', '80', '96'];
-const BORDER_WIDTH_STEPS = ['0', '2', '4', '8'];
+const BORDER_WIDTH_STEPS = [ '0', '', '2', '3', '4', '5', '6', '8', '10', '12', '16', '20', '24', '32', '40', '48', '56', '64'];
+
+const BORDER_STYLE_STEPS = ['solid', 'dashed', 'dotted', 'double', 'hidden', 'none'];
 
 function getSlotScaleValues(layer: LayerName, slotKey: SlotKey, tailwindConfig?: any): string[] {
-  if (slotKey === 'color' || slotKey === 'style') return [];
+  if (slotKey === 'color') return [];
+
+  if (slotKey === 'style') {
+    const prefix = layer === 'outline' ? 'outline' : 'border';
+    return BORDER_STYLE_STEPS.map(s => `${prefix}-${s}`);
+  }
 
   // Use tailwindConfig spacing if available
   let steps: string[];
@@ -160,7 +176,7 @@ function getSlotScaleValues(layer: LayerName, slotKey: SlotKey, tailwindConfig?:
   };
   const prefix = prefixMap[layer][slotKey];
   if (!prefix) return [];
-  return steps.map(s => `${prefix}-${s}`);
+  return steps.map(s => s === '' ? prefix : `${prefix}-${s}`);
 }
 
 /**
@@ -176,7 +192,18 @@ export function boxModelLayersFromClasses(
   for (const cls of parsedClasses) {
     // ParsedClass.prefix includes a trailing dash (e.g. "px-") — strip it so it
     // matches the keys in LAYER_PREFIXES (e.g. "px").
-    const key = cls.prefix.replace(/-$/, '');
+    let key = cls.prefix.replace(/-$/, '');
+
+    // border-{color} and border-{style} share the 'border-' prefix with border
+    // width, but deriveLayerState expects them under 'border-color' / 'border-style'.
+    if (key === 'border' && cls.themeKey === 'colors') {
+      key = 'border-color';
+    } else if (key === 'border' && cls.themeKey === null && cls.valueType === 'enum') {
+      key = 'border-style';
+    } else if (key === 'outline' && cls.themeKey === 'colors') {
+      key = 'outline-color';
+    }
+
     classMap[key] = cls.value;
   }
 
@@ -200,7 +227,7 @@ export function boxModelLayersFromClasses(
     const shSteps = shorthandUseBorderSteps[layer]
       ? (tailwindConfig?.theme?.borderWidth ? Object.keys(tailwindConfig.theme.borderWidth) : BORDER_WIDTH_STEPS)
       : (tailwindConfig?.theme?.spacing ? Object.keys(tailwindConfig.theme.spacing) : SPACING_STEPS);
-    const shorthandScaleValues = shSteps.map(s => `${shorthandPrefix[layer]}-${s}`);
+    const shorthandScaleValues = shSteps.map(s => s === '' ? shorthandPrefix[layer] : `${shorthandPrefix[layer]}-${s}`);
     return { ...state, slots, shorthandScaleValues };
   });
 }

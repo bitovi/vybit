@@ -1,30 +1,12 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Frame } from '@playwright/test';
+import { openAndSelectElement } from './helpers';
 
-/**
- * Activates inspect mode and clicks the Primary button, returning the panel iframe.
- */
-async function openPanelForPrimaryButton(page: any) {
+async function openPanelForPrimaryButton(page: any): Promise<Frame> {
   await page.goto('/');
   await page.waitForTimeout(1500);
-
-  // Activate inspect mode
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
-
-  // Wait for the panel iframe to appear and the panel WebSocket to connect
-  await page.waitForSelector('iframe[src*="panel"]', { timeout: 5000 });
-  await page.waitForTimeout(800);
-
-  // Click the Primary button — panel is now ready to receive ELEMENT_SELECTED
-  await page.locator('button:has-text("Primary")').first().click();
-  await page.waitForTimeout(800);
-
-  // Panel is served at /panel/ in an iframe
-  const panelFrame = page.frameLocator('iframe[src*="panel"]');
-  return panelFrame;
+  const frame = await openAndSelectElement(page, page.locator('button:has-text("Primary")').first());
+  await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 8000 });
+  return frame;
 }
 
 test.describe('BoxModel panel integration', () => {

@@ -24,6 +24,7 @@ vi.mock('fabric', () => {
     dispose = vi.fn();
     getActiveObjects = vi.fn(() => []);
     getActiveObject = vi.fn(() => null);
+    getObjects = vi.fn(() => []);
     loadFromJSON = vi.fn(() => Promise.resolve());
     discardActiveObject = vi.fn();
     add = vi.fn();

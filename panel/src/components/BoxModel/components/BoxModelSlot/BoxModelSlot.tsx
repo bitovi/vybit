@@ -65,7 +65,7 @@ export function BoxModelSlot({
   return (
     <span
       className={className}
-      onClick={frozen ? undefined : onClick}
+      onClick={frozen ? undefined : (e) => onClick?.(e.currentTarget as Element)}
       role="button"
       tabIndex={frozen ? -1 : 0}
     >

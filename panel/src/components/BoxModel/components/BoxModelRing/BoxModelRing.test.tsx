@@ -94,7 +94,7 @@ test('calls onSlotClick when slot is clicked', () => {
     />
   );
   fireEvent.click(screen.getByText('t'));
-  expect(onSlotClick).toHaveBeenCalledWith('t');
+  expect(onSlotClick).toHaveBeenCalledWith('t', expect.anything());
 });
 
 test('calls onSlotClick with "shorthand" when shorthand label clicked', () => {
@@ -112,7 +112,7 @@ test('calls onSlotClick with "shorthand" when shorthand label clicked', () => {
     />
   );
   fireEvent.click(screen.getByText('p-2'));
-  expect(onSlotClick).toHaveBeenCalledWith('shorthand');
+  expect(onSlotClick).toHaveBeenCalledWith('shorthand', expect.anything());
 });
 
 test('renders MiniScrubber as label when shorthandScaleValues provided', () => {

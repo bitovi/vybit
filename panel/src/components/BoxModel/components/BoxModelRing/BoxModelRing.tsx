@@ -82,7 +82,7 @@ export function BoxModelRing({
     </span>
   ) : showShorthandVal ? (
     <span className="bm-name">
-      <span className="bm-val" onClick={() => onSlotClick?.('shorthand')}>
+      <span className="bm-val" onClick={(e) => onSlotClick?.('shorthand', e.currentTarget as Element)}>
         {shorthandValue}
       </span>
     </span>
@@ -119,7 +119,7 @@ export function BoxModelRing({
             frozen={frozen}
             scaleValues={slot.scaleValues}
             axis={axis}
-            onClick={() => onSlotClick?.(slot.key)}
+            onClick={(anchorEl) => onSlotClick?.(slot.key, anchorEl)}
             onValueChange={onSlotChange ? (v) => onSlotChange(slot.key, v) : undefined}
             onValueHover={onSlotHover ? (v) => onSlotHover(slot.key, v) : undefined}
             onValueLeave={onSlotHover ? () => onSlotHover(slot.key, null) : undefined}

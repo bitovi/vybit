@@ -1,0 +1,2374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Select Elements UX — Prototype Exploration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── DESIGN TOKENS (Bitovi) ──────────────────────────────── */
+    :root {
+      --bg:           #FFFFFF;
+      --page-bg:      #EAECED;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-dark:    #005A5F;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+      --selection-blue: rgba(0, 132, 139, 0.5);
+      --selection-fill: rgba(0, 132, 139, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 24px;
+      max-width: 800px;
+      line-height: 1.6;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────── */
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .section-tag.blue    { background: #3B82F6; }
+    .section-tag.purple  { background: #8B5CF6; }
+    .section-tag.green   { background: #10B981; }
+    .section-tag.amber   { background: #F59E0B; }
+    .section-tag.rose    { background: #F43F5E; }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .note {
+      background: rgba(59, 130, 246, 0.06);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #445566;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .note strong { color: #3B82F6; }
+
+    .note ul { margin-top: 6px; padding-left: 16px; }
+    .note li { margin-bottom: 2px; }
+
+    .annotation {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--teal-dark);
+      letter-spacing: 0.3px;
+      padding: 2px 6px;
+      background: rgba(0, 132, 139, 0.08);
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .rec-note {
+      background: rgba(16, 185, 129, 0.06);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #1a4a3a;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .rec-note strong { color: #10B981; }
+
+    /* ─── SIMULATED PAGE CONTENT ──────────────────────────────── */
+    .page-sim {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .page-sim-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .page-sim-bar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+
+    .page-sim-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .card p {
+      font-size: 12px;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    .card-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .card-row .card {
+      flex: 1;
+    }
+
+    .selected {
+      outline: 2px solid var(--selection-blue);
+      outline-offset: 0px;
+      background: var(--selection-fill);
+    }
+
+    /* ─── PANEL SIM ───────────────────────────────────────────── */
+    .panel-sim {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comp-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .comp-instances {
+      font-size: 11px;
+      color: var(--text-mid);
+      font-weight: 400;
+    }
+
+    .panel-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-tab {
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-mid);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .panel-tab:hover {
+      color: var(--text);
+    }
+
+    .panel-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--teal);
+    }
+
+    .panel-tab.disabled {
+      color: var(--muted);
+      cursor: default;
+      opacity: 0.5;
+    }
+
+    .panel-body {
+      padding: 12px;
+    }
+
+    .queue-footer {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      background: var(--surface);
+    }
+
+    .queue-footer span { display: flex; align-items: center; gap: 4px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 1 — VyBit TOGGLE BUTTON DESIGNS (AI GLOW)
+    ═══════════════════════════════════════════════════════════ */
+
+    /* --- Shared toggle base --- */
+    .vybit-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: var(--bg);
+      color: var(--text-mid);
+      transition: color 0.2s, transform 0.15s;
+      z-index: 1;
+    }
+
+    .vybit-toggle svg {
+      width: 20px;
+      height: 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .vybit-toggle:hover {
+      transform: scale(1.08);
+    }
+
+    .vybit-toggle:active {
+      transform: scale(0.95);
+    }
+
+    /* State labels */
+    .toggle-states {
+      display: flex;
+      gap: 32px;
+      align-items: flex-start;
+    }
+
+    .toggle-state-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-state-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* --- Option A: Gradient Halo (rotating conic-gradient border) --- */
+    .vybit-halo {
+      background: transparent;
+    }
+
+    .vybit-halo::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #00848B 0%,
+        #00A8B0 25%,
+        #F5532D 50%,
+        #FF8A65 75%,
+        #00848B 100%
+      );
+      z-index: -1;
+      animation: halo-spin 4s linear infinite;
+      opacity: 0.5;
+    }
+
+    .vybit-halo::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: 50%;
+      background: var(--bg);
+      z-index: 0;
+    }
+
+    .vybit-halo:hover::before {
+      opacity: 0.85;
+      filter: brightness(1.2);
+    }
+
+    .vybit-halo.active::before {
+      opacity: 1;
+      animation-duration: 1.5s;
+      inset: -4px;
+      filter: brightness(1.1);
+    }
+
+    .vybit-halo.active::after {
+      background: rgba(0, 132, 139, 0.04);
+    }
+
+    .vybit-halo.active {
+      color: var(--teal);
+    }
+
+    @keyframes halo-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- Option B: Breathing Pulse --- */
+    .vybit-pulse {
+      box-shadow:
+        0 0 0 0 rgba(0, 132, 139, 0.0),
+        0 2px 8px rgba(0, 0, 0, 0.08);
+      border: 1.5px solid var(--border);
+      animation: pulse-breathe 3s ease-in-out infinite;
+    }
+
+    .vybit-pulse:hover {
+      border-color: var(--teal);
+      box-shadow:
+        0 0 0 4px rgba(0, 132, 139, 0.12),
+        0 0 16px rgba(0, 132, 139, 0.15),
+        0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .vybit-pulse.active {
+      border-color: transparent;
+      animation: pulse-active 2s ease-in-out infinite;
+      color: var(--teal);
+    }
+
+    @keyframes pulse-breathe {
+      0%, 100% {
+        box-shadow:
+          0 0 0 0 rgba(0, 132, 139, 0.0),
+          0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      50% {
+        box-shadow:
+          0 0 0 3px rgba(0, 132, 139, 0.08),
+          0 0 12px rgba(0, 132, 139, 0.06),
+          0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+    }
+
+    @keyframes pulse-active {
+      0%, 100% {
+        box-shadow:
+          0 0 0 3px rgba(0, 132, 139, 0.2),
+          0 0 12px rgba(0, 132, 139, 0.15),
+          0 0 24px rgba(245, 83, 45, 0.08);
+      }
+      50% {
+        box-shadow:
+          0 0 0 6px rgba(0, 132, 139, 0.1),
+          0 0 20px rgba(0, 132, 139, 0.2),
+          0 0 32px rgba(245, 83, 45, 0.12);
+      }
+    }
+
+    /* --- Option C: Shimmer Sweep --- */
+    .vybit-shimmer {
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .vybit-shimmer::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      background: linear-gradient(
+        110deg,
+        transparent 25%,
+        rgba(0, 132, 139, 0.15) 45%,
+        rgba(245, 83, 45, 0.10) 55%,
+        transparent 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer-sweep 4s ease-in-out infinite;
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .vybit-shimmer:hover::before {
+      animation-duration: 1.5s;
+      background: linear-gradient(
+        110deg,
+        transparent 20%,
+        rgba(0, 132, 139, 0.25) 42%,
+        rgba(245, 83, 45, 0.18) 58%,
+        transparent 80%
+      );
+      background-size: 200% 100%;
+    }
+
+    .vybit-shimmer.active {
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    .vybit-shimmer.active::before {
+      animation-duration: 2s;
+      background: linear-gradient(
+        110deg,
+        transparent 15%,
+        rgba(245, 83, 45, 0.20) 40%,
+        rgba(0, 132, 139, 0.25) 60%,
+        transparent 85%
+      );
+      background-size: 200% 100%;
+    }
+
+    @keyframes shimmer-sweep {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* --- Option D: Orbiting Dots --- */
+    .vybit-orbit {
+      border: 1.5px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .orbit-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      animation: orbit-spin 6s linear infinite;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .orbit-dot {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .orbit-dot:nth-child(1) {
+      top: -2.5px;
+      left: calc(50% - 2.5px);
+      color: var(--teal);
+      background: var(--teal);
+    }
+
+    .orbit-dot:nth-child(2) {
+      bottom: -2.5px;
+      left: calc(50% - 2.5px);
+      color: var(--orange);
+      background: var(--orange);
+    }
+
+    .vybit-orbit:hover .orbit-ring {
+      animation-duration: 2s;
+    }
+
+    .vybit-orbit:hover .orbit-dot {
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .vybit-orbit.active {
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    .vybit-orbit.active .orbit-ring {
+      animation-duration: 2.5s;
+    }
+
+    .vybit-orbit.active .orbit-dot {
+      width: 6px;
+      height: 6px;
+      box-shadow: 0 0 12px currentColor;
+    }
+
+    @keyframes orbit-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 2 — PANEL HEADER WITH SELECT ELEMENT BUTTON
+    ═══════════════════════════════════════════════════════════ */
+
+    .select-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--t-fast);
+      flex-shrink: 0;
+    }
+
+    .select-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .select-btn.active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .select-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .panel-header-flex {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .container-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 12px;
+      transition: all var(--t-fast);
+    }
+
+    .container-btn:hover {
+      border-color: var(--text-mid);
+      color: var(--text-mid);
+    }
+
+    .shortcut-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      background: var(--surface);
+      padding: 2px 5px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+
+    .shortcut-badge kbd {
+      font-family: inherit;
+      font-weight: 600;
+      color: var(--text-mid);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 3 — HOVER PREVIEW DURING SELECTION
+    ═══════════════════════════════════════════════════════════ */
+
+    .hover-preview {
+      outline: 2px solid var(--teal);
+      outline-offset: 1px;
+      position: relative;
+    }
+
+    .hover-tooltip {
+      position: absolute;
+      top: -28px;
+      left: 0;
+      background: var(--teal-dark);
+      color: #fff;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      pointer-events: none;
+    }
+
+    .hover-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 12px;
+      border: 4px solid transparent;
+      border-top-color: var(--teal-dark);
+    }
+
+    .sim-btn {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 6px;
+      background: var(--teal);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+
+    .sim-btn.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .sim-text-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .sim-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface-hi);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--text-mid);
+      flex-shrink: 0;
+    }
+
+    .cursor-crosshair {
+      cursor: crosshair;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 4 — ADD MATCHING / ADD ADDITIONAL
+    ═══════════════════════════════════════════════════════════ */
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      font-size: 10px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .action-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .action-btn.primary {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #fff;
+    }
+
+    .action-btn.primary:hover {
+      background: var(--teal-dark);
+      border-color: var(--teal-dark);
+    }
+
+    .action-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .instance-picker {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      padding: 0;
+      min-width: 240px;
+      font-size: 11px;
+      overflow: hidden;
+    }
+
+    .instance-picker-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .instance-picker-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-mid);
+    }
+
+    .instance-picker-actions {
+      display: flex;
+      gap: 8px;
+      font-size: 9px;
+    }
+
+    .instance-picker-actions a {
+      color: var(--teal);
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .instance-picker-actions a:hover {
+      text-decoration: underline;
+    }
+
+    .instance-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+
+    .instance-item:hover {
+      background: var(--surface);
+    }
+
+    .instance-item input[type="checkbox"] {
+      accent-color: var(--teal);
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .instance-item-preview {
+      width: 36px;
+      height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .instance-item-label {
+      flex: 1;
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .instance-item-label .tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-mid);
+    }
+
+    .instance-picker-footer {
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      text-align: right;
+    }
+
+    .action-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .action-bar-sep {
+      width: 1px;
+      height: 16px;
+      background: var(--border);
+    }
+
+    /* ─── DISABLED TAB TOOLTIP ────────────────────────────────── */
+    .disabled-tooltip-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .disabled-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #334041;
+      color: #F4F5F5;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .disabled-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: #334041;
+    }
+
+    .disabled-tooltip-wrap:hover .disabled-tooltip {
+      display: block;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 5 — SELECTION MODE STATE IN PANEL
+    ═══════════════════════════════════════════════════════════ */
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 32px 16px;
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--teal-dim);
+      color: var(--teal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: gentle-pulse 2s ease-in-out infinite;
+    }
+
+    .empty-state-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    @keyframes gentle-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0, 132, 139, 0); }
+      50% { box-shadow: 0 0 0 8px rgba(0, 132, 139, 0.08); }
+    }
+
+    .empty-state-text {
+      font-size: 12px;
+      color: var(--text-mid);
+    }
+
+    .empty-state-hint {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* ─── TOGGLE SHOWCASE AREA ────────────────────────────────── */
+    .toggle-showcase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .toggle-showcase-label {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .toggle-showcase-desc {
+      font-size: 10px;
+      color: var(--text-mid);
+      line-height: 1.5;
+      max-width: 400px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1>Select Elements UX — Prototype Exploration</h1>
+  <p class="page-subtitle">
+    Exploring how users open the VyBit panel, enter element selection mode, preview elements on hover,
+    and manage multi-select (matching and non-matching elements). This decouples the toggle button
+    (panel visibility) from element selection (a separate action inside the panel).
+  </p>
+
+  <div class="sections">
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 1: VYBIT TOGGLE BUTTON — AI GLOW DESIGNS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag blue">1</span>
+        <span class="section-title">VyBit Toggle Button — AI Glow Designs</span>
+      </div>
+      <p class="section-desc">
+        The floating ⊕ button is replaced with a branded VyBit toggle that <strong>only opens/closes the panel</strong>.
+        It no longer activates element selection. The AI-glow treatment signals this is an assistive AI tool.
+        Four animated variants are shown below in idle, hover (simulated), and active (panel open) states.
+      </p>
+
+      <div class="demo-row" style="gap: 32px;">
+
+        <!-- Option A: Gradient Halo -->
+        <div class="toggle-showcase">
+          <div>
+            <span class="annotation">Option A — Gradient Halo</span>
+          </div>
+          <div class="toggle-showcase-desc">
+            A rotating <code>conic-gradient</code> border in teal→orange. Subtle at idle, intensifies when
+            the panel is open. Inspired by GitHub Copilot and ChatGPT.
+          </div>
+          <div class="toggle-states">
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Idle</span>
+              <button class="vybit-toggle vybit-halo" title="VyBit — open panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:2">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Hover</span>
+              <button class="vybit-toggle vybit-halo" style="transform: scale(1.08);" title="VyBit — open panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:2">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Active (panel open)</span>
+              <button class="vybit-toggle vybit-halo active" title="VyBit — close panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:2">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Option B: Breathing Pulse -->
+        <div class="toggle-showcase">
+          <div>
+            <span class="annotation">Option B — Breathing Pulse</span>
+          </div>
+          <div class="toggle-showcase-desc">
+            A calm, pulsing box-shadow that breathes in and out. Teal glow at idle, warmer teal+orange
+            halo when active. Feels alive without being distracting.
+          </div>
+          <div class="toggle-states">
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Idle</span>
+              <button class="vybit-toggle vybit-pulse" title="VyBit — open panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Hover</span>
+              <button class="vybit-toggle vybit-pulse" title="VyBit — open panel"
+                style="border-color: var(--teal); box-shadow: 0 0 0 4px rgba(0,132,139,0.12), 0 0 16px rgba(0,132,139,0.15), 0 2px 8px rgba(0,0,0,0.1); transform: scale(1.08); animation: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Active (panel open)</span>
+              <button class="vybit-toggle vybit-pulse active" title="VyBit — close panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="demo-row" style="gap: 32px; margin-top: 8px;">
+
+        <!-- Option C: Shimmer Sweep -->
+        <div class="toggle-showcase">
+          <div>
+            <span class="annotation">Option C — Shimmer Sweep</span>
+          </div>
+          <div class="toggle-showcase-desc">
+            A diagonal gradient highlight sweeps across the surface periodically. Like a chrome
+            reflection. Active state uses orange tint. Quietest of the four options.
+          </div>
+          <div class="toggle-states">
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Idle</span>
+              <button class="vybit-toggle vybit-shimmer" title="VyBit — open panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:2">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Hover</span>
+              <button class="vybit-toggle vybit-shimmer" title="VyBit — open panel"
+                style="transform: scale(1.08);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:2">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Active (panel open)</span>
+              <button class="vybit-toggle vybit-shimmer active" title="VyBit — close panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:2">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Option D: Orbiting Dots -->
+        <div class="toggle-showcase">
+          <div>
+            <span class="annotation">Option D — Orbiting Dots</span>
+          </div>
+          <div class="toggle-showcase-desc">
+            Two small dots (teal + orange) orbit the button's border. Feels AI-agent-like, with
+            the dots speeding up on hover and growing when the panel is open.
+          </div>
+          <div class="toggle-states">
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Idle</span>
+              <button class="vybit-toggle vybit-orbit" title="VyBit — open panel">
+                <div class="orbit-ring">
+                  <span class="orbit-dot"></span>
+                  <span class="orbit-dot"></span>
+                </div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Hover</span>
+              <button class="vybit-toggle vybit-orbit" title="VyBit — open panel"
+                style="transform: scale(1.08);">
+                <div class="orbit-ring" style="animation-duration: 2s;">
+                  <span class="orbit-dot" style="box-shadow: 0 0 10px var(--teal);"></span>
+                  <span class="orbit-dot" style="box-shadow: 0 0 10px var(--orange);"></span>
+                </div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="toggle-state-group">
+              <span class="toggle-state-label">Active (panel open)</span>
+              <button class="vybit-toggle vybit-orbit active" title="VyBit — close panel">
+                <div class="orbit-ring" style="animation-duration: 2.5s;">
+                  <span class="orbit-dot" style="width:6px;height:6px;box-shadow: 0 0 12px var(--teal);"></span>
+                  <span class="orbit-dot" style="width:6px;height:6px;box-shadow: 0 0 12px var(--orange);"></span>
+                </div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                  <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Side notes -->
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div class="rec-note">
+          <strong>Recommendation:</strong> <strong style="color: var(--teal);">Option A (Gradient Halo)</strong>
+          is the strongest signal. Its rotating border is instantly recognizable as an AI tool (Copilot,
+          ChatGPT, Cursor all use this pattern). The glow feels premium without being noisy.
+        </div>
+        <div class="note">
+          <strong>Behavior change:</strong> The button now <strong>only toggles the panel open/closed</strong>.
+          It no longer activates element selection mode or changes the cursor. From the user's perspective, clicking
+          the VyBit button is like clicking the DevTools icon — it shows the tool panel.
+        </div>
+        <div class="note">
+          <strong>Icon:</strong> The ⊕ symbol is replaced with a sparkle/stars SVG icon.
+          This reinforces the AI branding. The icon is <strong>always visible</strong> — it doesn't
+          change between states, only the glow treatment changes.
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 2: PANEL HEADER — SELECT ELEMENT BUTTON
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag purple">2</span>
+        <span class="section-title">Panel Header — Select Element Button</span>
+      </div>
+      <p class="section-desc">
+        The inspector panel header now contains a <strong>select-element button</strong> (Chrome DevTools-style
+        cursor-in-box icon) alongside the component name and container switcher. Clicking it activates selection
+        mode on the page (crosshair cursor, hover previews). The keyboard shortcut
+        <kbd>⌘ Shift C</kbd> / <kbd>Ctrl Shift C</kbd> also toggles selection mode.
+      </p>
+
+      <div class="demo-row">
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+
+          <!-- State A: No element selected, selection mode OFF -->
+          <div>
+            <span class="annotation">State A — No element selected, selection mode off</span>
+            <div class="panel-sim" style="width: 340px;">
+              <div class="panel-header-flex">
+                <button class="select-btn" title="Select an element (⌘⇧C)">
+                  <!-- Chrome DevTools cursor-in-box icon -->
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div class="panel-header-info">
+                  <span style="font-size: 12px; color: var(--muted);">No element selected</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span class="shortcut-badge"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></span>
+                  <button class="container-btn" title="Switch container">⊞</button>
+                </div>
+              </div>
+              <div class="panel-tabs">
+                <span class="panel-tab active">Design</span>
+                <span class="panel-tab">Message</span>
+                <span class="panel-tab disabled">Draw</span>
+              </div>
+              <div class="panel-body">
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                    </svg>
+                  </div>
+                  <span class="empty-state-text">Click an element to inspect</span>
+                  <span class="empty-state-hint">
+                    or press <span class="shortcut-badge" style="display: inline-flex;"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></span>
+                    to enter selection mode
+                  </span>
+                </div>
+              </div>
+              <div class="queue-footer">
+                <span>draft: 0</span>
+                <span>committed: 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- State B: Selection mode ACTIVE, no element yet -->
+          <div>
+            <span class="annotation">State B — Selection mode active, awaiting click</span>
+            <div class="panel-sim" style="width: 340px;">
+              <div class="panel-header-flex">
+                <button class="select-btn active" title="Exit selection mode (⌘⇧C)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div class="panel-header-info">
+                  <span style="font-size: 11px; color: var(--teal); font-weight: 500;">
+                    ● Selecting… click an element on the page
+                  </span>
+                </div>
+                <button class="container-btn" title="Switch container">⊞</button>
+              </div>
+              <div class="panel-tabs">
+                <span class="panel-tab active">Design</span>
+                <span class="panel-tab">Message</span>
+                <span class="panel-tab disabled">Draw</span>
+              </div>
+              <div class="panel-body">
+                <div class="empty-state">
+                  <div class="empty-state-icon" style="background: var(--teal); color: #fff; animation: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                    </svg>
+                  </div>
+                  <span class="empty-state-text" style="color: var(--teal);">Selection mode active</span>
+                  <span class="empty-state-hint">
+                    Hover over elements on the page to preview, then click to select.
+                    <br>Press <kbd style="font-family: var(--font-mono); font-size: 9px;">Esc</kbd> to cancel.
+                  </span>
+                </div>
+              </div>
+              <div class="queue-footer">
+                <span>draft: 0</span>
+                <span>committed: 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- State C: Element selected -->
+          <div>
+            <span class="annotation">State C — Element selected, selection mode auto-deactivated</span>
+            <div class="panel-sim" style="width: 340px;">
+              <div class="panel-header-flex">
+                <button class="select-btn" title="Select an element (⌘⇧C)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div class="panel-header-info">
+                  <span class="comp-name">Button</span>
+                  <span class="comp-instances"> — 10 instances on this page</span>
+                </div>
+                <button class="container-btn" title="Switch container">⊞</button>
+              </div>
+              <div class="panel-tabs">
+                <span class="panel-tab active">Design</span>
+                <span class="panel-tab">Message</span>
+                <span class="panel-tab">Draw</span>
+              </div>
+              <div class="panel-body" style="min-height: 100px;">
+                <div style="font-size: 10px; color: var(--text-mid); display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="color: var(--teal); font-size: 8px;">●</span>
+                    <span style="font-weight: 600; color: var(--text);">BOX MODEL</span>
+                  </div>
+                  <div style="background: var(--orange-dim); border-radius: 6px; padding: 10px; text-align: center; font-size: 9px; font-family: var(--font-mono); color: var(--orange);">
+                    margin
+                    <div style="background: rgba(0,132,139,0.06); border-radius: 4px; padding: 8px; margin-top: 4px; color: var(--teal);">
+                      outline
+                      <div style="background: rgba(59,130,246,0.06); border-radius: 4px; padding: 6px; margin-top: 4px; color: #3B82F6;">
+                        padding
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="queue-footer">
+                <span>draft: 2</span>
+                <span>committed: 1</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Side notes -->
+        <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+          <div class="rec-note">
+            <strong>Key behavior:</strong> Selection mode <strong style="color: var(--teal);">auto-deactivates after clicking an element</strong>.
+            This matches Chrome DevTools behavior. The user must explicitly re-enter selection mode to pick
+            a different element.
+          </div>
+          <div class="note">
+            <strong>Keyboard shortcut:</strong> <kbd>⌘ Shift C</kbd> (Mac) / <kbd>Ctrl Shift C</kbd> (Win/Linux)
+            toggles selection mode from anywhere, even when the panel is already open. This mirrors Chrome DevTools'
+            inspect-element shortcut.
+          </div>
+          <div class="note">
+            <strong>Select button states:</strong>
+            <ul>
+              <li><strong>Default</strong> — gray border, cursor icon</li>
+              <li><strong>Hover</strong> — teal border + teal background tint</li>
+              <li><strong>Active (selecting)</strong> — solid teal fill, white icon</li>
+            </ul>
+          </div>
+          <div class="note">
+            <strong>Esc to cancel:</strong> Pressing <kbd>Esc</kbd> exits selection mode without selecting
+            anything and returns to the previous panel state. The overlay cursor reverts to normal.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 3: HOVER PREVIEW DURING SELECTION MODE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag green">3</span>
+        <span class="section-title">Hover Preview During Selection Mode</span>
+      </div>
+      <p class="section-desc">
+        When selection mode is active, hovering over any element shows a <strong>teal outline + tooltip</strong>
+        with the React component name and HTML tag. This gives the user confidence they're about to select
+        the right thing. The preview follows the mouse across the page in real-time.
+      </p>
+
+      <div class="demo-row">
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <span class="annotation">Hovering over a Card component</span>
+          <div class="page-sim" style="width: 480px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span>localhost:5173</span>
+              <span style="margin-left: auto; color: var(--teal); font-size: 9px;">● selecting</span>
+            </div>
+            <div class="page-sim-body cursor-crosshair">
+              <!-- Hovered card -->
+              <div class="card hover-preview" style="position: relative;">
+                <div class="hover-tooltip">
+                  <span style="color: rgba(255,255,255,0.6);">&lt;</span>ProductCard<span style="color: rgba(255,255,255,0.6);">&gt;</span>
+                  <span style="opacity: 0.5; margin-left: 4px;">div.card</span>
+                </div>
+                <h3>Product Card</h3>
+                <p>A flexible card component with image, title, and CTA.</p>
+                <div style="margin-top: 8px;">
+                  <button class="sim-btn" style="font-size: 11px; padding: 4px 12px;">Buy Now</button>
+                </div>
+              </div>
+
+              <!-- Other cards (not hovered) -->
+              <div class="card" style="opacity: 0.5;">
+                <h3>Another Card</h3>
+                <p>Other content below…</p>
+              </div>
+            </div>
+          </div>
+
+          <span class="annotation">Hovering over a Button inside a Card</span>
+          <div class="page-sim" style="width: 480px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span>localhost:5173</span>
+              <span style="margin-left: auto; color: var(--teal); font-size: 9px;">● selecting</span>
+            </div>
+            <div class="page-sim-body cursor-crosshair">
+              <div class="card">
+                <h3>Product Card</h3>
+                <p>A flexible card component with image, title, and CTA.</p>
+                <div style="margin-top: 8px; position: relative;">
+                  <button class="sim-btn hover-preview" style="font-size: 11px; padding: 4px 12px; position: relative;">
+                    Buy Now
+                    <div class="hover-tooltip" style="left: -4px;">
+                      <span style="color: rgba(255,255,255,0.6);">&lt;</span>Button<span style="color: rgba(255,255,255,0.6);">&gt;</span>
+                      <span style="opacity: 0.5; margin-left: 4px;">button.btn</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <span class="annotation">Hovering over a list item (repeated element)</span>
+          <div class="page-sim" style="width: 480px;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span>localhost:5173</span>
+              <span style="margin-left: auto; color: var(--teal); font-size: 9px;">● selecting</span>
+            </div>
+            <div class="page-sim-body cursor-crosshair">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div class="sim-text-row" style="padding: 6px 8px; border-radius: 4px; opacity: 0.5;">
+                  <span class="sim-avatar">JM</span>
+                  <div>
+                    <div style="font-size: 12px; font-weight: 600;">Justin Meyer</div>
+                    <div style="font-size: 10px; color: var(--text-mid);">Developer</div>
+                  </div>
+                </div>
+                <div class="sim-text-row hover-preview" style="padding: 6px 8px; border-radius: 4px; position: relative;">
+                  <div class="hover-tooltip">
+                    <span style="color: rgba(255,255,255,0.6);">&lt;</span>UserRow<span style="color: rgba(255,255,255,0.6);">&gt;</span>
+                    <span style="opacity: 0.5; margin-left: 4px;">div.user-row</span>
+                  </div>
+                  <span class="sim-avatar">AB</span>
+                  <div>
+                    <div style="font-size: 12px; font-weight: 600;">Alice Brown</div>
+                    <div style="font-size: 10px; color: var(--text-mid);">Designer</div>
+                  </div>
+                </div>
+                <div class="sim-text-row" style="padding: 6px 8px; border-radius: 4px; opacity: 0.5;">
+                  <span class="sim-avatar">CD</span>
+                  <div>
+                    <div style="font-size: 12px; font-weight: 600;">Chris Davis</div>
+                    <div style="font-size: 10px; color: var(--text-mid);">PM</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side notes -->
+        <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+          <div class="rec-note">
+            <strong>Tooltip format:</strong> <code>&lt;ComponentName&gt; tag.class</code>.<br>
+            The component name (from React fiber) is primary; the HTML tag + first class is secondary context.
+            This helps disambiguate when multiple components share similar visuals.
+          </div>
+          <div class="note">
+            <strong>Lightweight:</strong> The preview is just a <strong>2px teal outline</strong> plus a
+            tooltip positioned above the element. No background tint, no box-model visualization.
+            This keeps it fast and non-intrusive — the full highlight only appears after clicking.
+          </div>
+          <div class="note">
+            <strong>No preview on:</strong> The overlay itself (shadow DOM), iframes, or elements smaller
+            than 10 × 10px. Also skips the VyBit toggle button and panel container.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 4: ADD MATCHING / ADD ADDITIONAL
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag amber">4</span>
+        <span class="section-title">Post-Selection — Add Matching &amp; Add Additional Elements</span>
+      </div>
+      <p class="section-desc">
+        After selecting an element, the user may want to extend the selection: add all matching instances
+        of the same component, pick specific instances, or add a completely different element. Three UX
+        approaches are explored below. When non-matching elements are added (different component type),
+        the Design tab is disabled because Tailwind class editing can't apply uniformly.
+      </p>
+
+      <div class="demo-row" style="gap: 32px;">
+
+        <!-- Option A: Header Buttons -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <span class="annotation">Option A — Buttons in panel header</span>
+          <p class="section-desc" style="max-width: 360px;">
+            After selecting one element, compact action buttons appear next to the instance count.
+            "All matching" selects all instances; "+ Add" re-enters selection mode to add a different element.
+          </p>
+          <div class="panel-sim" style="width: 360px;">
+            <div class="panel-header-flex" style="flex-wrap: wrap; gap: 6px;">
+              <button class="select-btn" title="Select element">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                </svg>
+              </button>
+              <div class="panel-header-info" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span>
+                  <span class="comp-name">Button</span>
+                  <span class="comp-instances"> — 1 of 10</span>
+                </span>
+                <div style="display: flex; gap: 4px;">
+                  <button class="action-btn primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    All 10
+                  </button>
+                  <button class="action-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add
+                  </button>
+                </div>
+              </div>
+              <button class="container-btn" title="Switch container">⊞</button>
+            </div>
+            <div class="panel-tabs">
+              <span class="panel-tab active">Design</span>
+              <span class="panel-tab">Message</span>
+              <span class="panel-tab">Draw</span>
+            </div>
+            <div class="panel-body" style="min-height: 60px; font-size: 11px; color: var(--text-mid);">
+              <em>Design properties for selected element…</em>
+            </div>
+          </div>
+
+          <span class="annotation" style="margin-top: 8px;">After clicking "All 10"</span>
+          <div class="panel-sim" style="width: 360px;">
+            <div class="panel-header-flex" style="flex-wrap: wrap; gap: 6px;">
+              <button class="select-btn" title="Select element">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                </svg>
+              </button>
+              <div class="panel-header-info" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span>
+                  <span class="comp-name">Button</span>
+                  <span class="comp-instances"> — 10 of 10 selected</span>
+                </span>
+                <button class="action-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add
+                </button>
+              </div>
+              <button class="container-btn" title="Switch container">⊞</button>
+            </div>
+            <div class="panel-tabs">
+              <span class="panel-tab active">Design</span>
+              <span class="panel-tab">Message</span>
+              <span class="panel-tab">Draw</span>
+            </div>
+            <div class="panel-body" style="min-height: 60px; font-size: 11px; color: var(--text-mid);">
+              <em>Design properties applied to all 10 instances…</em>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- Option B: Instance Picker Popover -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <span class="annotation">Option B — Instance picker popover</span>
+          <p class="section-desc" style="max-width: 360px;">
+            Clicking the instance count ("10 instances") opens a popover with checkboxes for each
+            instance. Shows a mini-preview thumbnail and location context. Users can pick exactly
+            which instances to include.
+          </p>
+          <div style="position: relative;">
+            <div class="panel-sim" style="width: 340px;">
+              <div class="panel-header-flex">
+                <button class="select-btn" title="Select element">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div class="panel-header-info">
+                  <span class="comp-name">Button</span>
+                  <span class="comp-instances" style="cursor: pointer; text-decoration: underline; text-decoration-style: dashed; text-underline-offset: 2px;"> — 10 instances ▾</span>
+                </div>
+                <button class="container-btn">⊞</button>
+              </div>
+              <div class="panel-tabs">
+                <span class="panel-tab active">Design</span>
+                <span class="panel-tab">Message</span>
+                <span class="panel-tab">Draw</span>
+              </div>
+              <div class="panel-body" style="min-height: 60px; font-size: 11px; color: var(--text-mid);">
+                <em>Design properties…</em>
+              </div>
+            </div>
+
+            <!-- Popover (shown as if opened) -->
+            <div class="instance-picker" style="position: absolute; top: 38px; left: 90px; z-index: 20;">
+              <div class="instance-picker-header">
+                <span class="instance-picker-title">Button instances</span>
+                <div class="instance-picker-actions">
+                  <a>Select All</a>
+                  <a>None</a>
+                </div>
+              </div>
+              <div class="instance-item">
+                <input type="checkbox" checked>
+                <span class="instance-item-preview" style="border-color: var(--teal); background: var(--teal-dim);">btn</span>
+                <span class="instance-item-label">
+                  "Buy Now"
+                  <span class="tag">&lt;button&gt; in Header</span>
+                </span>
+              </div>
+              <div class="instance-item">
+                <input type="checkbox">
+                <span class="instance-item-preview">btn</span>
+                <span class="instance-item-label">
+                  "Add to Cart"
+                  <span class="tag">&lt;button&gt; in ProductCard</span>
+                </span>
+              </div>
+              <div class="instance-item">
+                <input type="checkbox">
+                <span class="instance-item-preview">btn</span>
+                <span class="instance-item-label">
+                  "Subscribe"
+                  <span class="tag">&lt;button&gt; in Footer</span>
+                </span>
+              </div>
+              <div class="instance-item" style="opacity: 0.5; font-size: 10px; color: var(--muted); padding: 4px 12px;">
+                … 7 more instances
+              </div>
+              <div class="instance-picker-footer">
+                <button class="action-btn primary" style="font-size: 11px; padding: 4px 12px;">Apply (1 selected)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Option C: Action Bar -->
+      <div style="margin-top: 24px;">
+        <div class="demo-row">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <span class="annotation">Option C — Inline action bar below header</span>
+            <p class="section-desc" style="max-width: 480px;">
+              A secondary toolbar row appears after selection. Clear, distinct actions: apply to all matching,
+              open the instance picker, or add a completely different element. Provides the most discoverable UX.
+            </p>
+            <div class="panel-sim" style="width: 360px;">
+              <div class="panel-header-flex">
+                <button class="select-btn" title="Select element">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div class="panel-header-info">
+                  <span class="comp-name">Button</span>
+                  <span class="comp-instances"> — 1 of 10 instances</span>
+                </div>
+                <button class="container-btn">⊞</button>
+              </div>
+              <!-- Action bar row -->
+              <div class="action-bar">
+                <button class="action-btn primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  All 10 Matching
+                </button>
+                <button class="action-btn">
+                  ☰ Pick Specific…
+                </button>
+                <span class="action-bar-sep"></span>
+                <button class="action-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Different Element
+                </button>
+              </div>
+              <div class="panel-tabs">
+                <span class="panel-tab active">Design</span>
+                <span class="panel-tab">Message</span>
+                <span class="panel-tab">Draw</span>
+              </div>
+              <div class="panel-body" style="min-height: 60px; font-size: 11px; color: var(--text-mid);">
+                <em>Design properties for 1 of 10 Button instances…</em>
+              </div>
+              <div class="queue-footer">
+                <span>draft: 0</span>
+                <span>committed: 0</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+            <div class="rec-note">
+              <strong>Recommendation:</strong> <strong style="color: var(--teal);">Option C (Action Bar)</strong>
+              is the most discoverable approach. All three actions are visible without hovering or clicking
+              hidden triggers. The bar can collapse to icons on narrow panels.
+              <br><br>
+              However, <strong style="color: var(--teal);">Option A</strong> is the most compact. Consider using
+              Option A for sidebar/popover and Option C for wider panels.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Option D: On-Page Overlay Menu -->
+      <div style="margin-top: 24px;">
+        <div class="demo-row">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <span class="annotation">Option D — On-page overlay menu (anchored to selected element)</span>
+            <p class="section-desc" style="max-width: 520px;">
+              Instead of putting multi-select controls in the panel, anchor them to the <strong>selected element
+              on the page itself</strong>. This extends the existing draw-button pattern: after selection, a small
+              control bar appears at the top-left or top-right of the highlighted element, offering matching/add
+              controls right where the user is looking. This keeps the user's attention on the page rather than
+              requiring them to shift focus to the panel.
+            </p>
+
+            <!-- Demo: Overlay menu on selected card — top-left placement -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <span class="annotation">Placement A — Top-left of selected element (alongside draw button)</span>
+              <div class="page-sim" style="width: 520px;">
+                <div class="page-sim-bar">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  localhost:5173
+                </div>
+                <div class="page-sim-body" style="min-height: 200px;">
+                  <!-- Selected card with overlay controls -->
+                  <div class="card selected" style="position: relative; margin-top: 36px;">
+                    <!-- Overlay control bar — anchored above element, top-left -->
+                    <div style="position: absolute; top: -34px; left: -2px; display: flex; align-items: center; gap: 3px; z-index: 100;">
+                      <!-- Draw button (existing) -->
+                      <button style="
+                        width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+                        background: var(--bg); color: var(--teal); font-size: 14px; cursor: pointer;
+                        display: flex; align-items: center; justify-content: center;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 150ms;" title="Insert drawing canvas">
+                        ✏️
+                      </button>
+
+                      <!-- Separator -->
+                      <div style="width: 1px; height: 20px; background: var(--border); margin: 0 2px;"></div>
+
+                      <!-- Matching instances button -->
+                      <button style="
+                        height: 28px; border-radius: 6px; border: 1px solid var(--teal);
+                        background: var(--teal); color: #fff; font-size: 10px; font-weight: 600;
+                        font-family: var(--font-ui); cursor: pointer; padding: 0 10px;
+                        display: flex; align-items: center; gap: 4px;
+                        box-shadow: 0 2px 8px rgba(0,132,139,0.25); transition: all 150ms;" title="Select all matching instances">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        All 10
+                      </button>
+
+                      <!-- Filter / pick specific -->
+                      <button style="
+                        height: 28px; border-radius: 6px; border: 1px solid var(--border);
+                        background: var(--bg); color: var(--text-mid); font-size: 10px; font-weight: 500;
+                        font-family: var(--font-ui); cursor: pointer; padding: 0 8px;
+                        display: flex; align-items: center; gap: 4px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 150ms;" title="Pick specific instances">
+                        ☰ Pick…
+                      </button>
+
+                      <!-- Add different element -->
+                      <button style="
+                        width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+                        background: var(--bg); color: var(--text-mid); font-size: 14px; cursor: pointer;
+                        display: flex; align-items: center; justify-content: center;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 150ms;" title="Add a different element to selection">
+                        +
+                      </button>
+                    </div>
+
+                    <h3>Product Card</h3>
+                    <p>A flexible card component with image, title, and CTA button.</p>
+                    <div style="margin-top: 8px;">
+                      <button style="padding: 4px 12px; border-radius: 6px; background: var(--teal); color: #fff; border: none; font-size: 11px; font-weight: 600;">Buy Now</button>
+                    </div>
+                  </div>
+
+                  <!-- Other matching cards (dimmed, with count badge) -->
+                  <div class="card-row">
+                    <div class="card" style="opacity: 0.35; position: relative;">
+                      <div style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--teal); color: #fff; font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.15);">2</div>
+                      <h3 style="font-size: 12px;">Card #2</h3>
+                      <p style="font-size: 10px;">Another matching instance</p>
+                    </div>
+                    <div class="card" style="opacity: 0.35; position: relative;">
+                      <div style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--teal); color: #fff; font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.15);">3</div>
+                      <h3 style="font-size: 12px;">Card #3</h3>
+                      <p style="font-size: 10px;">Another matching instance</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Demo: Filter popover expanding from "Pick…" -->
+              <span class="annotation">After clicking "Pick…" — instance filter popover opens on page</span>
+              <div class="page-sim" style="width: 520px;">
+                <div class="page-sim-bar">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  localhost:5173
+                </div>
+                <div class="page-sim-body" style="min-height: 240px;">
+                  <div class="card selected" style="position: relative; margin-top: 36px;">
+                    <!-- Overlay bar (same as above, slightly dimmed) -->
+                    <div style="position: absolute; top: -34px; left: -2px; display: flex; align-items: center; gap: 3px; z-index: 100;">
+                      <button style="width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--teal); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.12);" title="Draw">✏️</button>
+                      <div style="width: 1px; height: 20px; background: var(--border); margin: 0 2px;"></div>
+                      <button style="height: 28px; border-radius: 6px; border: 1px solid var(--teal); background: var(--teal); color: #fff; font-size: 10px; font-weight: 600; font-family: var(--font-ui); cursor: pointer; padding: 0 10px; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,132,139,0.25);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        All 10
+                      </button>
+                      <button style="height: 28px; border-radius: 6px; border: 1px solid var(--teal); background: var(--teal-dim); color: var(--teal); font-size: 10px; font-weight: 600; font-family: var(--font-ui); cursor: pointer; padding: 0 8px; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,132,139,0.15);">☰ Pick…</button>
+                      <button style="width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text-mid); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">+</button>
+                    </div>
+
+                    <!-- Instance filter popover (drops down from "Pick…" button) -->
+                    <div style="position: absolute; top: -2px; left: 130px; z-index: 200;">
+                      <div class="instance-picker" style="min-width: 260px;">
+                        <div class="instance-picker-header">
+                          <span class="instance-picker-title">ProductCard instances</span>
+                          <div class="instance-picker-actions">
+                            <a>All</a>
+                            <a>None</a>
+                          </div>
+                        </div>
+                        <div class="instance-item">
+                          <input type="checkbox" checked>
+                          <span class="instance-item-preview" style="border-color: var(--teal); background: var(--teal-dim);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="width: 12px; height: 12px;"><polyline points="20 6 9 17 4 12"/></svg>
+                          </span>
+                          <span class="instance-item-label">
+                            "Product Card" <span class="tag">← you clicked this one</span>
+                          </span>
+                        </div>
+                        <div class="instance-item">
+                          <input type="checkbox" checked>
+                          <span class="instance-item-preview" style="border-color: var(--teal); background: var(--teal-dim);">2</span>
+                          <span class="instance-item-label">
+                            "Card #2" <span class="tag">in ProductList</span>
+                          </span>
+                        </div>
+                        <div class="instance-item">
+                          <input type="checkbox">
+                          <span class="instance-item-preview">3</span>
+                          <span class="instance-item-label">
+                            "Card #3" <span class="tag">in ProductList</span>
+                          </span>
+                        </div>
+                        <div class="instance-item" style="opacity: 0.5; font-size: 10px; color: var(--muted); padding: 4px 12px;">
+                          … 7 more
+                        </div>
+                        <div class="instance-picker-footer">
+                          <button class="action-btn primary" style="font-size: 11px; padding: 4px 12px;">Apply (2 selected)</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <h3>Product Card</h3>
+                    <p>A flexible card component with image, title, and CTA button.</p>
+                    <div style="margin-top: 8px;">
+                      <button style="padding: 4px 12px; border-radius: 6px; background: var(--teal); color: #fff; border: none; font-size: 11px; font-weight: 600;">Buy Now</button>
+                    </div>
+                  </div>
+
+                  <div class="card-row">
+                    <div class="card selected" style="opacity: 0.7; position: relative;">
+                      <div style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--teal); color: #fff; font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;">2</div>
+                      <h3 style="font-size: 12px;">Card #2</h3>
+                      <p style="font-size: 10px;">Selected via picker</p>
+                    </div>
+                    <div class="card" style="opacity: 0.25; position: relative;">
+                      <div style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); color: #fff; font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;">3</div>
+                      <h3 style="font-size: 12px;">Card #3</h3>
+                      <p style="font-size: 10px;">Not selected</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Demo: After clicking "+" to add a different element -->
+              <span class="annotation">After clicking "+" — re-enters selection mode with "adding" indicator</span>
+              <div class="page-sim" style="width: 520px;">
+                <div class="page-sim-bar">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  localhost:5173
+                  <span style="margin-left: auto; color: var(--orange); font-size: 9px;">● adding element</span>
+                </div>
+                <div class="page-sim-body cursor-crosshair" style="min-height: 160px;">
+                  <!-- Previously selected card (dimmed, keeping highlight) -->
+                  <div class="card selected" style="opacity: 0.4; position: relative;">
+                    <h3>Product Card</h3>
+                    <p>Previously selected (all 10 matching)</p>
+                  </div>
+
+                  <!-- Hovering over a nav element (different component) -->
+                  <div style="background: var(--surface-hi); border-radius: 6px; padding: 8px 12px; display: flex; gap: 12px; align-items: center; position: relative;" class="hover-preview">
+                    <div class="hover-tooltip" style="background: var(--orange); left: 0;">
+                      <span style="color: rgba(255,255,255,0.6);">&lt;</span>NavLink<span style="color: rgba(255,255,255,0.6);">&gt;</span>
+                      <span style="opacity: 0.5; margin-left: 4px;">a.nav-link</span>
+                    </div>
+                    <span style="font-size: 11px; font-weight: 600; color: var(--text);">Home</span>
+                    <span style="font-size: 11px; color: var(--text-mid);">Products</span>
+                    <span style="font-size: 11px; color: var(--text-mid);">About</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+              <div class="rec-note">
+                <strong>Key advantage:</strong> Controls live <strong style="color: var(--teal);">right where the user is looking</strong>
+                — on the selected element itself. This is especially valuable when the panel is in a sidebar
+                or popover and the user's gaze is on the page, not the panel.
+                <br><br>
+                The existing ✏️ draw button already occupies this space. Adding matching/filter controls
+                alongside it creates a unified <strong style="color: var(--teal);">element action toolbar</strong>.
+              </div>
+              <div class="note">
+                <strong>Instance badges:</strong> When matching instances exist, each gets a small numbered
+                badge (teal circle) at its corner. This provides a visual map of where all instances live
+                on the page, even before selecting them.
+              </div>
+              <div class="note">
+                <strong>Composable with panel options:</strong> Option D isn't mutually exclusive with A/B/C.
+                The on-page toolbar handles the quick "select all / filter / add" actions, while the panel
+                header still shows the component name and instance count. The panel's action bar (Option C)
+                could be a <em>mirror</em> of the on-page controls for accessibility.
+              </div>
+              <div class="note">
+                <strong>"+" adds to selection:</strong> Clicking the + button re-enters selection mode but
+                with an orange indicator ("● adding element") instead of teal. The existing selection stays
+                highlighted (dimmed). Clicking a different element type creates a mixed selection.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mixed selection (non-matching elements) -->
+      <div style="margin-top: 24px;">
+        <div class="demo-row">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <span class="annotation">Mixed selection — non-matching elements disable Design tab</span>
+            <p class="section-desc" style="max-width: 480px;">
+              When a user adds a different element type (e.g., a Card + a Button), the Design tab is disabled
+              because Tailwind class editing can't apply uniformly across different component structures.
+              The Message tab remains available for contextual instructions referencing all selected elements.
+            </p>
+            <div class="panel-sim" style="width: 360px;">
+              <div class="panel-header-flex" style="flex-wrap: wrap; gap: 6px;">
+                <button class="select-btn" title="Select element">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div class="panel-header-info">
+                  <div>
+                    <span class="comp-name">Button</span>
+                    <span class="comp-instances"> — 1 instance</span>
+                    <span style="color: var(--text-mid); font-size: 10px;"> + </span>
+                    <span class="comp-name">Card</span>
+                    <span class="comp-instances"> — 1 instance</span>
+                  </div>
+                </div>
+                <button class="container-btn">⊞</button>
+              </div>
+              <div class="panel-tabs">
+                <span class="disabled-tooltip-wrap">
+                  <span class="panel-tab disabled">Design</span>
+                  <span class="disabled-tooltip">Design is disabled for mixed selections</span>
+                </span>
+                <span class="panel-tab active">Message</span>
+                <span class="panel-tab disabled">Draw</span>
+              </div>
+              <div class="panel-body" style="min-height: 100px;">
+                <div style="font-size: 11px; color: var(--text-mid); margin-bottom: 8px;">
+                  Send a message referencing all selected elements:
+                </div>
+                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-size: 11px;">
+                  <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+                    <span style="color: var(--teal); font-size: 9px; font-weight: 700; background: var(--teal-dim); padding: 1px 4px; border-radius: 2px;">Button</span>
+                    <span style="color: #8B5CF6; font-size: 9px; font-weight: 700; background: rgba(139,92,246,0.08); padding: 1px 4px; border-radius: 2px;">Card</span>
+                  </div>
+                  <div style="color: var(--muted); font-style: italic; font-size: 10px;">
+                    Type a message for the AI agent about these elements…
+                  </div>
+                </div>
+              </div>
+              <div class="queue-footer">
+                <span>draft: 0</span>
+                <span>committed: 0</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="max-width: 320px; display: flex; flex-direction: column; gap: 12px;">
+            <div class="note">
+              <strong>Why disable Design?</strong> The Tailwind class editor works by swapping classes on
+              equivalent DOM nodes. If the selected elements have different class structures (Button vs Card),
+              the scrubbers and chips can't present a coherent view. Message-based instructions are the
+              right tool for cross-component changes.
+            </div>
+            <div class="note">
+              <strong>Element badges:</strong> Each selected component gets a colored badge in the Message tab.
+              The AI agent will receive context about all elements when the message is committed.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SECTION 5: FULL SELECTION FLOW — END TO END
+    ═══════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag rose">5</span>
+        <span class="section-title">Full Selection Flow — End to End</span>
+      </div>
+      <p class="section-desc">
+        Putting it all together: the complete journey from opening VyBit to editing an element.
+        This shows the page and panel side by side at each step.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- Step 1: VyBit button visible, panel closed -->
+        <div>
+          <span class="annotation">Step 1 — VyBit button visible on page, panel is closed</span>
+          <div class="demo-row" style="align-items: center;">
+            <div class="page-sim" style="width: 400px; position: relative;">
+              <div class="page-sim-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                localhost:5173
+              </div>
+              <div class="page-sim-body" style="min-height: 120px;">
+                <div class="card">
+                  <h3>Product Card</h3>
+                  <p>A sample component on the page.</p>
+                </div>
+                <div class="card" style="opacity: 0.5;">
+                  <h3>Another Card</h3>
+                  <p>More content…</p>
+                </div>
+              </div>
+              <!-- VyBit toggle (bottom-right) -->
+              <div style="position: absolute; bottom: 12px; right: 12px;">
+                <button class="vybit-toggle vybit-halo" style="width: 36px; height: 36px;" title="Open VyBit panel">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; position:relative;z-index:2">
+                    <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                    <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                    <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div style="font-size: 20px; color: var(--muted);">→</div>
+            <div style="font-size: 11px; color: var(--text-mid); max-width: 200px;">
+              User sees the VyBit toggle in the bottom-right. The AI glow signals it's an AI-powered tool. Click to open the panel.
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Panel opens, no element selected -->
+        <div>
+          <span class="annotation">Step 2 — User clicks VyBit toggle → panel opens</span>
+          <div class="demo-row" style="align-items: center;">
+            <div class="page-sim" style="width: 400px; position: relative;">
+              <div class="page-sim-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                localhost:5173
+              </div>
+              <div class="page-sim-body" style="min-height: 120px;">
+                <div class="card">
+                  <h3>Product Card</h3>
+                  <p>A sample component on the page.</p>
+                </div>
+                <div class="card" style="opacity: 0.5;">
+                  <h3>Another Card</h3>
+                  <p>More content…</p>
+                </div>
+              </div>
+              <div style="position: absolute; bottom: 12px; right: 12px;">
+                <button class="vybit-toggle vybit-halo active" style="width: 36px; height: 36px;" title="Close VyBit panel">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; position:relative;z-index:2">
+                    <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                    <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                    <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div style="font-size: 20px; color: var(--muted);">→</div>
+            <div class="panel-sim" style="width: 280px;">
+              <div class="panel-header-flex" style="padding: 6px 10px;">
+                <button class="select-btn" style="width: 24px; height: 24px;" title="Select element">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 13px; height: 13px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <span style="font-size: 11px; color: var(--muted);">No element selected</span>
+              </div>
+              <div class="panel-body" style="padding: 16px; text-align: center;">
+                <span style="font-size: 20px; opacity: 0.2;">✦</span>
+                <div style="font-size: 10px; color: var(--text-mid); margin-top: 4px;">Click
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px; vertical-align: -1px; color: var(--teal);">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                  or press <span class="shortcut-badge" style="font-size: 8px; display: inline-flex;"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Selection mode active, hovering -->
+        <div>
+          <span class="annotation">Step 3 — User clicks select button → hovers over element → tooltip preview</span>
+          <div class="demo-row" style="align-items: center;">
+            <div class="page-sim" style="width: 400px; position: relative;">
+              <div class="page-sim-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                localhost:5173
+                <span style="margin-left: auto; color: var(--teal); font-size: 9px;">● selecting</span>
+              </div>
+              <div class="page-sim-body cursor-crosshair" style="min-height: 120px;">
+                <div class="card hover-preview" style="position: relative;">
+                  <div class="hover-tooltip">
+                    &lt;ProductCard&gt; <span style="opacity: 0.5;">div.card</span>
+                  </div>
+                  <h3>Product Card</h3>
+                  <p>A sample component on the page.</p>
+                </div>
+                <div class="card" style="opacity: 0.5;">
+                  <h3>Another Card</h3>
+                  <p>More content…</p>
+                </div>
+              </div>
+              <div style="position: absolute; bottom: 12px; right: 12px;">
+                <button class="vybit-toggle vybit-halo active" style="width: 36px; height: 36px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; position:relative;z-index:2">
+                    <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                    <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                    <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div style="font-size: 20px; color: var(--muted);">→</div>
+            <div class="panel-sim" style="width: 280px;">
+              <div class="panel-header-flex" style="padding: 6px 10px;">
+                <button class="select-btn active" style="width: 24px; height: 24px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 13px; height: 13px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <span style="font-size: 10px; color: var(--teal); font-weight: 500;">● Selecting…</span>
+              </div>
+              <div class="panel-body" style="padding: 16px; text-align: center;">
+                <div style="font-size: 10px; color: var(--text-mid);">
+                  Click an element or press <kbd style="font-family: var(--font-mono); font-size: 9px;">Esc</kbd> to cancel
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Element selected, panel shows data -->
+        <div>
+          <span class="annotation">Step 4 — User clicks element → selected, panel shows properties + action bar</span>
+          <div class="demo-row" style="align-items: center;">
+            <div class="page-sim" style="width: 400px; position: relative;">
+              <div class="page-sim-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                localhost:5173
+              </div>
+              <div class="page-sim-body" style="min-height: 120px;">
+                <div class="card selected" style="position: relative;">
+                  <h3>Product Card</h3>
+                  <p>A sample component on the page.</p>
+                </div>
+                <div class="card" style="opacity: 0.4;">
+                  <h3>Another Card</h3>
+                  <p>More content…</p>
+                </div>
+              </div>
+              <div style="position: absolute; bottom: 12px; right: 12px;">
+                <button class="vybit-toggle vybit-halo active" style="width: 36px; height: 36px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; position:relative;z-index:2">
+                    <path d="M12 3l1.5 3.2 3.5.5-2.5 2.5.6 3.5L12 11l-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z"/>
+                    <path d="M5 17l.8 1.7 1.8.3-1.3 1.3.3 1.8L5 21l-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                    <path d="M19 17l.8 1.7 1.8.3-1.3 1.3.3 1.8-1.6-1.1-1.6 1.1.3-1.8-1.3-1.3 1.8-.3z" opacity="0.5"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div style="font-size: 20px; color: var(--muted);">→</div>
+            <div class="panel-sim" style="width: 300px;">
+              <div class="panel-header-flex" style="padding: 6px 10px;">
+                <button class="select-btn" style="width: 24px; height: 24px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 13px; height: 13px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                </button>
+                <div style="flex: 1;">
+                  <span class="comp-name" style="font-size: 12px;">ProductCard</span>
+                  <span class="comp-instances"> — 1 of 3</span>
+                </div>
+              </div>
+              <div class="action-bar" style="padding: 4px 10px; font-size: 9px;">
+                <button class="action-btn primary" style="font-size: 9px; padding: 2px 6px;">All 3</button>
+                <button class="action-btn" style="font-size: 9px; padding: 2px 6px;">Pick…</button>
+                <span class="action-bar-sep" style="height: 12px;"></span>
+                <button class="action-btn" style="font-size: 9px; padding: 2px 6px;">+ Different</button>
+              </div>
+              <div class="panel-tabs">
+                <span class="panel-tab active" style="font-size: 10px; padding: 5px 10px;">Design</span>
+                <span class="panel-tab" style="font-size: 10px; padding: 5px 10px;">Message</span>
+                <span class="panel-tab" style="font-size: 10px; padding: 5px 10px;">Draw</span>
+              </div>
+              <div class="panel-body" style="min-height: 40px; font-size: 10px; color: var(--text-mid);">
+                <em>Design properties…</em>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="margin-top: 16px; display: flex; gap: 16px; flex-wrap: wrap;">
+        <div class="rec-note">
+          <strong>Summary of the new flow:</strong>
+          <ol style="margin-top: 6px; padding-left: 16px; font-size: 10px; line-height: 1.7;">
+            <li>VyBit toggle opens/closes the panel (replaces ⊕)</li>
+            <li>Panel shows select-element button + empty state</li>
+            <li>Click select button (or <kbd>⌘⇧C</kbd>) → selection mode</li>
+            <li>Hover to preview (teal outline + tooltip)</li>
+            <li>Click to select → auto-exits selection mode</li>
+            <li>Panel shows component info + action bar</li>
+            <li>"All N" / "Pick…" to expand selection to matching instances</li>
+            <li>"+ Different" re-enters selection to add a non-matching element</li>
+          </ol>
+        </div>
+        <div class="note">
+          <strong>Keyboard shortcuts:</strong>
+          <ul style="margin-top: 4px;">
+            <li><kbd>⌘⇧C</kbd> / <kbd>Ctrl+Shift+C</kbd> — toggle selection mode</li>
+            <li><kbd>Esc</kbd> — cancel selection mode</li>
+            <li>VyBit toggle button click — open/close panel</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

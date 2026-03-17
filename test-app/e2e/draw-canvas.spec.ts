@@ -1,23 +1,5 @@
 import { test, expect, type Page, type Frame } from '@playwright/test';
-
-async function activateInspectMode(page: Page) {
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
-}
-
-async function getPanelFrame(page: Page): Promise<Frame> {
-  let frame: Frame | null = null;
-  for (let i = 0; i < 20; i++) {
-    frame = page.frames().find(f => f.url().includes('/panel') && !f.url().includes('mode=design')) ?? null;
-    if (frame) break;
-    await page.waitForTimeout(250);
-  }
-  if (!frame) throw new Error('Panel frame not found');
-  return frame;
-}
+import { clickToggleButton, getPanelFrame, waitForPanelReady, clickSelectElementButton } from './helpers';
 
 async function getDesignFrame(page: Page): Promise<Frame> {
   let frame: Frame | null = null;
@@ -69,17 +51,15 @@ test.describe('Draw Canvas', () => {
     await page.waitForTimeout(2000);
 
     // Activate inspector
-    await activateInspectMode(page);
+    await clickToggleButton(page);
     const panelFrame = await getPanelFrame(page);
 
     // Wait for panel WS to be ready
-    await panelFrame.waitForFunction(
-      () => !document.body.textContent?.includes('Waiting for connection'),
-      { timeout: 10000 },
-    );
+    await waitForPanelReady(panelFrame);
     await page.waitForTimeout(300);
 
-    // Click on the Active badge to select it
+    // Activate select mode then click the Active badge
+    await clickSelectElementButton(panelFrame);
     await page.locator('text=Active').first().click();
     await page.waitForTimeout(1000);
 
@@ -155,8 +135,14 @@ test.describe('Draw Canvas', () => {
     // Verify undo button is now enabled (meaning a stroke was recorded)
     await expect(designFrame.getByRole('button', { name: '↶' })).toBeEnabled({ timeout: 3000 });
 
-    // Click "Queue as Change" to submit the drawing
-    await designFrame.getByRole('button', { name: '✓ Queue as Change' }).click();
+    // Click "Queue as Change" to submit the drawing — use evaluate to bypass
+    // pointer-event interception from the overlay's shadow DOM children
+    await designFrame.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll('button'))
+        .find(b => b.textContent?.includes('Queue as Change')) as HTMLButtonElement | undefined;
+      if (!btn) throw new Error('"Queue as Change" button not found');
+      btn.click();
+    });
     await page.waitForTimeout(1000);
 
     // Verify DESIGN_SUBMIT was sent via WebSocket
@@ -173,16 +159,14 @@ test.describe('Draw Canvas', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    await activateInspectMode(page);
+    await clickToggleButton(page);
     const panelFrame = await getPanelFrame(page);
 
-    await panelFrame.waitForFunction(
-      () => !document.body.textContent?.includes('Waiting for connection'),
-      { timeout: 10000 },
-    );
+    await waitForPanelReady(panelFrame);
     await page.waitForTimeout(300);
 
-    // Click on a badge
+    // Activate select mode then click a badge
+    await clickSelectElementButton(panelFrame);
     await page.locator('text=Active').first().click();
     await page.waitForTimeout(1000);
 

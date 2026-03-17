@@ -1,40 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { openAndSelectElement } from './helpers';
 
-/**
- * Activates inspect mode and clicks the Primary button, returning the panel iframe.
- * (Shared helper — same as box-model.spec.ts)
- */
 async function openPanelForPrimaryButton(page: any) {
   await page.goto('/');
   await page.waitForTimeout(1500);
-
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
-
-  await page.waitForSelector('iframe[src*="panel"]', { timeout: 5000 });
-
-  let frame: any = null;
-  for (let i = 0; i < 20; i++) {
-    frame = page.frames().find((f: any) => f.url().includes('/panel')) ?? null;
-    if (frame) break;
-    await page.waitForTimeout(250);
-  }
-  if (!frame) throw new Error('Panel frame not found');
-
-  await frame.waitForFunction(
-    () => !document.body.textContent?.includes('Waiting for connection'),
-    { timeout: 10000 },
-  );
-
-  await page.waitForTimeout(300);
-
-  await page.locator('button:has-text("Primary")').first().click();
+  const frame = await openAndSelectElement(page, page.locator('button:has-text("Primary")').first());
   await frame.locator('[data-layer="padding"] .bm-slot', { hasText: 'x-4' }).first().waitFor({ timeout: 8000 });
-
-  return page.frameLocator('iframe[src*="panel"]');
+  return frame;
 }
 
 async function getFooterCount(panel: any, label: string) {

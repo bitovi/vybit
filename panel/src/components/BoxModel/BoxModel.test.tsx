@@ -75,7 +75,7 @@ test('calls onSlotClick with layer and slot key', () => {
   const tSlots = screen.getAllByText('t');
   const paddingT = tSlots.find(el => el.closest('[data-layer="padding"]'))!;
   fireEvent.click(paddingT);
-  expect(onSlotClick).toHaveBeenCalledWith('padding', 't');
+  expect(onSlotClick).toHaveBeenCalledWith('padding', 't', expect.anything());
 });
 
 test('shows shorthand value when classState is shorthand', () => {

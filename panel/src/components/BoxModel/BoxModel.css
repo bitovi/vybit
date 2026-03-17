@@ -319,12 +319,10 @@
 
 /* ─── MiniScrubber: dropdown ─────────────────────────────── */
 .bm-mini-dropdown {
-  position: absolute;
-  z-index: 50;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 4px;
+  /* Rendered via portal into document.body — positioned with inline fixed style */
+  position: fixed;
+  z-index: 9999;
+  margin-top: 0;
   max-height: 200px;
   overflow-y: auto;
   background: #fff;
@@ -340,18 +338,18 @@
   font-size: 11px;
   font-family: var(--font-mono, 'Roboto Mono', monospace);
   cursor: pointer;
-  color: var(--text-mid);
+  color: var(--text-mid, #687879);
   white-space: nowrap;
   line-height: 1.4;
 }
 
 .bm-mini-dropdown-item:hover {
-  background: var(--teal-dim);
-  color: var(--teal);
+  background: var(--teal-dim, rgba(0, 132, 139, 0.09));
+  color: var(--teal, #00848B);
 }
 
 .bm-mini-dropdown-item.bm-active {
-  background: var(--teal-dim);
-  color: var(--teal);
+  background: var(--teal-dim, rgba(0, 132, 139, 0.09));
+  color: var(--teal, #00848B);
   font-weight: 700;
 }

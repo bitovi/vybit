@@ -51,7 +51,7 @@ export interface BoxModelProps {
   /** When true, the entire box model is frozen (scrubber active) */
   frozen?: boolean;
   /** Called when user clicks a slot or label to begin editing */
-  onSlotClick?: (layer: LayerName, slotKey: SlotKey | 'shorthand') => void;
+  onSlotClick?: (layer: LayerName, slotKey: SlotKey | 'shorthand', anchorEl?: Element) => void;
   /** Called when user commits a new value via scrubber */
   onSlotChange?: (layer: LayerName, slotKey: SlotKey | 'shorthand', value: string) => void;
   /** Called when user hovers a candidate value (for preview), null on leave */
@@ -73,7 +73,7 @@ export interface BoxModelRingProps {
   /** Called when this ring's hover state changes */
   onHoverChange: (hovered: boolean) => void;
   /** Called when a slot or the shorthand label is clicked */
-  onSlotClick?: (slotKey: SlotKey | 'shorthand') => void;
+  onSlotClick?: (slotKey: SlotKey | 'shorthand', anchorEl?: Element) => void;
   /** Called when a slot value is committed via scrubber */
   onSlotChange?: (slotKey: SlotKey | 'shorthand', value: string) => void;
   /** Called when a slot value is previewed (hover/scrub), null on leave */
@@ -109,7 +109,7 @@ export interface BoxModelSlotProps {
   /** Drag axis when scrubbing: 'x' horizontal, 'y' vertical */
   axis?: 'x' | 'y';
   /** Click handler (plain slot mode) */
-  onClick?: () => void;
+  onClick?: (anchorEl: Element) => void;
   /** Called when user commits a value via scrubber */
   onValueChange?: (value: string) => void;
   /** Called when user previews a value via scrubber */

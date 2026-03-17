@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { MiniScrubberProps } from './types';
 
 const SCRUB_THRESHOLD = 4;
@@ -21,6 +22,7 @@ export function MiniScrubber({
   onClose,
 }: MiniScrubberProps) {
   const [open, setOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [scrubIndex, setScrubIndex] = useState<number | null>(null);
   const dragRef = useRef<{
     startX: number;
@@ -39,6 +41,15 @@ export function MiniScrubber({
   const chipText = scrubValue
     ? (formatValue ? formatValue(scrubValue) : scrubValue)
     : (displayValue ?? placeholder);
+
+  // Update dropdown position when open
+  useEffect(() => {
+    if (!open) { setDropdownPos(null); return; }
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
+    }
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -144,9 +155,10 @@ export function MiniScrubber({
     >
       {chipText}
 
-      {open && (
+      {open && dropdownPos && createPortal(
         <div
           className="bm-mini-dropdown"
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, transform: 'translateX(-50%)' }}
           onClick={e => e.stopPropagation()}
           onMouseLeave={() => onLeave?.()}
           onMouseDown={e => e.stopPropagation()}
@@ -170,7 +182,8 @@ export function MiniScrubber({
               </div>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );

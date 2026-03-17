@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clickToggleButton, getPanelFrame, waitForPanelReady, clickSelectElementButton } from './helpers';
 
 /**
  * Verifies that hovering over scale chips and then leaving does NOT leave
@@ -17,38 +18,22 @@ test('hovering then leaving scale chips reverts classes on the page', async ({ p
   const originalClass = await page.locator('button:has-text("Primary")').first().getAttribute('class');
   expect(originalClass).toContain('px-4');
 
-  // Activate inspect mode
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
-
-  let frame: import('@playwright/test').Frame | null = null;
-  for (let i = 0; i < 20; i++) {
-    frame = page.frames().find(f => f.url().includes('/panel')) || null;
-    if (frame) break;
-    await page.waitForTimeout(250);
-  }
-  expect(frame).toBeTruthy();
-
-  await frame!.waitForFunction(
-    () => !document.body.textContent?.includes('Waiting for connection'),
-    { timeout: 10000 },
-  );
-
+  await clickToggleButton(page);
+  const frame = await getPanelFrame(page);
+  await waitForPanelReady(frame);
   await page.waitForTimeout(300);
+  await clickSelectElementButton(frame);
 
   // Click the Primary button to select it
   await page.locator('button:has-text("Primary")').first().click();
-  const scrubber = frame!.locator('.cursor-ew-resize').filter({ hasText: 'text-sm' }).first();
+  const scrubber = frame.locator('.cursor-ew-resize').filter({ hasText: 'text-sm' }).first();
   await scrubber.waitFor({ timeout: 8000 });
   await scrubber.click();
   await page.waitForTimeout(300);
 
   const optionTexts = ['text-xs', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl'];
   for (const optionText of optionTexts) {
-    await frame!.getByText(optionText, { exact: true }).hover();
+    await frame.getByText(optionText, { exact: true }).hover();
   }
 
   // Move the mouse out of the panel entirely

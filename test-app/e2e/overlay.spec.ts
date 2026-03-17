@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clickToggleButton, getPanelFrame, waitForPanelReady, clickSelectElementButton } from './helpers';
 
 test.describe('Overlay', () => {
   test('overlay.js loads without errors', async ({ page }) => {
@@ -72,26 +73,21 @@ test.describe('Overlay', () => {
 
     expect(activated).toBe(true);
 
-    // Verify cursor changed to crosshair
-    const cursor = await page.evaluate(() => {
-      return document.documentElement.style.cursor;
+    // Panel iframe should appear (toggle opens the panel)
+    await page.waitForSelector('iframe[src*="panel"]', { timeout: 5000 });
+    const iframeExists = await page.evaluate(() => {
+      const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
+      return !!host.shadowRoot?.querySelector('iframe');
     });
-    expect(cursor).toBe('crosshair');
+    expect(iframeExists).toBe(true);
   });
 
   test('clicking element in inspect mode opens panel container', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    // Activate inspect mode
-    await page.evaluate(() => {
-      const host = document.querySelector('#tw-visual-editor-host');
-      const btn = host!.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-      btn.click();
-    });
-
-    // Click on the h1 element
-    await page.click('h1');
+    // Toggle opens the panel — no need to click an element for the iframe to appear
+    await clickToggleButton(page);
     await page.waitForTimeout(2000);
 
     // Check if a container (iframe) appeared in shadow DOM
@@ -127,12 +123,11 @@ test.describe('Overlay', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    // Activate inspect mode
-    await page.evaluate(() => {
-      const host = document.querySelector('#tw-visual-editor-host');
-      const btn = host!.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-      btn.click();
-    });
+    await clickToggleButton(page);
+    const frame = await getPanelFrame(page);
+    await waitForPanelReady(frame);
+    await page.waitForTimeout(300);
+    await clickSelectElementButton(frame);
 
     // Click on the first "Primary" button
     await page.locator('button:has-text("Primary")').first().click();

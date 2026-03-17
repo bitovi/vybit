@@ -3,6 +3,8 @@
 
 let previewState: { elements: HTMLElement[]; originalClasses: string[] } | null = null;
 let previewStyleEl: HTMLStyleElement | null = null;
+/** Accumulates CSS for committed/staged classes so revertPreview() never strips it. */
+let committedStyleEl: HTMLStyleElement | null = null;
 let previewGeneration = 0;
 
 export async function applyPreview(
@@ -71,10 +73,36 @@ export function revertPreview(): void {
     }
     previewState = null;
   }
+  // Only remove the active preview style — committedStyleEl is intentionally preserved.
   previewStyleEl?.remove();
   previewStyleEl = null;
 }
 
 export function getPreviewState(): { elements: HTMLElement[]; originalClasses: string[] } | null {
   return previewState;
+}
+
+/**
+ * Clear preview tracking without reverting DOM changes (the staged change is now the baseline).
+ * Graduates the preview CSS into committedStyleEl so subsequent revertPreview() calls
+ * don't strip CSS that was injected for previously staged classes.
+ */
+export function commitPreview(): void {
+  previewGeneration++;
+  previewState = null;
+
+  // Move staged CSS from the transient preview element into the persistent committed bucket.
+  if (previewStyleEl) {
+    const css = previewStyleEl.textContent || '';
+    if (css) {
+      if (!committedStyleEl) {
+        committedStyleEl = document.createElement('style');
+        committedStyleEl.setAttribute('data-tw-committed', '');
+        document.head.appendChild(committedStyleEl);
+      }
+      committedStyleEl.textContent += css;
+    }
+    previewStyleEl.remove();
+    previewStyleEl = null;
+  }
 }

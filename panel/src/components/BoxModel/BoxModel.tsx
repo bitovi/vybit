@@ -20,9 +20,9 @@ export function BoxModel({ layers, frozen = false, onSlotClick, onSlotChange, on
     setHoveredLayer(hovered ? layer : null);
   };
 
-  const handleSlotClick = (layer: LayerName, slotKey: SlotKey | 'shorthand') => {
+  const handleSlotClick = (layer: LayerName, slotKey: SlotKey | 'shorthand', anchorEl?: Element) => {
     if (effectiveFrozen) return;
-    onSlotClick?.(layer, slotKey);
+    onSlotClick?.(layer, slotKey, anchorEl);
   };
 
   // Build nested rings from inside out
@@ -44,7 +44,7 @@ export function BoxModel({ layers, frozen = false, onSlotClick, onSlotChange, on
         isHovered={hoveredLayer === layerName || activeLayer === layerName}
         frozen={effectiveFrozen}
         onHoverChange={(hovered) => handleHoverChange(layerName, hovered)}
-        onSlotClick={(slotKey) => handleSlotClick(layerName, slotKey)}
+        onSlotClick={(slotKey, anchorEl) => handleSlotClick(layerName, slotKey, anchorEl)}
         onSlotChange={onSlotChange ? (slotKey, value) => onSlotChange(layerName, slotKey, value) : undefined}
         onSlotHover={onSlotHover ? (slotKey, value) => onSlotHover(layerName, slotKey, value) : undefined}
         onScrubStart={() => { setActiveLayer(layerName); onEditStart?.(); }}

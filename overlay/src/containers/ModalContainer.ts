@@ -44,6 +44,7 @@ export class ModalContainer implements IContainer {
     host.style.display = 'flex';
     host.style.flexDirection = 'column';
     host.style.overflow = 'hidden';
+    host.style.pointerEvents = 'auto';
 
     // Drag handle
     const handle = document.createElement('div');

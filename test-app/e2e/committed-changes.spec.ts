@@ -1,44 +1,5 @@
-import { test, expect, type Page, type Frame } from '@playwright/test';
-
-async function activateInspectMode(page: Page) {
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
-}
-
-async function getPanelFrame(page: Page): Promise<Frame> {
-  let frame: Frame | null = null;
-  for (let i = 0; i < 20; i++) {
-    frame = page.frames().find(f => f.url().includes('/panel')) ?? null;
-    if (frame) break;
-    await page.waitForTimeout(250);
-  }
-  if (!frame) throw new Error('Panel frame not found');
-  return frame;
-}
-
-async function selectElementAndWaitForPanel(
-  page: Page,
-  locator: import('@playwright/test').Locator,
-): Promise<Frame> {
-  const frame = await getPanelFrame(page);
-
-  // Wait until the panel WS is connected
-  await frame.waitForFunction(
-    () => !document.body.textContent?.includes('Waiting for connection'),
-    { timeout: 10000 },
-  );
-
-  // Small buffer for the REGISTER message to be processed by the server
-  await page.waitForTimeout(300);
-
-  await locator.click();
-
-  await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 8000 });
-  return frame;
-}
+import { test, expect, type Frame } from '@playwright/test';
+import { openAndSelectElement, clickSelectElementButton } from './helpers';
 
 async function getFooterCount(frame: Frame, label: string): Promise<number> {
   const button = frame.getByRole('button', { name: new RegExp(`\\d+ ${label}`) }).first();
@@ -74,12 +35,11 @@ test.describe('committed changes counter', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    await activateInspectMode(page);
-
-    const frame = await selectElementAndWaitForPanel(
+    const frame = await openAndSelectElement(
       page,
       page.locator('button:has-text("Primary")').first(),
     );
+    await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 8000 });
 
     const committedBefore = await getFooterCount(frame, 'committed');
 
@@ -95,18 +55,18 @@ test.describe('committed changes counter', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    await activateInspectMode(page);
-
-    const frame = await selectElementAndWaitForPanel(
+    const frame = await openAndSelectElement(
       page,
       page.locator('button:has-text("Primary")').first(),
     );
+    await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 8000 });
 
     const committedBefore = await getFooterCount(frame, 'committed');
 
     await stageBoxModelChange(frame, 'x-4', 'px-6');
     await commitAllStaged(frame);
 
+    await clickSelectElementButton(frame);
     await page.locator('button:has-text("Primary")').first().click();
     await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 5000 });
 

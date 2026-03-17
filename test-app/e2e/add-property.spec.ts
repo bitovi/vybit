@@ -1,46 +1,15 @@
-import { test, expect, type Page, type Frame } from '@playwright/test';
-
-async function activateInspectMode(page: Page) {
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
-}
-
-async function getPanelFrame(page: Page): Promise<Frame> {
-  let frame: Frame | null = null;
-  for (let i = 0; i < 20; i++) {
-    frame = page.frames().find(f => f.url().includes('/panel')) ?? null;
-    if (frame) break;
-    await page.waitForTimeout(250);
-  }
-  if (!frame) throw new Error('Panel frame not found');
-  return frame;
-}
-
-async function selectElementAndWaitForPanel(page: Page, locator: import('@playwright/test').Locator): Promise<Frame> {
-  const frame = await getPanelFrame(page);
-  await frame.waitForFunction(
-    () => !document.body.textContent?.includes('Waiting for connection'),
-    { timeout: 10000 },
-  );
-  await page.waitForTimeout(300);
-  await locator.click();
-  // Wait for the panel to render section headers
-  await frame.locator('text=SIZING').first().waitFor({ timeout: 8000 });
-  return frame;
-}
+import { test, expect } from '@playwright/test';
+import { openAndSelectElement } from './helpers';
 
 test.describe('Add property via + button', () => {
   test('clicking + shows available properties and selecting one shows a ghost scrubber', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(2000);
-    await activateInspectMode(page);
 
     // Select a Card title which likely has text classes but no width
     const heading = page.locator('h1').first();
-    const frame = await selectElementAndWaitForPanel(page, heading);
+    const frame = await openAndSelectElement(page, heading);
+    await frame.locator('text=SIZING').first().waitFor({ timeout: 8000 });
 
     // Find the Sizing section's + button
     const sizingSection = frame.locator('text=SIZING').first();
@@ -66,10 +35,10 @@ test.describe('Add property via + button', () => {
   test('clicking the ghost scrubber opens dropdown and committing retains the value', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(2000);
-    await activateInspectMode(page);
 
     const heading = page.locator('h1').first();
-    const frame = await selectElementAndWaitForPanel(page, heading);
+    const frame = await openAndSelectElement(page, heading);
+    await frame.locator('text=SIZING').first().waitFor({ timeout: 8000 });
 
     // Add width via + button
     const addBtn = frame.locator('button[aria-label="Add Sizing property"]');

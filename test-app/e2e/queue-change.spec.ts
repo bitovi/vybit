@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clickToggleButton, getPanelFrame, waitForPanelReady, clickSelectElementButton } from './helpers';
 
 /**
  * Verifies that selecting an element sends correct data through WS.
@@ -21,12 +22,11 @@ test('element selection sends correct class data via WS', async ({ page }) => {
   await page.goto('/');
   await page.waitForTimeout(1500);
 
-  // Activate inspect mode
-  await page.evaluate(() => {
-    const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.toggle-btn') as HTMLButtonElement;
-    btn.click();
-  });
+  await clickToggleButton(page);
+  const frame = await getPanelFrame(page);
+  await waitForPanelReady(frame);
+  await page.waitForTimeout(300);
+  await clickSelectElementButton(frame);
 
   // Click the Primary button to send ELEMENT_SELECTED
   await page.locator('button:has-text("Primary")').first().click();

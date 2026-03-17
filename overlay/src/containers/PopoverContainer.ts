@@ -20,6 +20,7 @@ export class PopoverContainer implements IContainer {
       z-index: 999999;
       background: #1e1e2e;
       box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+      pointer-events: auto;
     `;
 
     const iframe = document.createElement('iframe');

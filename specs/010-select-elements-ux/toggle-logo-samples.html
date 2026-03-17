@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VyBit Toggle — Eggburt Logo Concepts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── DESIGN TOKENS (Bitovi) ──────────────────────────────── */
+    :root {
+      --bg:           #FFFFFF;
+      --page-bg:      #EAECED;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-dark:    #005A5F;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 { font-family: var(--font-display); font-size: 20px; color: var(--text); margin-bottom: 4px; }
+    h1 span { color: var(--teal); }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 28px;
+      max-width: 760px;
+      line-height: 1.7;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────── */
+    .sections { display: flex; flex-direction: column; gap: 52px; }
+    .section  { display: flex; flex-direction: column; gap: 14px; }
+
+    .section-header { display: flex; align-items: center; gap: 8px; }
+
+    .section-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #fff;
+    }
+    .section-tag.blue   { background: #3B82F6; }
+    .section-tag.purple { background: #8B5CF6; }
+    .section-tag.green  { background: #10B981; }
+    .section-tag.amber  { background: #F59E0B; }
+    .section-tag.rose   { background: #F43F5E; }
+    .section-tag.teal   { background: var(--teal); }
+
+    .section-title { font-family: var(--font-display); font-size: 14px; color: var(--text); }
+
+    .section-desc {
+      font-size: 11px; color: var(--text-mid);
+      line-height: 1.7; max-width: 860px;
+    }
+
+    .demo-row {
+      display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;
+    }
+
+    .annotation {
+      font-size: 9px; font-family: var(--font-mono); color: var(--teal-dark);
+      padding: 2px 6px; background: rgba(0, 132, 139, 0.08);
+      border-radius: 3px; display: inline-block; margin-bottom: 6px;
+    }
+
+    .note {
+      background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 6px; padding: 10px 12px; font-size: 11px;
+      color: #445566; line-height: 1.6; max-width: 320px;
+    }
+    .note strong { color: #3B82F6; }
+    .note ul { margin-top: 5px; padding-left: 14px; }
+    .note li { margin-bottom: 2px; }
+
+    .rec-note {
+      background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 6px; padding: 10px 12px; font-size: 11px;
+      color: #1a4a3a; line-height: 1.6; max-width: 320px;
+    }
+    .rec-note strong { color: #10B981; }
+
+    /* ─── SHOWCASE CARD ───────────────────────────────────────── */
+    .showcase {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px 24px 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .showcase-title {
+      font-family: var(--font-display); font-size: 12px;
+      font-weight: 700; color: var(--text);
+    }
+    .showcase-desc {
+      font-size: 10px; color: var(--text-mid); line-height: 1.5; max-width: 340px;
+    }
+    .state-row { display: flex; gap: 32px; align-items: flex-end; }
+    .state-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .state-label {
+      font-size: 9px; font-family: var(--font-mono); color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ─── EGGBURT SVG PATH COLORING ──────────────────────────── */
+    /*
+      Path order in SVG (from Mascot-black.svg):
+        .ef   — smile + main body (teal)
+        .ee-l — left eye  (white by default, rainbow on hover)
+        .ee-r — right eye (white by default, rainbow on hover, slight delay)
+    */
+    .ef   { fill: var(--teal); }
+    .ee-l { fill: var(--teal); transition: fill 0s; }
+    .ee-r { fill: var(--teal); transition: fill 0s; }
+
+    /* Dark-variant overrides (applied via parent class) */
+    .dark-icon .ef   { fill: #5DE8F0; }
+    .dark-icon .ee-l { fill: #001A1B; }
+    .dark-icon .ee-r { fill: #001A1B; }
+
+    /* Orange-accent variant */
+    .orange-icon .ef { fill: var(--orange); }
+
+    /* ─── RAINBOW EYES ANIMATION ─────────────────────────────── */
+    @keyframes rainbow-eyes {
+      0%   { fill: #ff4040; filter: drop-shadow(0 0 5px #ff4040); }
+      14%  { fill: #ff9800; filter: drop-shadow(0 0 5px #ff9800); }
+      28%  { fill: #ffee00; filter: drop-shadow(0 0 5px #ffee00); }
+      42%  { fill: #3dff6e; filter: drop-shadow(0 0 5px #3dff6e); }
+      57%  { fill: #00bfff; filter: drop-shadow(0 0 5px #00bfff); }
+      71%  { fill: #5050ff; filter: drop-shadow(0 0 5px #5050ff); }
+      85%  { fill: #cc44ff; filter: drop-shadow(0 0 5px #cc44ff); }
+      100% { fill: #ff4040; filter: drop-shadow(0 0 5px #ff4040); }
+    }
+
+    /* Trigger on any .vybit-btn hover */
+    .vybit-btn:hover .ee-l {
+      animation: rainbow-eyes 1.8s linear infinite;
+    }
+    .vybit-btn:hover .ee-r {
+      animation: rainbow-eyes 1.8s linear infinite;
+      animation-delay: -0.45s; /* offset so eyes cycle slightly apart */
+    }
+
+    /* ─── BASE BUTTON ─────────────────────────────────────────── */
+    .vybit-btn {
+      position: relative;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      transition: transform 0.15s;
+      z-index: 0;
+    }
+    .vybit-btn:hover  { transform: scale(1.08); }
+    .vybit-btn:active { transform: scale(0.95); }
+
+    /* SVG inside button */
+    .vybit-btn svg { position: relative; z-index: 2; display: block; flex-shrink: 0; }
+
+    /* Sizes */
+    .vybit-btn        { width: 44px; height: 44px; }
+    .vybit-btn svg    { width: 28px; height: 28px; }
+    .vybit-btn.sz36   { width: 36px; height: 36px; }
+    .vybit-btn.sz36 svg { width: 22px; height: 22px; }
+    .vybit-btn.sz56   { width: 56px; height: 56px; }
+    .vybit-btn.sz56 svg { width: 36px; height: 36px; }
+    .vybit-btn.sz64   { width: 64px; height: 64px; }
+    .vybit-btn.sz64 svg { width: 44px; height: 44px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION A — RAINBOW HALO (conic-gradient spinning ring)
+    ═══════════════════════════════════════════════════════════ */
+    .vybit-rainbow::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #ff0000 0%,   #ff6600 10%,
+        #ffcc00 20%,  #88ff00 30%,
+        #00ff88 40%,  #00ccff 50%,
+        #4466ff 60%,  #9900ff 70%,
+        #ff00cc 80%,  #ff0066 90%,
+        #ff0000 100%
+      );
+      z-index: -1;
+      animation: halo-spin 5s linear infinite;
+      opacity: 0.55;
+    }
+    .vybit-rainbow::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: 50%;
+      background: var(--bg);
+      z-index: 1;
+    }
+    .vybit-rainbow svg { z-index: 3; }
+
+    .vybit-rainbow:hover::before      { opacity: 0.9; animation-duration: 2s; }
+    .vybit-rainbow.active::before     { opacity: 1; animation-duration: 1.5s; inset: -5px; }
+    .vybit-rainbow.active::after      { background: rgba(0,132,139,0.03); }
+
+    @keyframes halo-spin { to { transform: rotate(360deg); } }
+
+    /* Disappear animation for "panel opened" state */
+    @keyframes btn-disappear {
+      0%   { transform: scale(1); opacity: 1; }
+      40%  { transform: scale(1.12); opacity: 0.8; }
+      100% { transform: scale(0.3); opacity: 0; pointer-events: none; }
+    }
+    .vybit-btn.gone { animation: btn-disappear 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION B — BRAND COLORS GLOW (teal→orange conic ring)
+    ═══════════════════════════════════════════════════════════ */
+    .vybit-brand::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #00848B 0%, #00BEC6 25%,
+        #F5532D 50%, #FF8A65 75%,
+        #00848B 100%
+      );
+      z-index: -1;
+      animation: halo-spin 4s linear infinite;
+      opacity: 0.5;
+    }
+    .vybit-brand::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: 50%;
+      background: var(--bg);
+      z-index: 1;
+    }
+    .vybit-brand svg { z-index: 3; }
+
+    .vybit-brand:hover::before  { opacity: 0.9; animation-duration: 1.8s; }
+    .vybit-brand.active::before { opacity: 1; animation-duration: 1.5s; inset: -5px; }
+
+    /* Pulsing box-shadow on top of the ring */
+    @keyframes brand-pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0,132,139,0), 0 2px 8px rgba(0,0,0,0.08);
+      }
+      50% {
+        box-shadow: 0 0 0 4px rgba(0,132,139,0.1), 0 0 14px rgba(0,132,139,0.1),
+                    0 2px 8px rgba(0,0,0,0.08);
+      }
+    }
+    @keyframes brand-pulse-active {
+      0%, 100% {
+        box-shadow: 0 0 0 3px rgba(0,132,139,0.2), 0 0 12px rgba(0,132,139,0.15),
+                    0 0 24px rgba(245,83,45,0.08);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(0,132,139,0.1), 0 0 22px rgba(0,132,139,0.2),
+                    0 0 34px rgba(245,83,45,0.12);
+      }
+    }
+    .vybit-brand        { animation: brand-pulse 3s ease-in-out infinite; }
+    .vybit-brand.active { animation: brand-pulse-active 2s ease-in-out infinite; }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION C — BREATHING PULSE (no ring, just shadow)
+    ═══════════════════════════════════════════════════════════ */
+    .vybit-pulse {
+      border: 1.5px solid var(--border);
+      animation: pulse-breathe 3s ease-in-out infinite;
+    }
+    @keyframes pulse-breathe {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0,132,139,0), 0 2px 8px rgba(0,0,0,0.08);
+      }
+      50% {
+        box-shadow: 0 0 0 3px rgba(0,132,139,0.09), 0 0 12px rgba(0,132,139,0.07),
+                    0 2px 8px rgba(0,0,0,0.08);
+      }
+    }
+    .vybit-pulse:hover {
+      border-color: var(--teal);
+      animation: none;
+      box-shadow: 0 0 0 5px rgba(0,132,139,0.12), 0 0 18px rgba(0,132,139,0.12),
+                  0 2px 8px rgba(0,0,0,0.1);
+    }
+    @keyframes pulse-active {
+      0%, 100% {
+        box-shadow: 0 0 0 3px rgba(0,132,139,0.22), 0 0 12px rgba(0,132,139,0.18),
+                    0 0 26px rgba(245,83,45,0.09);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(0,132,139,0.12), 0 0 22px rgba(0,132,139,0.22),
+                    0 0 34px rgba(245,83,45,0.14);
+      }
+    }
+    .vybit-pulse.active { border-color: transparent; animation: pulse-active 2s ease-in-out infinite; }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION D — DARK BUTTON (deep teal bg with inner glow)
+    ═══════════════════════════════════════════════════════════ */
+    .vybit-dark {
+      background: #0b1f21;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .vybit-dark:hover {
+      box-shadow: 0 4px 22px rgba(0,132,139,0.45), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .vybit-dark.active {
+      box-shadow: 0 0 0 3px rgba(0,132,139,0.35), 0 4px 22px rgba(0,132,139,0.3),
+                  inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+
+    /* Rainbow ring on dark variant when halo option selected */
+    .vybit-dark.vybit-rainbow::after { background: #0b1f21; }
+
+    /* Shimmer sweep overlay for dark hover */
+    .vybit-dark::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(255,255,255,0.07) 45%,
+        rgba(0,200,210,0.1) 55%,
+        transparent 80%
+      );
+      background-size: 200% 100%;
+      background-position: 200% 0;
+      opacity: 0;
+      transition: opacity 0.2s, background-position 0.6s ease-out;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .vybit-dark:hover::after {
+      opacity: 1;
+      background-position: -200% 0;
+    }
+    .vybit-dark svg { z-index: 3; }
+
+    /* ─── PAGE SIM ────────────────────────────────────────────── */
+    .page-sim {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    .page-sim-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .page-sim-bar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+    .page-sim-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; position: relative; }
+
+    .card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px;
+    }
+    .card h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .card p  { font-size: 11px; color: var(--text-mid); }
+
+    .panel-sim {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      overflow: hidden; width: 240px;
+    }
+    .panel-sim-header {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; font-weight: 600; color: var(--text-mid);
+    }
+    .panel-sim-body { padding: 14px; font-size: 10px; color: var(--text-mid); min-height: 60px; }
+
+    /* ─── ICON SIZE GRID ──────────────────────────────────────── */
+    .size-grid { display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
+    .size-swatch { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .size-label { font-size: 9px; font-family: var(--font-mono); color: var(--muted); }
+
+  </style>
+</head>
+<body>
+
+  <h1><span>VyBit</span> Toggle — Eggburt Logo Concepts</h1>
+  <p class="page-subtitle">
+    Using the official Bitovi Eggburt mascot as the VyBit toggle button, with AI-glow treatments.
+    <strong>Hover any button to see the rainbow eye glow.</strong>
+    The button only lives on the page when the panel is <em>closed</em> — it disappears once the panel opens.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════
+       INLINE SVG TEMPLATE (populated by script below)
+  ═══════════════════════════════════════════════ -->
+  <template id="eggburt-tmpl">
+    <svg viewBox="0 0 210 221" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path class="ef" d="M141.54 137.71L103.87 140.38C102.98 140.44 102.2 140.97 101.8 141.77C101.41 142.57 101.47 143.51 101.96 144.25C102.27 144.72 109.46 155.39 121.96 155.39C122.3 155.39 122.65 155.39 123 155.37C138.61 154.64 143.83 141.66 144.05 141.11C144.36 140.31 144.24 139.41 143.73 138.72C143.22 138.03 142.4 137.65 141.54 137.71Z"/>
+      <path class="ee-l" d="M80.6401 93.03C76.7801 93.22 73.8 96.5 73.99 100.36L74.7501 115.96C74.9401 119.85 78.2701 122.84 82.1501 122.61C85.9801 122.38 88.9101 119.11 88.7301 115.28L87.9701 99.68C87.7801 95.82 84.5001 92.84 80.6401 93.03Z"/>
+      <path class="ee-r" d="M149.46 96.67L150.32 111.72C150.54 115.58 153.85 118.53 157.71 118.31C161.57 118.09 164.52 114.78 164.3 110.92L163.44 95.87C163.22 92.03 159.94 89.08 156.09 89.28C152.22 89.48 149.24 92.79 149.47 96.67H149.46Z"/>
+      <path class="ef" d="M203.62 90.36C200.83 87.64 198.15 86.1 195.79 84.75C194 83.73 192.46 82.84 190.96 81.51C189.22 79.95 187.1 75.74 186.15 73.24C186.14 73.21 186.12 73.17 186.11 73.14C180.84 57.81 173.51 43.77 164.58 32.13C148.57 11.27 129.15 0.16 108.42 0C108.28 0 108.13 0 107.99 0C85.65 0 64.34 13.17 47.95 37.12C42.28 45.4 37.04 56.95 33.2 65.38C32.31 67.35 31.51 69.09 30.84 70.52C29.88 72.54 28.87 74.32 27.74 75.95L21.06 15.98C24.27 14.61 26.42 11.74 26.24 8.54C26 4.26 21.69 1.03 16.61 1.31C11.53 1.59 7.61002 5.29 7.85002 9.57C8.04002 12.85 10.61 15.51 14.09 16.45L16.67 85.85L16.29 86.08C13.19 87.96 9.98002 89.9 7.71002 92.09C4.65002 95.04 2.40002 99.48 1.21002 104.92C-1.62998 117.95 0.120019 138.77 10.82 143.95C18.87 147.85 25.1 154.71 28.83 163.79C42.17 198.91 71.91 219.98 108.4 220.16C108.56 220.16 108.71 220.16 108.87 220.16C133.9 220.16 156.3 210.08 171.97 191.74C183.26 178.53 190.59 161.68 193.54 142.92C194.26 139.76 197.48 136.44 200.62 133.23C204.14 129.62 207.78 125.89 209.22 121.16C210.85 115.82 209.93 96.53 203.62 90.36ZM173.3 73.25C176.99 83.04 179.72 93.27 181.36 103.35C183.29 115.23 183.53 126.81 182.18 137.69C180.99 142.99 176.46 157.5 161.58 165.93C141.26 177.45 110.38 180.84 88.16 174.01C63.16 166.32 48.04 142.7 47.72 110.85C47.39 78.09 63.77 70.45 80.58 65.42C101.92 59.04 133.9 57.44 153.39 61.79C163.19 63.98 168.32 67.53 170.9 70.13C172.08 71.32 172.83 72.4 173.3 73.25ZM162.85 183.94C149.31 199.79 130.66 208.15 108.89 208.15C108.75 208.15 108.61 208.15 108.46 208.15C77.09 207.99 51.5 189.77 40 159.41C39.96 159.32 39.93 159.22 39.89 159.13C36.77 151.59 32.28 145.21 26.65 140.22C26.61 140.17 26.57 140.13 26.53 140.08C23.64 137.25 24.55 133.1 24.74 131.41C26.16 118.65 22.59 108.63 21.57 106.52C20.4 104.1 19.23 105.15 19.49 106.56C19.78 108.18 20.09 110.5 20.28 112.89C21.07 122.72 19.28 131.47 17.02 133.03C16.74 133.22 16.46 133.27 16.16 133.19C16.12 133.17 16.08 133.15 16.04 133.13C13.44 131.87 10.36 119.2 12.92 107.46C13.86 103.16 15.4 101.31 16.02 100.71C17.32 99.45 19.95 97.87 22.48 96.33L23.24 95.87C32.05 90.52 37.38 84.66 41.66 75.64C42.36 74.17 43.18 72.36 44.1 70.33C47.54 62.75 52.75 51.3 57.82 43.89C71.91 23.31 89.7 12 107.96 12C108.07 12 108.18 12 108.29 12C133.67 12.19 154.63 33.4 167.85 60.64C164.47 58.82 160.16 57.16 154.65 55.93C134.31 51.39 101 53.03 78.82 59.67C59.32 65.5 41.33 75.74 41.68 110.91C42.03 145.51 58.73 171.25 86.35 179.75C94.55 182.27 103.85 183.49 113.4 183.49C131.42 183.49 150.35 179.17 164.49 171.16C169.1 168.55 172.84 165.45 175.87 162.21C172.6 170.28 168.23 177.61 162.81 183.95L162.85 183.94ZM197.75 117.65C197.4 118.8 196.34 120.21 195.01 121.7C194.91 115.06 194.32 108.28 193.21 101.43C192.95 99.84 192.67 98.26 192.37 96.69C193.34 97.32 194.27 98.01 195.19 98.9C196.86 101.11 198.85 113.73 197.76 117.66L197.75 117.65Z"/>
+    </svg>
+  </template>
+
+  <div class="sections">
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 1 — BASE ICON AT MULTIPLE SIZES
+    ═══════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag blue">1</span>
+        <span class="section-title">Base Eggburt — Sizes &amp; Color Variants</span>
+      </div>
+      <p class="section-desc">
+        The official Bitovi mascot, colored in brand teal. Hover any icon to see the rainbow eye glow.
+        The smile and body fill color is <code>#00848B</code> (teal); the eyes are white in the light variant and dark in the dark variant.
+      </p>
+
+      <div class="demo-row">
+
+        <!-- Light bg sizes -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <span class="annotation">Light background — teal body, white eyes</span>
+          <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px 24px;">
+            <div class="size-grid">
+              <div class="size-swatch">
+                <button class="vybit-btn sz36" style="width:24px;height:24px;" data-sz="16"></button>
+                <span class="size-label">24px</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn sz36" data-sz="22"></button>
+                <span class="size-label">36px</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn" data-sz="28"></button>
+                <span class="size-label">44px ★</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn sz56" data-sz="36"></button>
+                <span class="size-label">56px</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn sz64" data-sz="44"></button>
+                <span class="size-label">64px</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dark bg sizes -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <span class="annotation">Dark background — light teal body, dark eyes</span>
+          <div style="background:#0b1f21; border:1px solid #1a3a3c; border-radius:8px; padding:20px 24px;">
+            <div class="size-grid">
+              <div class="size-swatch">
+                <button class="vybit-btn sz36 dark-icon" style="background:#0b1f21; width:24px;height:24px;" data-sz="16"></button>
+                <span class="size-label" style="color:#4aafb5;">24px</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn sz36 dark-icon" style="background:#0b1f21;" data-sz="22"></button>
+                <span class="size-label" style="color:#4aafb5;">36px</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn dark-icon" style="background:#0b1f21;" data-sz="28"></button>
+                <span class="size-label" style="color:#4aafb5;">44px ★</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn sz56 dark-icon" style="background:#0b1f21;" data-sz="36"></button>
+                <span class="size-label" style="color:#4aafb5;">56px</span>
+              </div>
+              <div class="size-swatch">
+                <button class="vybit-btn sz64 dark-icon" style="background:#0b1f21;" data-sz="44"></button>
+                <span class="size-label" style="color:#4aafb5;">64px</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; max-width:280px;">
+          <div class="note">
+            <strong>Rainbow eyes:</strong> Hover any button above to see the eyes cycle through the
+            full visible spectrum with a glowing drop-shadow. Left and right eyes are slightly offset
+            in their cycle phase, so they pulse independently.
+          </div>
+          <div class="note">
+            <strong>Recommended production size:</strong> <strong>44px</strong>. Large enough to be
+            comfortably tappable on touch, small enough not to obstruct content. The 36px variant
+            works for compact layouts.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 2 — RAINBOW HALO GLOW
+    ═══════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag purple">2</span>
+        <span class="section-title">Option A — Full-Spectrum Rainbow Halo</span>
+      </div>
+      <p class="section-desc">
+        A rotating <code>conic-gradient</code> ring spans the full visible spectrum.
+        At idle the ring is subtle (‌50% opacity, 5-second rotation). On hover it brightens and speeds up.
+        The button disappears (scale + fade) when the panel is opened — hover the "Active" button and click it
+        to simulate this transition.
+      </p>
+
+      <div class="demo-row">
+
+        <div class="showcase">
+          <div class="showcase-title">Rainbow Halo — 44px (recommended)</div>
+          <div class="showcase-desc">
+            Full-spectrum ring: red→orange→yellow→green→cyan→blue→violet.
+            Same ring approach popularized by GitHub Copilot and ChatGPT.
+          </div>
+          <div class="state-row">
+            <div class="state-col">
+              <span class="state-label">Idle</span>
+              <button class="vybit-btn vybit-rainbow" data-sz="28" title="Idle state"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Hover (try it)</span>
+              <button class="vybit-btn vybit-rainbow" data-sz="28" title="Hover me — eyes glow rainbow!"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Panel opened → gone</span>
+              <button class="vybit-btn vybit-rainbow active" id="disappear-demo" data-sz="28"
+                title="Click to trigger disappear animation"
+                onclick="this.classList.add('gone'); setTimeout(()=>{ this.classList.remove('gone','active'); },600);">
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="showcase">
+          <div class="showcase-title">Three sizes</div>
+          <div class="state-row" style="align-items:flex-end;">
+            <div class="state-col">
+              <span class="state-label">36px</span>
+              <button class="vybit-btn sz36 vybit-rainbow" data-sz="22" title="36px"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">44px ★</span>
+              <button class="vybit-btn vybit-rainbow" data-sz="28" title="44px"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">56px</span>
+              <button class="vybit-btn sz56 vybit-rainbow" data-sz="36" title="56px"></button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="rec-note">
+            <strong>Recommendation:</strong> This is the strongest AI signal.
+            The rotating spectrum ring is now widely recognized as the visual language of
+            AI-powered tools (Copilot, Gemini, Cursor, ChatGPT). It immediately communicates
+            "this is something smart" before the user interacts with the panel.
+          </div>
+          <div class="note">
+            <strong>Idle → active:</strong> The ring slows to a gentle ambient rotation at idle
+            (5s/rev). When hovered, it accelerates (2s/rev). When the panel opens, the button
+            scales down and fades out completely — no need for an "active" visual state since
+            the button is gone.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 3 — BRAND COLORS GLOW
+    ═══════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag teal">3</span>
+        <span class="section-title">Option B — Brand Colors Glow (Teal ↔ Orange)</span>
+      </div>
+      <p class="section-desc">
+        Same conic-gradient ring technique but restricted to Bitovi's brand palette:
+        teal <code>#00848B</code> → light teal <code>#00BEC6</code> → orange <code>#F5532D</code> → light orange <code>#FF8A65</code>
+        and back. Paired with a soft pulsing box-shadow. More on-brand than full rainbow; less "generic AI".
+      </p>
+
+      <div class="demo-row">
+
+        <div class="showcase">
+          <div class="showcase-title">Brand Colors — 44px</div>
+          <div class="state-row">
+            <div class="state-col">
+              <span class="state-label">Idle</span>
+              <button class="vybit-btn vybit-brand" data-sz="28" title="Idle"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Hover (rainbow eyes)</span>
+              <button class="vybit-btn vybit-brand" data-sz="28" title="Hover me!"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Click → gone</span>
+              <button class="vybit-btn vybit-brand" data-sz="28"
+                title="Click to disappear"
+                onclick="this.classList.add('gone'); setTimeout(()=>{ this.classList.remove('gone'); },600);">
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="showcase">
+          <div class="showcase-title">Dark bg — Brand Ring</div>
+          <div style="background:#0b1f21; border-radius:8px; padding:16px 20px;">
+            <div class="state-row">
+              <div class="state-col">
+                <span class="state-label" style="color:#4aafb5;">Idle</span>
+                <button class="vybit-btn vybit-brand dark-icon" style="background:#0b1f21;" data-sz="28"></button>
+              </div>
+              <div class="state-col">
+                <span class="state-label" style="color:#4aafb5;">Hover</span>
+                <button class="vybit-btn vybit-brand dark-icon" style="background:#0b1f21;" data-sz="28"></button>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:-4px;">
+            <div class="vybit-brand::after" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="note">
+            <strong>When to use:</strong> If the full rainbow feels too generic, this variant keeps the
+            same rotating-ring AI grammar but in Bitovi's teal and orange. It reads as "branded AI tool"
+            rather than just "any AI assistant".
+          </div>
+          <div class="note">
+            <strong>The pulse:</strong> In addition to the ring, a soft box-shadow breathes in and out
+            with a 3-second period. This makes the button look "alive" even when the page is idle
+            and the user hasn't hovered yet.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 4 — BREATHING PULSE (no ring)
+    ═══════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag green">4</span>
+        <span class="section-title">Option C — Breathing Pulse (No Ring)</span>
+      </div>
+      <p class="section-desc">
+        The quietest option: no rotating ring, just a calm breathing box-shadow. The teal glow pulses
+        gently at idle. On hover, the border lights up teal and the shadow intensifies. Works well
+        in contexts where a user is doing focused work and doesn't want a constantly spinning element.
+      </p>
+
+      <div class="demo-row">
+
+        <div class="showcase">
+          <div class="showcase-title">Breathing Pulse — 44px</div>
+          <div class="state-row">
+            <div class="state-col">
+              <span class="state-label">Idle (breathing)</span>
+              <button class="vybit-btn vybit-pulse" data-sz="28" title="Idle — gentle pulse"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Hover (rainbow eyes)</span>
+              <button class="vybit-btn vybit-pulse" data-sz="28" title="Hover me!"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Click → gone</span>
+              <button class="vybit-btn vybit-pulse" data-sz="28"
+                title="Click to disappear"
+                onclick="this.classList.add('gone'); setTimeout(()=>{ this.classList.remove('gone'); },600);">
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="note">
+            <strong>Best for:</strong> Users in focused "flow" mode. The pulse is subtle enough
+            not to pull attention, but noticeable enough that the user can find the button quickly
+            when they need it.
+          </div>
+          <div class="note">
+            <strong>Tradeoff:</strong> Less immediately recognizable as an AI tool — doesn't use the
+            established "AI glow ring" pattern. Best paired with a clear tooltip or label on first use.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 5 — DARK BUTTON WITH INNER GLOW
+    ═══════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag amber">5</span>
+        <span class="section-title">Option D — Dark Button with Shimmer &amp; Inner Glow</span>
+      </div>
+      <p class="section-desc">
+        A premium dark-theme variant: deep teal-black background (<code>#0b1f21</code>), light teal mascot,
+        dark eyes, and a diagonal shimmer sweep on hover. Works well against both light and dark user pages —
+        the dark button doesn't clash with white backgrounds and doesn't disappear against dark ones.
+        Can be combined with any of the ring options above.
+      </p>
+
+      <div class="demo-row">
+
+        <div class="showcase">
+          <div class="showcase-title">Dark Button — 44px</div>
+          <div class="state-row">
+            <div class="state-col">
+              <span class="state-label">Idle</span>
+              <button class="vybit-btn vybit-dark" data-sz="28" title="Idle"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">Hover (shimmer + eyes)</span>
+              <button class="vybit-btn vybit-dark" data-sz="28" title="Hover me!"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">With rainbow ring</span>
+              <button class="vybit-btn vybit-dark vybit-rainbow" data-sz="28" title="Dark + rainbow ring"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="showcase">
+          <div class="showcase-title">Three sizes (dark)</div>
+          <div class="state-row" style="align-items:flex-end;">
+            <div class="state-col">
+              <span class="state-label">36px</span>
+              <button class="vybit-btn sz36 vybit-dark" data-sz="22"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">44px ★</span>
+              <button class="vybit-btn vybit-dark" data-sz="28"></button>
+            </div>
+            <div class="state-col">
+              <span class="state-label">56px</span>
+              <button class="vybit-btn sz56 vybit-dark" data-sz="36"></button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="note">
+            <strong>Shimmer:</strong> On hover, a diagonal highlight sweeps across the button from
+            right-to-left. The shimmer is brief (0.6s) and subtle, suggesting a "chrome reflection"
+            — high-quality physical material feel.
+          </div>
+          <div class="rec-note">
+            <strong>Best combination:</strong> Dark button + Brand Colors ring (Option B).
+            The dark surface makes the teal→orange ring even more vivid. The mascot's light teal fill
+            pops against the dark background.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 6 — CONTEXT: BUTTON ON SIMULATED PAGE
+    ═══════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-tag rose">6</span>
+        <span class="section-title">Context: Button on a Simulated Page</span>
+      </div>
+      <p class="section-desc">
+        How the toggle button actually appears floating over a real page, and what happens when you open the panel.
+        <strong>Click the Eggburt button in State A</strong> to simulate opening the panel.
+      </p>
+
+      <div class="demo-row">
+
+        <!-- State A: Panel closed, button visible -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span class="annotation">State A — Panel closed, Eggburt button visible (click it!)</span>
+          <div class="page-sim" style="width:360px; position:relative;">
+            <div class="page-sim-bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              localhost:5173
+            </div>
+            <div class="page-sim-body" style="min-height:140px;">
+              <div class="card">
+                <h3>Product Card</h3>
+                <p>A sample component on the page.</p>
+              </div>
+              <div class="card" style="opacity:0.5;">
+                <h3>Another Card</h3>
+                <p>More content below…</p>
+              </div>
+            </div>
+            <!-- Eggburt button -->
+            <div id="sim-btn-wrap" style="position:absolute; bottom:12px; right:12px;">
+              <button class="vybit-btn sz36 vybit-rainbow" id="sim-toggle" data-sz="22"
+                title="Click to open VyBit panel"
+                onclick="openSimPanel();">
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- State B: Panel open, button gone -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span class="annotation">State B — Panel open, button gone entirely</span>
+          <div style="display:flex; gap:8px; align-items:flex-start;">
+            <div class="page-sim" style="width:240px; position:relative;">
+              <div class="page-sim-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                localhost:5173
+              </div>
+              <div class="page-sim-body" style="min-height:140px;">
+                <div class="card">
+                  <h3>Product Card</h3>
+                  <p>A sample component.</p>
+                </div>
+                <div class="card" style="opacity:0.5;">
+                  <h3>Another Card</h3>
+                  <p>More content…</p>
+                </div>
+              </div>
+              <!-- No button here — it's gone -->
+            </div>
+            <div class="panel-sim">
+              <div class="panel-sim-header">
+                <span>VyBit</span>
+                <button onclick="void(0);" style="background:none; border:none; cursor:pointer; color:var(--muted); font-size:14px; line-height:1;" title="Close panel">✕</button>
+              </div>
+              <div class="panel-sim-body">
+                <div style="display:flex; align-items:center; gap:6px; color:var(--teal); font-weight:500; margin-bottom:8px; font-size:11px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                  Select an element
+                </div>
+                <div style="font-size:10px; color:var(--muted); text-align:center; padding:12px 0; border-top:1px solid var(--border);">
+                  Click an element on the page to inspect it
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulated open result (hidden initially) -->
+        <div id="sim-result" style="display:none; flex-direction:column; gap:8px;">
+          <span class="annotation">→ Result after clicking Eggburt button</span>
+          <div style="display:flex; gap:8px; align-items:flex-start;">
+            <div class="page-sim" style="width:240px; position:relative;">
+              <div class="page-sim-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                localhost:5173
+              </div>
+              <div class="page-sim-body" style="min-height:140px;">
+                <div class="card">
+                  <h3>Product Card</h3>
+                  <p>A sample component.</p>
+                </div>
+                <div class="card" style="opacity:0.5;">
+                  <h3>Another Card</h3>
+                  <p>More content…</p>
+                </div>
+              </div>
+              <!-- Button is gone -->
+            </div>
+            <div class="panel-sim" style="animation: panel-slide-in 0.35s ease-out both;">
+              <div class="panel-sim-header">
+                <span>VyBit</span>
+                <button style="background:none; border:none; cursor:pointer; color:var(--muted); font-size:14px; line-height:1;" title="Close panel"
+                  onclick="closeSimPanel();">✕</button>
+              </div>
+              <div class="panel-sim-body">
+                <div style="display:flex; align-items:center; gap:6px; color:var(--teal); font-weight:500; margin-bottom:8px; font-size:11px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l2.5 6 1.5-3 3-1.5z"/>
+                  </svg>
+                  Select an element
+                </div>
+                <div style="font-size:10px; color:var(--muted); text-align:center; padding:12px 0; border-top:1px solid var(--border);">
+                  Click an element on the page to inspect it
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; max-width:280px;">
+          <div class="rec-note">
+            <strong>Disappear behavior:</strong> When the panel opens, the Eggburt button
+            <strong style="color:var(--teal);">scale-fades to nothing</strong> (0.4s, ease-in).
+            There's no "active/open" button state because there's no button — it vanished.
+            <br><br>
+            To close the panel, use the <strong>✕ button inside the panel</strong> itself.
+            This is a cleaner separation of "open" and "close" affordances.
+          </div>
+          <div class="note">
+            <strong>Why disappear?</strong>
+            <ul>
+              <li>Removes visual clutter from the page</li>
+              <li>Avoids the "button fights with panel" problem</li>
+              <li>The panel is the intended focus once open</li>
+              <li>Re-opening is always intentional (close panel first)</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── Animation for panel slide-in ─────────────────── -->
+  <style>
+    @keyframes panel-slide-in {
+      0%   { opacity: 0; transform: translateY(8px) scale(0.97); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+
+  <!-- ─── JS: Populate all [data-sz] buttons & interactions ─── -->
+  <script>
+    // ── Populate buttons with Eggburt SVG ──────────────────────
+    const tpl = document.getElementById('eggburt-tmpl');
+
+    function makeEggburt(px) {
+      const clone = tpl.content.cloneNode(true);
+      const svg = clone.querySelector('svg');
+      svg.setAttribute('width', px);
+      svg.setAttribute('height', px);
+      return svg.outerHTML;
+    }
+
+    document.querySelectorAll('[data-sz]').forEach(btn => {
+      const sz = parseInt(btn.dataset.sz, 10) || 28;
+      btn.innerHTML = makeEggburt(sz);
+    });
+
+    // ── Section 6 simulation ───────────────────────────────────
+    function openSimPanel() {
+      const wrap = document.getElementById('sim-btn-wrap');
+      const result = document.getElementById('sim-result');
+      const btn = document.getElementById('sim-toggle');
+
+      // Trigger disappear animation
+      btn.classList.add('gone');
+
+      setTimeout(() => {
+        wrap.style.visibility = 'hidden';
+        result.style.display = 'flex';
+      }, 400);
+    }
+
+    function closeSimPanel() {
+      const wrap = document.getElementById('sim-btn-wrap');
+      const result = document.getElementById('sim-result');
+      const btn = document.getElementById('sim-toggle');
+
+      result.style.display = 'none';
+      btn.classList.remove('gone');
+      wrap.style.visibility = 'visible';
+    }
+  </script>
+
+</body>
+</html>
