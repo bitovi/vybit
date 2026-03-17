@@ -169,6 +169,11 @@ If Storybook is already running (the user started it separately), the server det
 
 ```typescript
 async function detectStorybookUrl(): Promise<string | null> {
+  // 1. Explicit override via environment variable (highest priority)
+  if (process.env.STORYBOOK_URL) {
+    return process.env.STORYBOOK_URL;
+  }
+  // 2. Auto-detect common ports
   for (const port of [6006, 6007]) {
     try {
       const res = await fetch(`http://localhost:${port}/index.json`, { signal: AbortSignal.timeout(500) });
@@ -177,6 +182,20 @@ async function detectStorybookUrl(): Promise<string | null> {
   }
   return null;
 }
+```
+
+Users can override the auto-detection by passing `STORYBOOK_URL` when starting the MCP server:
+
+```bash
+STORYBOOK_URL=http://localhost:9009 npx tsx ../server/index.ts
+```
+
+This handles non-standard ports, remote Storybook instances, and tunneled URLs (e.g. ngrok). The environment variable is documented in the server's startup log:
+
+```
+[storybook] Using STORYBOOK_URL=http://localhost:9009 (from env)
+[storybook] Auto-detected at http://localhost:6006
+[storybook] Not detected — falling back to static build or SSR thumbnails
 ```
 
 If detected, the panel receives the Storybook URL via `GET /storybook-status` and uses it for live iframes. No build step, no process management. This is free to implement and provides the best preview quality.
@@ -338,13 +357,74 @@ function storyIframeUrl(meta: ComponentMeta, props: Record<string, unknown>, sto
   const args = Object.entries(props)
     .map(([k, v]) => `${k}:${encodeURIComponent(String(v))}`)
     .join(';');
-  return `${storybookOrigin}/iframe.html?id=${meta.storyId}&args=${args}&viewMode=story`;
+  // globals disables the Storybook backgrounds addon so the iframe body is transparent
+  return `${storybookOrigin}/iframe.html?id=${meta.storyId}&args=${args}&viewMode=story&globals=backgrounds.grid:false;backgrounds.value:transparent`;
 }
 ```
+
+**Transparent iframe backgrounds:**
+
+Storybook's backgrounds addon sets an opaque background color on the iframe `<body>` by default. For components with rounded corners (cards, badges, buttons) to render without a white box behind them, two things are required:
+
+1. Add `&globals=backgrounds.grid:false;backgrounds.value:transparent` to the iframe URL (shown above) — this tells the Storybook backgrounds addon to use transparent
+2. Set `allowTransparency="true"` and `background: transparent` on the `<iframe>` element:
+   ```tsx
+   <iframe
+     allowTransparency={true}
+     style={{ background: 'transparent', border: 'none' }}
+     src={storyIframeUrl(meta, props, storybookOrigin)}
+   />
+   ```
+
+Both are required together. The URL param prevents Storybook from injecting a background color; the element style prevents the browser from painting a default white iframe background.
 
 **Drag/Resize:**
 - Each placed component has a semi-transparent drag handle bar at top and resize handle at bottom-right (same pattern as existing `injectDesignCanvas` resize handles in `overlay/src/index.ts`)
 - Click on a placed component → `onComponentClick(id)` → PropEditor opens for that component's current props
+
+---
+
+### Phase 4b — Image Capture of Placed Components
+
+**The core problem:** Fabric.js `canvas.toDataURL()` only captures the `<canvas>` element itself. The placed Storybook `<iframe>` elements are absolutely positioned *above* the canvas in the DOM — they are not painted onto the canvas and will not appear in the exported PNG.
+
+**Solution: same-origin `html2canvas`**
+
+Since Option P2 (recommended) serves the Storybook static build from the MCP server at `http://localhost:3333/storybook`, all placed component iframes are **same-origin** with the panel. This means `html2canvas` can traverse into their DOM and capture them.
+
+The `captureRegion` utility introduced in spec 012-screenshots (`overlay/src/screenshot.ts`) already wraps `html2canvas` with the right options. The panel can use a similar approach for the canvas wrapper element:
+
+```typescript
+import html2canvas from 'html2canvas';
+
+async function captureCanvasWithComponents(wrapperEl: HTMLElement): Promise<string> {
+  const canvas = await html2canvas(wrapperEl, {
+    useCORS: true,
+    allowTaint: false,  // only safe with same-origin iframes
+    backgroundColor: null,  // preserve transparency in the composite
+  });
+  return canvas.toDataURL('image/png');
+}
+```
+
+Called on the container `<div>` that holds both the Fabric.js `<canvas>` and the placed component `<iframe>` elements. The result is a composite PNG: freehand layer + all placed components rendered together.
+
+**Fallback when Storybook is cross-origin (P1 — external port):**
+
+If Storybook is running on its own port (e.g. `http://localhost:6006`), the iframes are cross-origin and `html2canvas` cannot capture them. In this case:
+
+- The exported image shows only the Fabric.js freehand layer (iframes render as blank regions)
+- The JSX string in the patch is the authoritative spec — the AI agent does not need the image to understand what was placed
+- The panel shows a notice: _"Component previews are cross-origin and will not appear in the exported image. The JSX is included in the change and the agent will use it directly."_
+
+**Export order of operations:**
+
+```
+1. Fabric.js canvas.toDataURL() is NOT used directly
+2. Call html2canvas(wrapperEl) — captures Fabric layer + iframes as a composite
+3. If html2canvas throws (cross-origin), fall back to canvas.toDataURL() (freehand only)
+4. Send composite PNG + JSX string in the ComponentPatch
+```
 
 ---
 

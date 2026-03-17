@@ -14,10 +14,20 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import path from "path";
 
-const PORT = 3333; // same port the panel expects — mock client owns the server lifecycle
+const PORT = 3333;
 const serverScript = path.resolve("..", "server/index.ts");
+
+// --transport http  →  connect to an already-running server at http://localhost:PORT/mcp
+// --transport stdio (default)  →  spawn the server as a child process via stdio
+const transportArg = process.argv.find(a => a.startsWith('--transport='));
+const transportMode = transportArg ? transportArg.split('=')[1] : 'stdio';
+if (transportMode !== 'stdio' && transportMode !== 'http') {
+  console.error(`Unknown --transport value "${transportMode}". Use "stdio" or "http".`);
+  process.exit(1);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,18 +72,25 @@ function printContentParts(content: any[]) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  log("Starting MCP server", `cwd: ${process.cwd()}`, `script: ${serverScript}`);
+  let transport: StdioClientTransport | StreamableHTTPClientTransport;
 
-  const transport = new StdioClientTransport({
-    command: "npx",
-    args: ["tsx", serverScript],
-    env: { ...process.env, PORT: String(PORT) },
-    stderr: "pipe",
-  });
-
-  transport.stderr?.on("data", (chunk: Buffer) => {
-    process.stderr.write(`  [server] ${chunk}`);
-  });
+  if (transportMode === 'http') {
+    const url = new URL(`http://localhost:${PORT}/mcp`);
+    log("Connecting to existing server (HTTP transport)", `url: ${url}`);
+    transport = new StreamableHTTPClientTransport(url);
+  } else {
+    log("Starting MCP server", `cwd: ${process.cwd()}`, `script: ${serverScript}`);
+    const stdioTransport = new StdioClientTransport({
+      command: "npx",
+      args: ["tsx", serverScript],
+      env: { ...process.env, PORT: String(PORT) },
+      stderr: "pipe",
+    });
+    stdioTransport.stderr?.on("data", (chunk: Buffer) => {
+      process.stderr.write(`  [server] ${chunk}`);
+    });
+    transport = stdioTransport;
+  }
 
   const client = new Client(
     { name: "mock-mcp-client", version: "1.0.0" },
@@ -82,6 +99,35 @@ async function main() {
 
   await client.connect(transport);
   log("MCP client connected — starting agent loop");
+
+  // On startup, error out any commits stuck in 'implementing' from a previous agent session
+  const orphanedResult = await client.callTool({ name: "list_changes", arguments: { status: "implementing" } });
+  const orphanedPatches: any[] = [];
+  for (const part of orphanedResult.content as any[]) {
+    if (part.type === "text") {
+      try { orphanedPatches.push(...JSON.parse(part.text)); } catch { /* not JSON array */ }
+    }
+  }
+  if (orphanedPatches.length > 0) {
+    // Group by commitId
+    const byCommit = new Map<string, any[]>();
+    for (const p of orphanedPatches) {
+      if (!p.commitId) continue;
+      if (!byCommit.has(p.commitId)) byCommit.set(p.commitId, []);
+      byCommit.get(p.commitId)!.push(p);
+    }
+    log(`Found ${byCommit.size} orphaned implementing commit(s) — marking as error`);
+    for (const [commitId, patches] of byCommit) {
+      const results = patches
+        .filter((p: any) => p.kind === "class-change" || p.kind === "design")
+        .map((p: any) => ({ patchId: p.id, success: false, error: "Agent disconnected while implementing" }));
+      await client.callTool({
+        name: "mark_change_implemented",
+        arguments: { commitId, results },
+      });
+    }
+  }
+
   log("Waiting for you to stage + commit patches in the panel at http://localhost:5173/");
   console.log("  (The mock client will pick them up automatically when committed)\n");
 

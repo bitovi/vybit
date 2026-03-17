@@ -1328,6 +1328,13 @@ function init(): void {
     }
   });
 
+  window.addEventListener('scroll', () => {
+    if (currentEquivalentNodes.length > 0) {
+      shadowRoot.querySelectorAll('.highlight-overlay').forEach((el) => el.remove());
+      currentEquivalentNodes.forEach((n) => highlightElement(n));
+    }
+  }, { capture: true, passive: true });
+
   window.addEventListener('overlay-ws-connected', () => {
     if (wasConnected) {
       showToast('Reconnected');

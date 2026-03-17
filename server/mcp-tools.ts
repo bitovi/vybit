@@ -10,6 +10,7 @@ export interface McpToolDeps {
   broadcastPatchUpdate: () => void;
   getNextCommitted: () => Commit | null;
   onCommitted: (listener: () => void) => () => void;
+  reclaimImplementingCommits: () => number;
   markCommitImplementing: (commitId: string) => void;
   markCommitImplemented: (commitId: string, results: PatchResult[]) => void;
   // Legacy per-patch methods (backward compat)
@@ -121,6 +122,7 @@ function waitForCommitted(
   getNextCommitted: () => Commit | null,
   onCommitted: (listener: () => void) => () => void,
   extra: any,
+  broadcastPatchUpdate: () => void,
 ): Promise<Commit> {
   return new Promise<Commit>((resolve, reject) => {
     const progressToken = extra?._meta?.progressToken;
@@ -144,8 +146,11 @@ function waitForCommitted(
     }, KEEPALIVE_INTERVAL_MS);
 
     const onAbort = () => {
+      console.log('[mcp] waitForCommitted: abort signal fired — client disconnected');
       clearInterval(keepalive);
       unsubscribe();
+      // Notify the panel that no agent is waiting anymore
+      broadcastPatchUpdate();
       reject(new Error("Cancelled"));
     };
     extra?.signal?.addEventListener?.("abort", onAbort);
@@ -153,6 +158,7 @@ function waitForCommitted(
     const unsubscribe = onCommitted(() => {
       const next = getNextCommitted();
       if (next) {
+        console.log(`[mcp] waitForCommitted: resolved with commit ${next.id}`);
         clearInterval(keepalive);
         extra?.signal?.removeEventListener?.("abort", onAbort);
         resolve(next);
@@ -170,6 +176,7 @@ export function registerMcpTools(mcp: McpServer, deps: McpToolDeps): void {
     broadcastPatchUpdate,
     getNextCommitted,
     onCommitted,
+    reclaimImplementingCommits,
     markCommitImplementing,
     markCommitImplemented,
     markImplementing,
@@ -189,12 +196,22 @@ export function registerMcpTools(mcp: McpServer, deps: McpToolDeps): void {
     "Use implement_next_change instead if you want guided implementation with auto-looping.",
     async (_extra) => {
       const extra = _extra as any;
+      console.log('[mcp] get_next_change called');
+
+      const reclaimed = reclaimImplementingCommits();
+      if (reclaimed > 0) broadcastPatchUpdate();
 
       let commit = getNextCommitted();
       if (!commit) {
-        commit = await waitForCommitted(getNextCommitted, onCommitted, extra);
+        commit = await waitForCommitted(getNextCommitted, onCommitted, extra, broadcastPatchUpdate);
       }
 
+      if (extra?.signal?.aborted) {
+        console.log('[mcp] get_next_change: signal aborted after waitForCommitted — skipping markCommitImplementing');
+        throw new Error('Cancelled');
+      }
+
+      console.log(`[mcp] get_next_change: marking commit ${commit.id} as implementing`);
       markCommitImplementing(commit.id);
       broadcastPatchUpdate();
 
@@ -218,12 +235,22 @@ export function registerMcpTools(mcp: McpServer, deps: McpToolDeps): void {
     "The agent MUST keep calling this tool in a loop until explicitly stopped by the user.",
     async (_extra) => {
       const extra = _extra as any;
+      console.log('[mcp] implement_next_change called');
+
+      const reclaimed = reclaimImplementingCommits();
+      if (reclaimed > 0) broadcastPatchUpdate();
 
       let commit = getNextCommitted();
       if (!commit) {
-        commit = await waitForCommitted(getNextCommitted, onCommitted, extra);
+        commit = await waitForCommitted(getNextCommitted, onCommitted, extra, broadcastPatchUpdate);
       }
 
+      if (extra?.signal?.aborted) {
+        console.log('[mcp] implement_next_change: signal aborted after waitForCommitted — skipping markCommitImplementing');
+        throw new Error('Cancelled');
+      }
+
+      console.log(`[mcp] implement_next_change: marking commit ${commit.id} as implementing`);
       markCommitImplementing(commit.id);
       broadcastPatchUpdate();
 

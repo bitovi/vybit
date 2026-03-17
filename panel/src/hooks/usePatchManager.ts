@@ -29,6 +29,8 @@ export interface PatchManager {
   counts: PatchCounts;
   /** Full queue state from server */
   queueState: QueueState;
+  /** True when at least one agent is long-polling implement_next_change */
+  agentWaiting: boolean;
   /** Live-preview a class swap in the overlay */
   preview: (oldClass: string, newClass: string) => void;
   /** Revert any active preview in the overlay */
@@ -50,6 +52,7 @@ export interface PatchManager {
     draftCount: number; committedCount: number; implementingCount: number;
     implementedCount: number; partialCount: number; errorCount: number;
     draft: PatchSummary[]; commits: CommitSummary[];
+    agentWaiting?: boolean;
   }) => void;
   /** @deprecated Handle a legacy PATCH_UPDATE message */
   handlePatchUpdate: (data: {
@@ -64,6 +67,7 @@ export function usePatchManager(): PatchManager {
     draft: 0, committed: 0, implementing: 0, implemented: 0, partial: 0, error: 0,
   });
   const [queueState, setQueueState] = useState<QueueState>({ draft: [], commits: [] });
+  const [agentWaiting, setAgentWaiting] = useState(false);
   const patchesRef = useRef(patches);
   patchesRef.current = patches;
   const queueStateRef = useRef(queueState);
@@ -188,6 +192,7 @@ export function usePatchManager(): PatchManager {
       error: data.errorCount,
     });
     setQueueState({ draft: data.draft, commits: data.commits });
+    setAgentWaiting(!!data.agentWaiting);
   }, []);
 
   // Legacy handler for backward compatibility
@@ -220,6 +225,7 @@ export function usePatchManager(): PatchManager {
     patches,
     counts,
     queueState,
+    agentWaiting,
     preview,
     revertPreview,
     stage,

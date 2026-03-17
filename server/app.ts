@@ -55,8 +55,10 @@ export function createApp(packageRoot: string): express.Express {
       const css = await generateCssForClasses(classes as string[]);
       res.json({ css });
     } catch (err) {
-      console.error("[http] Failed to generate CSS:", err);
-      res.status(500).json({ error: "Failed to generate CSS" });
+      const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      console.error("[http] Failed to generate CSS for classes", classes, ":", err);
+      res.status(500).json({ error: "Failed to generate CSS", detail: message, stack });
     }
   });
 

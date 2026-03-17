@@ -79,6 +79,7 @@ function InspectorApp() {
           errorCount: msg.errorCount,
           draft: msg.draft,
           commits: msg.commits,
+          agentWaiting: msg.agentWaiting,
         });
       } else if (msg.type === 'PATCH_UPDATE') {
         // Legacy backward compat
@@ -98,6 +99,7 @@ function InspectorApp() {
   }, []);
 
   const { draft, committed, implementing, implemented, partial, error } = patchManager.counts;
+  const showNoAgentWarning = committed > 0 && !patchManager.agentWaiting && implementing === 0;
 
   // Merge server draft + local patches for display.
   // Server draft is the source of truth for IDs; local patches carry richer detail.
@@ -133,8 +135,63 @@ function InspectorApp() {
   const implementingCommits = patchManager.queueState.commits.filter(c => c.status === 'implementing');
   const implementedCommits = patchManager.queueState.commits.filter(c => c.status === 'implemented');
 
+  const VYBIT_PROMPT = 'Please implement the next change and continue implementing changes with VyBit.';
+
+  async function copyToClipboard(text: string) {
+    if (navigator.clipboard) {
+      try {
+        const permission = await navigator.permissions.query({ name: 'clipboard-write' as PermissionName });
+        if (permission.state === 'denied') {
+          execCommandCopy(text);
+          return;
+        }
+      } catch {
+        // permissions API not supported — proceed anyway
+      }
+      navigator.clipboard.writeText(text).catch(() => execCommandCopy(text));
+    } else {
+      execCommandCopy(text);
+    }
+  }
+
+  function execCommandCopy(text: string) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.style.position = 'fixed';
+    el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+
   const queueFooter = (
-    <div className="flex items-center justify-center px-3 py-1.5 border-t border-bv-border shrink-0 gap-2.5">
+    <div className="shrink-0">
+      {showNoAgentWarning && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border-t border-amber-200 text-amber-700 text-[10px] font-medium">
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="shrink-0 text-amber-500">
+            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          <span className="flex-1 leading-tight">
+            No agent watching —{' '}
+            <a
+              href="https://github.com/bitovi/vybit?tab=readme-ov-file#telling-your-agent-to-start-making-features"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-amber-900"
+            >ask your agent</a>
+            {' '}to start
+          </span>
+          <button
+            onClick={() => copyToClipboard(VYBIT_PROMPT)}
+            className="shrink-0 px-1.5 py-0.5 rounded border border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-700 font-semibold text-[9px] transition-colors"
+            title={`Copy: "${VYBIT_PROMPT}"`}
+          >
+            Copy prompt
+          </button>
+        </div>
+      )}
+      <div className="flex items-center justify-center px-3 py-1.5 border-t border-bv-border gap-2.5">
       <PatchPopover
         label="draft"
         count={draft}
@@ -165,6 +222,7 @@ function InspectorApp() {
         items={implementedCommits.flatMap(c => c.patches)}
         activeColor="text-bv-teal"
       />
+      </div>
     </div>
   );
 

@@ -30,32 +30,38 @@ The existing drawing canvas starts with a blank white background, which works we
       ▼
 3. User switches to the Draw tab
       │  └── sees existing "Insert Drawing Canvas" buttons
-      │  └── sees NEW "Screenshot & Annotate" section
+      │  └── sees NEW "Screenshot & Annotate" button
       ▼
-4. User clicks "Screenshot & Annotate" with an insertion mode (e.g. "After element")
-      │  └── panel sends CAPTURE_SCREENSHOT { insertMode } → overlay
+4. User clicks "Screenshot & Annotate"
+      │  └── panel sends CAPTURE_SCREENSHOT (no insertMode) → overlay
       ▼
-5. Overlay hides highlight overlays temporarily
+5. Overlay validates that currentEquivalentNodes are all siblings
+      │  └── if not siblings: shows toast error and aborts
+      │  └── if siblings: proceeds
+      ▼
+6. Overlay hides highlight overlays temporarily
       │  └── computes union bounding box of currentEquivalentNodes
       │  └── calls html2canvas to capture the region as PNG
       │  └── restores highlight overlays
       ▼
-6. Overlay injects Canvas Wrapper (same as existing draw flow)
-      │  └── creates wrapper + iframe pointing to /panel/?mode=design
+7. Overlay replaces selected elements with Canvas Wrapper
+      │  └── removes all currentEquivalentNodes from the DOM
+      │  └── inserts wrapper + iframe (pointing to /panel/?mode=design)
+      │      at the position of the first removed element
       │  └── on iframe load, sends ELEMENT_CONTEXT with screenshot field
       ▼
-7. Design iframe receives ELEMENT_CONTEXT (with screenshot)
+8. Design iframe receives ELEMENT_CONTEXT (with screenshot)
       │  └── passes screenshot as backgroundImage prop to DesignCanvas
       ▼
-8. Canvas renders with screenshot as locked background
+9. Canvas renders with screenshot as locked background
       │  └── canvas dimensions match the screenshot
       │  └── user draws annotations on top
       ▼
-9. User clicks "Queue as Change"
-      │  └── Fabric.js toDataURL() captures composite (background + annotations)
-      │  └── design iframe sends DESIGN_SUBMIT → server (same as existing flow)
-      ▼
-10. Server queues the annotated screenshot as a design patch
+10. User clicks "Queue as Change"
+       │  └── Fabric.js toDataURL() captures composite (background + annotations)
+       │  └── design iframe sends DESIGN_SUBMIT → server (same as existing flow)
+       ▼
+11. Server queues the annotated screenshot as a design patch
 ```
 
 ---
@@ -66,11 +72,13 @@ The existing drawing canvas starts with a blank white background, which works we
 
 The screenshot is captured in the overlay layer, not the panel, because the overlay has direct DOM access to the user's page. The capture flow:
 
-1. **Temporarily hide overlay UI** — highlight overlays, toolbars, and design canvas wrappers are hidden to get a clean screenshot of the page content only
-2. **Compute capture region** — union bounding box of all `currentEquivalentNodes`
-3. **Call html2canvas** — renders the page region to a `<canvas>` element, then exports as PNG data URL
-4. **Restore overlay UI** — highlights and toolbars reappear
-5. **Pass screenshot via WebSocket** — included in the `ELEMENT_CONTEXT` message as a new `screenshot` field
+1. **Validate siblings** — confirm all `currentEquivalentNodes` share the same `parentElement`; if not, show a toast and abort
+2. **Temporarily hide overlay UI** — highlight overlays, toolbars, and design canvas wrappers are hidden to get a clean screenshot of the page content only
+3. **Compute capture region** — union bounding box of all `currentEquivalentNodes`
+4. **Call html2canvas** — renders the page region to a `<canvas>` element, then exports as PNG data URL
+5. **Restore overlay UI** — highlights and toolbars reappear
+6. **Replace elements in the DOM** — remove all `currentEquivalentNodes` from the DOM, then insert the canvas wrapper at the position the first node occupied (using `insertAdjacentElement('beforebegin', wrapper)` before removal)
+7. **Pass screenshot via WebSocket** — included in the `ELEMENT_CONTEXT` message as a new `screenshot` field
 
 ### Why html2canvas
 
@@ -91,18 +99,18 @@ The screenshot is captured in the overlay layer, not the panel, because the over
 
 ### New Message: `CAPTURE_SCREENSHOT`
 
-Sent from panel → overlay when user clicks a "Screenshot & Annotate" button:
+Sent from panel → overlay when user clicks the "Screenshot & Annotate" button:
 
 ```ts
 interface CaptureScreenshotMessage {
   type: 'CAPTURE_SCREENSHOT';
-  insertMode: InsertMode;  // 'before' | 'after' | 'first-child' | 'last-child'
+  // No insertMode — the overlay always replaces the selected elements
 }
 ```
 
 ### Extended Message: `ELEMENT_CONTEXT`
 
-The existing `ElementContextMessage` gains an optional `screenshot` field:
+The existing `ElementContextMessage` gains an optional `screenshot` field. The `insertMode` is set to `'replace'` (a new value added to `InsertMode`) to signal to the design iframe that the canvas is standing in for elements that were removed:
 
 ```ts
 interface ElementContextMessage {
@@ -111,9 +119,15 @@ interface ElementContextMessage {
   instanceCount: number;
   target: { tag: string; classes: string; innerText: string };
   context: string;
-  insertMode: InsertMode;
+  insertMode: InsertMode;  // 'replace' when screenshot flow is used
   screenshot?: string;      // NEW — base64 PNG data URL of the captured region
 }
+```
+
+`InsertMode` gains a new value:
+
+```ts
+type InsertMode = 'before' | 'after' | 'first-child' | 'last-child' | 'replace';
 ```
 
 When `screenshot` is present, the design canvas renders it as a locked background image. When absent (standard draw flow), the canvas uses a white background as before.
@@ -124,15 +138,18 @@ When `screenshot` is present, the design canvas renders it as a locked backgroun
   Panel                    Overlay                   Design iframe           Server
     │                        │                           │                     │
     │  CAPTURE_SCREENSHOT    │                           │                     │
-    │  { insertMode }        │                           │                     │
+    │                        │                           │                     │
     │───────────────────────>│                           │                     │
+    │                        │── validate siblings       │                     │
     │                        │── hide highlights         │                     │
     │                        │── html2canvas(region)     │                     │
     │                        │── restore highlights      │                     │
-    │                        │── inject wrapper+iframe ──│                     │
+    │                        │── remove selected nodes ──│                     │
+    │                        │── insert wrapper+iframe ──│                     │
     │                        │                           │                     │
     │                        │   ELEMENT_CONTEXT         │                     │
-    │                        │   { ..., screenshot }     │                     │
+    │                        │   { ..., screenshot,      │                     │
+    │                        │     insertMode:'replace' }│                     │
     │                        │──────────────────────────>│                     │
     │                        │                           │                     │
     │                        │                           │  DesignCanvas       │
@@ -167,6 +184,15 @@ function unionBoundingBox(nodes: HTMLElement[]): DOMRect {
     right = Math.max(right, rect.right);
   }
   return new DOMRect(left, top, right - left, bottom - top);
+}
+
+/**
+ * Returns true if all nodes share the same parentElement (are siblings).
+ */
+export function areSiblings(nodes: HTMLElement[]): boolean {
+  if (nodes.length === 0) return false;
+  const parent = nodes[0].parentElement;
+  return nodes.every((n) => n.parentElement === parent);
 }
 
 /**
@@ -242,25 +268,23 @@ Added below the existing "Insert Drawing Canvas" section in `DrawTab.tsx`:
 │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │  ← visual separator
 │                                             │
 │  SCREENSHOT & ANNOTATE                      │  ← new heading
-│  Capture the selected element and annotate  │
-│  the screenshot in the drawing canvas.      │
-│  ┌──────────────┐  ┌──────────────┐        │
-│  │ 📷 Before    │  │ 📷 After     │        │  ← new buttons
-│  └──────────────┘  └──────────────┘        │
-│  ┌──────────────┐  ┌──────────────┐        │
-│  │ 📷 First     │  │ 📷 Last      │        │
-│  └──────────────┘  └──────────────┘        │
+│  Capture the selected element(s) and        │
+│  annotate in the drawing canvas. The        │
+│  selected elements will be replaced by the  │
+│  canvas. All selected elements must be      │
+│  siblings in the DOM.                       │
 │                                             │
-│  The canvas will be injected relative to... │
+│  ┌────────────────────────────────────┐     │
+│  │ 📷 Screenshot & Annotate           │     │  ← single new button (full-width)
+│  └────────────────────────────────────┘     │
 └─────────────────────────────────────────────┘
 ```
 
-The new buttons send `CAPTURE_SCREENSHOT` instead of `INSERT_DESIGN_CANVAS`:
+The new button sends `CAPTURE_SCREENSHOT` with no insertion mode:
 
 ```ts
 sendTo('overlay', {
   type: 'CAPTURE_SCREENSHOT',
-  insertMode,
 });
 ```
 
@@ -343,7 +367,7 @@ Then pass to `DesignCanvas`:
 
 ## Multi-Element Capture
 
-When the user has selected a component with multiple instances (e.g., 3 cards in a row), the screenshot captures the **union bounding box** — the smallest rectangle that contains all selected instances.
+When the user has selected a component with multiple instances (e.g., 3 cards in a row), all instances must be siblings in the DOM. The screenshot captures the **union bounding box** — the smallest rectangle that contains all selected instances — and the canvas wrapper replaces all of them in their shared parent.
 
 ```
 ┌─────────────────────────────── page ──────────────────────────────┐
@@ -352,21 +376,27 @@ When the user has selected a component with multiple instances (e.g., 3 cards in
 │  │  ■ Title   │  │  ■ Title   │  │  ■ Title   │                 │
 │  │  body text │  │  body text │  │  body text │                 │
 │  └────────────┘  └────────────┘  └────────────┘                 │
+│        │                │                │                        │
+│        └────── all siblings in parent ───┘                        │
 │                                                                    │
-│  ◄──────────── union bounding box ────────────►                   │
-│  (captured as screenshot)                                          │
+│  ◄──────────── union bounding box (screenshot) ────────────►       │
+│                  ↓ replaced by canvas wrapper ↓                   │
+│  ┌──────────────────────────────────────────────────────────┐     │
+│  │                    Drawing Canvas                         │     │
+│  └──────────────────────────────────────────────────────────┘     │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Algorithm
 
-1. Iterate `currentEquivalentNodes` (all selected instances)
-2. Call `getBoundingClientRect()` on each
-3. Compute `min(top)`, `min(left)`, `max(bottom)`, `max(right)`
-4. Add `window.scrollX` / `window.scrollY` to account for scroll position
-5. Pass the resulting region to `html2canvas(document.body, { x, y, width, height })`
-
-This captures all selected instances plus any page content between them (e.g., gaps, separators), giving full visual context.
+1. Validate all `currentEquivalentNodes` share the same `parentElement` — abort with toast if not
+2. Record a reference to `currentEquivalentNodes[0].nextSibling` (the insertion anchor)
+3. Iterate `currentEquivalentNodes`, call `getBoundingClientRect()` on each
+4. Compute `min(top)`, `min(left)`, `max(bottom)`, `max(right)`
+5. Add `window.scrollX` / `window.scrollY` to account for scroll position
+6. Pass the resulting region to `html2canvas(document.body, { x, y, width, height })`
+7. Remove all `currentEquivalentNodes` from the DOM
+8. Insert the canvas wrapper using `parent.insertBefore(wrapper, anchor)` (or `parent.appendChild` if anchor is `null`)
 
 ---
 
@@ -383,9 +413,9 @@ This captures all selected instances plus any page content between them (e.g., g
 | File | Change |
 |------|--------|
 | `package.json` | Add `html2canvas` dependency |
-| `shared/types.ts` | Add `CaptureScreenshotMessage` type; add `screenshot?: string` to `ElementContextMessage` |
-| `overlay/src/index.ts` | Add `CAPTURE_SCREENSHOT` message handler; include `screenshot` in `ELEMENT_CONTEXT` |
-| `panel/src/components/DrawTab/DrawTab.tsx` | Add "Screenshot & Annotate" section with capture buttons |
+| `shared/types.ts` | Add `CaptureScreenshotMessage` type (no `insertMode`); add `'replace'` to `InsertMode`; add `screenshot?: string` to `ElementContextMessage` |
+| `overlay/src/index.ts` | Add `CAPTURE_SCREENSHOT` handler: validate siblings, run capture, remove selected nodes, insert wrapper at first node's position, send `ELEMENT_CONTEXT` with `insertMode: 'replace'` and `screenshot` |
+| `panel/src/components/DrawTab/DrawTab.tsx` | Add "Screenshot & Annotate" section with single capture button |
 | `panel/src/components/DesignCanvas/types.ts` | Add `backgroundImage?: string` to `DesignCanvasProps` |
 | `panel/src/components/DesignCanvas/useFabricCanvas.ts` | Import `FabricImage`; load background image; restore on clear |
 | `panel/src/DesignMode.tsx` | Extract `screenshot` from `ELEMENT_CONTEXT`; pass as `backgroundImage` to `DesignCanvas` |
@@ -393,6 +423,21 @@ This captures all selected instances plus any page content between them (e.g., g
 ---
 
 ## Edge Cases & Constraints
+
+### Sibling Requirement
+
+The selected elements (`currentEquivalentNodes`) **must all share the same `parentElement`** — i.e., be direct siblings in the DOM — for the replace flow to work correctly. If they are not siblings:
+
+- The overlay shows a toast: `"Screenshot & Annotate requires all selected elements to be siblings in the DOM."`
+- The flow aborts; no screenshot is taken and no elements are removed
+
+This constraint exists because the canvas wrapper is inserted at the position of the first sibling and replaces all of them as a group. Non-sibling nodes would leave holes in multiple places in the DOM with no clean single insertion point.
+
+### Restoring Elements on Close
+
+When the user closes the drawing canvas (DESIGN_CLOSE), the canvas wrapper is removed. The original elements that were replaced are **not** automatically restored — the DOM change is intentional (the user chose to replace them with a canvas). An AI agent receiving the `'replace'` `insertMode` in the patch is expected to handle the replacement semantically.
+
+If restoration is needed in the future, the removed nodes can be stored in a `Map` keyed by the wrapper element and re-inserted on close.
 
 ### Payload Size
 
@@ -437,11 +482,14 @@ The `ignoreElements` callback handles `[data-tw-design-canvas]` wrappers. Highli
 
 | # | Test | Type | Expected Result |
 |---|------|------|-----------------|
-| 1 | Select single element → Screenshot & Annotate (After) | Manual | Canvas opens with element screenshot as background; draw on top; submit produces composite PNG |
-| 2 | Select component with 3+ instances → Screenshot & Annotate | Manual | Screenshot captures union bounding box of all instances |
-| 3 | Use existing "Insert Drawing Canvas" buttons | Manual | Canvas opens with white background (no regression) |
-| 4 | Clear canvas with screenshot background | Manual | Annotations cleared, but screenshot background remains |
-| 5 | Submit annotated screenshot | Manual | Server receives design patch with composite image (background + annotations) |
-| 6 | Provide `backgroundImage` prop to DesignCanvas | Unit test | Canvas initializes with image as locked background at correct dimensions |
-| 7 | DesignCanvas without `backgroundImage` prop | Unit test | Canvas initializes with white background (backward compatible) |
-| 8 | DesignCanvas Storybook story with background image | Storybook | Story renders canvas with a sample image as background |
+| 1 | Select single element → Screenshot & Annotate | Manual | Canvas replaces element with screenshot as background; draw on top; submit produces composite PNG |
+| 2 | Select component with 3+ sibling instances → Screenshot & Annotate | Manual | All instances are removed; screenshot of union bounding box shown as canvas background |
+| 3 | Select elements that are NOT siblings → Screenshot & Annotate | Manual | Toast error shown; no elements removed; no canvas inserted |
+| 4 | Use existing "Insert Drawing Canvas" buttons | Manual | Canvas opens with white background (no regression); existing elements untouched |
+| 5 | Clear canvas with screenshot background | Manual | Annotations cleared, but screenshot background remains |
+| 6 | Submit annotated screenshot | Manual | Server receives design patch with composite image (background + annotations) and `insertMode: 'replace'` |
+| 7 | Provide `backgroundImage` prop to DesignCanvas | Unit test | Canvas initializes with image as locked background at correct dimensions |
+| 8 | DesignCanvas without `backgroundImage` prop | Unit test | Canvas initializes with white background (backward compatible) |
+| 9 | DesignCanvas Storybook story with background image | Storybook | Story renders canvas with a sample image as background |
+| 10 | `areSiblings()` with nodes sharing same parent | Unit test | Returns `true` |
+| 11 | `areSiblings()` with nodes from different parents | Unit test | Returns `false` |

@@ -99,6 +99,26 @@ export function getNextCommitted(): Commit | null {
   return commits.find(c => c.status === 'committed') ?? null;
 }
 
+/**
+ * Resets all commits in 'implementing' status back to 'committed'.
+ * Called when a new agent connects via implement_next_change, so orphaned
+ * commits from a previously disconnected agent are automatically reclaimed.
+ */
+export function reclaimImplementingCommits(): number {
+  let count = 0;
+  for (const commit of commits) {
+    if (commit.status === 'implementing') {
+      console.log(`[queue] Reclaiming orphaned implementing commit ${commit.id} → committed`);
+      commit.status = 'committed';
+      for (const p of commit.patches) {
+        if (p.status === 'implementing') p.status = 'committed';
+      }
+      count++;
+    }
+  }
+  return count;
+}
+
 export function markCommitImplementing(commitId: string): void {
   const commit = commits.find(c => c.id === commitId);
   if (!commit) return;
@@ -238,6 +258,7 @@ export function getQueueUpdate() {
     errorCount,
     draft: draftPatches.map(toSummary),
     commits: commits.map(toCommitSummary),
+    agentWaiting: emitter.listenerCount('committed') > 0,
   };
 }
 

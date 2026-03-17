@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>No-Agent Warning — Prototype Exploration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── DESIGN TOKENS (Bitovi) ──────────────────────────────── */
+    :root {
+      --bg:             #FFFFFF;
+      --page-bg:        #EAECED;
+      --surface:        #F4F5F5;
+      --surface-hi:     #E6E9E9;
+      --border:         #DFE2E2;
+      --text:           #334041;
+      --text-mid:       #687879;
+      --muted:          #A3ADAD;
+      --orange:         #F5532D;
+      --orange-dim:     rgba(245, 83, 45, 0.09);
+      --orange-mid:     rgba(245, 83, 45, 0.55);
+      --teal:           #00848B;
+      --teal-dim:       rgba(0, 132, 139, 0.09);
+      --teal-dark:      #005A5F;
+      --amber:          #D97706;
+      --amber-dim:      rgba(217, 119, 6, 0.10);
+      --amber-border:   rgba(217, 119, 6, 0.30);
+      --font-display:   'Poppins', sans-serif;
+      --font-ui:        'Inter', sans-serif;
+      --font-mono:      'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:         150ms ease-in-out;
+      --t-med:          250ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 28px;
+      max-width: 880px;
+      line-height: 1.6;
+    }
+
+    /* ─── PAGE LAYOUT ─────────────────────────────────────────── */
+    .sections { display: flex; flex-direction: column; gap: 56px; }
+
+    .section { display: flex; flex-direction: column; gap: 14px; }
+
+    .section-header { display: flex; align-items: center; gap: 8px; }
+
+    .section-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .section-tag.blue   { background: #3B82F6; }
+    .section-tag.teal   { background: var(--teal); }
+    .section-tag.amber  { background: var(--amber); }
+    .section-tag.orange { background: var(--orange); }
+    .section-tag.green  { background: #10B981; }
+    .section-tag.rec    { background: #10B981; }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    /* ─── NOTES ───────────────────────────────────────────────── */
+    .note {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #445566;
+      line-height: 1.6;
+      max-width: 300px;
+    }
+    .note strong { color: #3B82F6; }
+    .note ul { margin-top: 6px; padding-left: 16px; }
+    .note li { margin-bottom: 2px; }
+
+    .rec-note {
+      background: rgba(16,185,129,0.06);
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #1a4a3a;
+      line-height: 1.6;
+      max-width: 300px;
+    }
+    .rec-note strong { color: #10B981; }
+
+    .annotation {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--teal-dark);
+      letter-spacing: 0.3px;
+      padding: 2px 6px;
+      background: rgba(0,132,139,0.08);
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    /* ─── PANEL SHELL ─────────────────────────────────────────── */
+    .panel-sim {
+      width: 300px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .comp-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .comp-badge {
+      font-size: 10px;
+      color: var(--text-mid);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: var(--font-mono);
+    }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .panel-tab {
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-mid);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+    .panel-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--teal);
+    }
+
+    .panel-body {
+      padding: 12px;
+      flex: 1;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+      color: var(--text-mid);
+      background: var(--surface);
+    }
+    .chip.highlight {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    /* ─── QUEUE FOOTER ────────────────────────────────────────── */
+    .queue-footer {
+      padding: 7px 12px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .queue-footer .dot-sep {
+      color: var(--border);
+    }
+
+    .q-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: 3px;
+      transition: all var(--t-fast);
+    }
+    .q-pill:hover { background: var(--surface-hi); }
+    .q-pill .count { font-weight: 700; }
+
+    /* Warning state for committed pill */
+    .q-pill.warn {
+      color: var(--amber);
+    }
+    .q-pill.warn .count { color: var(--amber); }
+
+    /* ─── TOGGLE CONTROL ──────────────────────────────────────── */
+    .toggle-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--surface-hi);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-mid);
+      margin-bottom: 4px;
+    }
+
+    .toggle-label { flex: 1; }
+
+    .toggle-switch {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 9px;
+      background: var(--border);
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform var(--t-fast);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle-switch input:checked + .toggle-track {
+      background: var(--teal);
+    }
+
+    .toggle-switch input:checked + .toggle-track::after {
+      transform: translateX(14px);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       OPTION A — INLINE FOOTER STRIP
+    ════════════════════════════════════════════════════════════ */
+
+    .warning-strip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      background: var(--amber-dim);
+      border-top: 1px solid var(--amber-border);
+      font-size: 10px;
+      color: var(--amber);
+      font-family: var(--font-ui);
+      font-weight: 500;
+      flex-shrink: 0;
+      overflow: hidden;
+      max-height: 60px;
+      transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s;
+    }
+
+    .warning-strip.hidden {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      opacity: 0;
+      border-top-color: transparent;
+    }
+
+    .warning-strip svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+    }
+
+    .warning-strip-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .warning-strip-text code {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      background: rgba(217,119,6,0.12);
+      border: 1px solid rgba(217,119,6,0.2);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--amber-border);
+      background: rgba(217,119,6,0.08);
+      color: var(--amber);
+      font-size: 9px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all var(--t-fast);
+    }
+
+    .copy-btn:hover {
+      background: rgba(217,119,6,0.16);
+    }
+
+    .copy-btn.copied {
+      color: #10B981;
+      border-color: rgba(16,185,129,0.3);
+      background: rgba(16,185,129,0.06);
+    }
+
+    .copy-btn svg { width: 10px; height: 10px; }
+
+    /* ════════════════════════════════════════════════════════════
+       OPTION B — COMMITTED PILL WITH WARNING STATE + TOOLTIP
+    ════════════════════════════════════════════════════════════ */
+
+    .tooltip-wrap {
+      position: relative;
+    }
+
+    .tooltip-wrap .tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2A3535;
+      color: #E8ECEC;
+      font-size: 10px;
+      font-family: var(--font-ui);
+      line-height: 1.5;
+      padding: 8px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      z-index: 10;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      max-width: 220px;
+      white-space: normal;
+      text-align: center;
+    }
+
+    .tooltip-wrap .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #2A3535;
+    }
+
+    .tooltip-wrap .tooltip code {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      background: rgba(255,255,255,0.12);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .tooltip-wrap:hover .tooltip { display: block; }
+
+    /* Pulsing dot indicator on the pill */
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      flex-shrink: 0;
+      animation: dot-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       OPTION C — BODY CALLOUT CARD
+    ════════════════════════════════════════════════════════════ */
+
+    .callout-card {
+      border: 1px solid var(--amber-border);
+      background: var(--amber-dim);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: max-height 0.25s ease, opacity 0.2s;
+      overflow: hidden;
+      max-height: 200px;
+    }
+
+    .callout-card.hidden {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-bottom: 0;
+      opacity: 0;
+      border-color: transparent;
+    }
+
+    .callout-card-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .callout-card-header svg {
+      width: 14px;
+      height: 14px;
+      color: var(--amber);
+      flex-shrink: 0;
+    }
+
+    .callout-card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--amber);
+      flex: 1;
+    }
+
+    .callout-dismiss {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--amber);
+      opacity: 0.6;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .callout-dismiss:hover { opacity: 1; }
+
+    .callout-card-body {
+      font-size: 10px;
+      color: #5A4000;
+      line-height: 1.55;
+    }
+
+    .callout-card-body code {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      background: rgba(217,119,6,0.12);
+      border: 1px solid rgba(217,119,6,0.18);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #8B5000;
+    }
+
+    .callout-card-footer {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .callout-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 4px;
+      border: 1px solid var(--amber-border);
+      background: rgba(217,119,6,0.08);
+      color: var(--amber);
+      font-size: 9px;
+      font-weight: 600;
+      font-family: var(--font-ui);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .callout-btn:hover { background: rgba(217,119,6,0.15); }
+
+    .callout-btn.copied {
+      color: #10B981;
+      border-color: rgba(16,185,129,0.3);
+      background: rgba(16,185,129,0.06);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       OPTION D — SLIM TOP BANNER (slides in below header)
+    ════════════════════════════════════════════════════════════ */
+
+    .top-banner {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      background: #FFF3E0;
+      border-bottom: 1px solid rgba(217,119,6,0.25);
+      font-size: 10px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      color: #7A4A00;
+      flex-shrink: 0;
+      overflow: hidden;
+      max-height: 32px;
+      transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s;
+      height: 32px;
+    }
+
+    .top-banner.hidden {
+      max-height: 0;
+      height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      opacity: 0;
+      border-bottom-color: transparent;
+    }
+
+    .top-banner svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+      color: var(--amber);
+    }
+
+    .top-banner-text {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-banner-text code {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      background: rgba(217,119,6,0.12);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .banner-dismiss {
+      flex-shrink: 0;
+      border: none;
+      background: none;
+      color: #A06000;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      opacity: 0.6;
+    }
+
+    .banner-dismiss:hover { opacity: 1; }
+
+    .banner-copy-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(217,119,6,0.3);
+      background: rgba(217,119,6,0.08);
+      color: var(--amber);
+      font-size: 9px;
+      font-weight: 700;
+      font-family: var(--font-ui);
+      cursor: pointer;
+      margin-left: 2px;
+      white-space: nowrap;
+    }
+
+    .banner-copy-btn.copied {
+      color: #10B981;
+      border-color: rgba(16,185,129,0.3);
+      background: rgba(16,185,129,0.06);
+    }
+
+    /* ─── GLOBAL TOGGLE STATES USED BY JS ─────────────────────── */
+    .state-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .state-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .state-dot.green  { background: #10B981; }
+    .state-dot.amber  { background: var(--amber); }
+    .state-dot.muted  { background: var(--muted); }
+
+    /* ─── DEMO TWO-UP LAYOUT ──────────────────────────────────── */
+    .two-up {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .two-up-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Spec 013 — No-Agent Warning</h1>
+<p class="page-subtitle">
+  When the user has <strong>committed changes</strong> in the queue but no AI agent is currently calling
+  <code style="font-family:var(--font-mono);font-size:11px">implement_next_change</code>,
+  the changes will sit waiting indefinitely. These prototypes explore where and how to surface that state.
+  Each option shows <em>no-warning</em> (agent present) and <em>warning</em> (no agent) side by side.
+  Toggle the "agent polling" switch to simulate both states.
+</p>
+
+<div class="sections">
+
+  <!-- ══════════════════════════════════════════════════════════
+       OPTION A — INLINE FOOTER STRIP
+  ══════════════════════════════════════════════════════════ -->
+  <section class="section" id="section-a">
+    <div class="section-header">
+      <span class="section-tag rec">Recommended</span>
+      <span class="section-tag amber">Option A</span>
+      <span class="section-title">Inline Footer Strip</span>
+    </div>
+    <p class="section-desc">
+      A thin strip slides in above the queue footer when commits are waiting and no agent is watching.
+      It shows a brief message and a one-click copy button for the exact prompt to give the agent.
+      Low visual weight — it lives next to the queue counters it explains, and disappears the moment
+      an agent connects or the queue drains.
+    </p>
+
+    <div class="toggle-bar" id="toggle-a-bar">
+      <span class="state-dot" id="dot-a" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
+      <span class="toggle-label" id="label-a-bar" style="color:var(--text)">No agent polling — warning visible</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-a" onchange="setAgentState('a', this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span style="font-size:10px;font-family:var(--font-mono);color:var(--muted)">agent connected</span>
+    </div>
+
+    <div class="demo-row">
+      <!-- Panel rendering -->
+      <div class="panel-sim" id="panel-a">
+        <div class="panel-header">
+          <span class="comp-name">HeroCard</span>
+          <span class="comp-badge">×3</span>
+        </div>
+        <div class="panel-tabs">
+          <div class="panel-tab active">Design</div>
+          <div class="panel-tab">Message</div>
+          <div class="panel-tab">Draw</div>
+        </div>
+        <div class="panel-body">
+          <div class="chip-row">
+            <div class="chip highlight">text-xl</div>
+            <div class="chip highlight">font-semibold</div>
+            <div class="chip">p-4</div>
+            <div class="chip">rounded-lg</div>
+            <div class="chip">bg-white</div>
+            <div class="chip">shadow-sm</div>
+          </div>
+        </div>
+
+        <!-- Option A: warning strip inserted between body & footer -->
+        <div class="warning-strip" id="strip-a">
+          <!-- Warning icon -->
+          <svg viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;width:13px;height:13px">
+            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+          </svg>
+          <span class="warning-strip-text">
+            No agent watching — ask: <code>implement_next_change</code>
+          </span>
+          <button class="copy-btn" id="copy-a" onclick="copyPrompt('copy-a')">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 1.5h6a.5.5 0 01.5.5v8a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V4a.5.5 0 01.5-.5z"/><path d="M6 0a2 2 0 012 2H6.5A.5.5 0 016 1.5V0zm2 0h2a2 2 0 012 2h-1.5A.5.5 0 0110 1.5V0z"/></svg>
+            Copy prompt
+          </button>
+        </div>
+
+        <div class="queue-footer">
+          <span class="q-pill"><span class="count">2</span> draft</span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill" id="committed-a">
+            <span class="count">1</span> committed
+          </span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">4</span> done</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Behaviour</strong>
+        <ul>
+          <li>Strip slides in when <code>committed &gt; 0 &amp;&amp; !agentWaiting</code></li>
+          <li>Suppressed when <code>implementing &gt; 0</code> (agent started, working)</li>
+          <li>"Copy prompt" copies <code>implement_next_change</code> to clipboard and shows a ✓ confirmation</li>
+          <li>Strip disappears automatically when agent connects</li>
+          <li>No manual dismiss needed</li>
+        </ul>
+      </div>
+
+      <div class="rec-note">
+        <strong>✓ Recommended for MVP</strong><br>
+        Lowest layout cost. Contextually adjacent to the queue counters it explains.
+        Auto-hide on agent connect means zero ongoing noise once the workflow is running.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       OPTION B — COMMITTED PILL WARNING STATE + TOOLTIP
+  ══════════════════════════════════════════════════════════ -->
+  <section class="section" id="section-b">
+    <div class="section-header">
+      <span class="section-tag blue">Option B</span>
+      <span class="section-title">Committed Pill — Warning State + Tooltip</span>
+    </div>
+    <p class="section-desc">
+      The "committed" count pill in the queue footer changes colour and gains a pulsing dot indicator
+      when no agent is watching. Hovering reveals a tooltip with the exact instruction.
+      Zero extra layout space — works entirely within the existing footer row.
+    </p>
+
+    <div class="toggle-bar">
+      <span class="state-dot" id="dot-b" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
+      <span class="toggle-label" id="label-b-bar" style="color:var(--text)">No agent polling — pill in warning state</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-b" onchange="setAgentState('b', this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span style="font-size:10px;font-family:var(--font-mono);color:var(--muted)">agent connected</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="panel-sim" id="panel-b">
+        <div class="panel-header">
+          <span class="comp-name">HeroCard</span>
+          <span class="comp-badge">×3</span>
+        </div>
+        <div class="panel-tabs">
+          <div class="panel-tab active">Design</div>
+          <div class="panel-tab">Message</div>
+          <div class="panel-tab">Draw</div>
+        </div>
+        <div class="panel-body">
+          <div class="chip-row">
+            <div class="chip highlight">text-xl</div>
+            <div class="chip highlight">font-semibold</div>
+            <div class="chip">p-4</div>
+            <div class="chip">rounded-lg</div>
+            <div class="chip">bg-white</div>
+            <div class="chip">shadow-sm</div>
+          </div>
+        </div>
+        <div class="queue-footer">
+          <span class="q-pill"><span class="count">2</span> draft</span>
+          <span class="dot-sep">·</span>
+          <!-- This pill gets the warning treatment -->
+          <span class="q-pill tooltip-wrap warn" id="committed-b">
+            <span class="pulse-dot" id="pulse-b"></span>
+            <span class="count">1</span> committed
+            <div class="tooltip" id="tooltip-b">
+              No AI agent is watching.<br>
+              Ask your agent:<br>
+              <code>implement_next_change</code>
+            </div>
+          </span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">4</span> done</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Behaviour</strong>
+        <ul>
+          <li>Pill gains amber colour + pulsing dot when <code>committed &gt; 0 &amp;&amp; !agentWaiting</code></li>
+          <li>Hover reveals tooltip with instructions</li>
+          <li>Returns to muted style when agent connects</li>
+          <li>Works well as a <em>complementary</em> enhancement to Option A or D</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <strong>Limitation</strong><br>
+        Small hover target; tooltip may be missed by users who don't hover the count.
+        Best used alongside another option, not as the sole signal.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       OPTION C — BODY CALLOUT CARD
+  ══════════════════════════════════════════════════════════ -->
+  <section class="section" id="section-c">
+    <div class="section-header">
+      <span class="section-tag orange">Option C</span>
+      <span class="section-title">Body Callout Card</span>
+    </div>
+    <p class="section-desc">
+      A callout card appears inside the panel body area — above the property chips or as a standalone
+      message when no element is selected. This gives the most screen real-estate for a full explanation
+      and a prominent copy button.
+    </p>
+
+    <div class="toggle-bar">
+      <span class="state-dot" id="dot-c" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
+      <span class="toggle-label" id="label-c-bar" style="color:var(--text)">No agent polling — callout visible</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-c" onchange="setAgentState('c', this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span style="font-size:10px;font-family:var(--font-mono);color:var(--muted)">agent connected</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="panel-sim" id="panel-c">
+        <div class="panel-header">
+          <span class="comp-name">HeroCard</span>
+          <span class="comp-badge">×3</span>
+        </div>
+        <div class="panel-tabs">
+          <div class="panel-tab active">Design</div>
+          <div class="panel-tab">Message</div>
+          <div class="panel-tab">Draw</div>
+        </div>
+        <div class="panel-body">
+
+          <!-- Option C: callout card at top of body -->
+          <div class="callout-card" id="callout-c" style="margin-bottom:10px">
+            <div class="callout-card-header">
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+              </svg>
+              <span class="callout-card-title">AI agent not watching</span>
+              <button class="callout-dismiss" onclick="dismissCallout('callout-c')">×</button>
+            </div>
+            <div class="callout-card-body">
+              <strong>1 committed change</strong> is waiting in the queue.
+              No AI agent is currently polling for new changes.<br>
+              Ask your agent: <code>implement_next_change</code>
+            </div>
+            <div class="callout-card-footer">
+              <button class="callout-btn" id="copy-c" onclick="copyPrompt('copy-c')">
+                Copy prompt
+              </button>
+            </div>
+          </div>
+
+          <div class="chip-row">
+            <div class="chip highlight">text-xl</div>
+            <div class="chip highlight">font-semibold</div>
+            <div class="chip">p-4</div>
+            <div class="chip">rounded-lg</div>
+          </div>
+        </div>
+        <div class="queue-footer">
+          <span class="q-pill"><span class="count">2</span> draft</span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">1</span> committed</span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">4</span> done</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Behaviour</strong>
+        <ul>
+          <li>Card slides in at the top of the body when warning condition is met</li>
+          <li>User can dismiss it (session-only; reappears on next commit)</li>
+          <li>Auto-hides when agent connects or queue drains</li>
+          <li>Commit count updates dynamically</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <strong>Tradeoff</strong><br>
+        Most visible option. Best when the user doesn't have an element selected yet
+        (empty state). Feels heavier mid-workflow if the user is actively inspecting elements.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       OPTION D — SLIM TOP BANNER
+  ══════════════════════════════════════════════════════════ -->
+  <section class="section" id="section-d">
+    <div class="section-header">
+      <span class="section-tag teal">Option D</span>
+      <span class="section-title">Slim Top Banner</span>
+    </div>
+    <p class="section-desc">
+      A 32px notification strip slides in below the panel header (above the tabs). High visibility —
+      it's the first thing in the panel's content area — but it can be manually dismissed for the session.
+      Works similarly to IDE notification bars.
+    </p>
+
+    <div class="toggle-bar">
+      <span class="state-dot" id="dot-d" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
+      <span class="toggle-label" id="label-d-bar" style="color:var(--text)">No agent polling — banner visible</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-d" onchange="setAgentState('d', this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span style="font-size:10px;font-family:var(--font-mono);color:var(--muted)">agent connected</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="panel-sim" id="panel-d">
+        <div class="panel-header">
+          <span class="comp-name">HeroCard</span>
+          <span class="comp-badge">×3</span>
+        </div>
+
+        <!-- Option D: slim banner below header, above tabs -->
+        <div class="top-banner" id="banner-d">
+          <svg viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px;flex-shrink:0;color:var(--amber)">
+            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+          </svg>
+          <span class="top-banner-text">
+            Changes waiting — no agent. Ask: <code>implement_next_change</code>
+          </span>
+          <button class="banner-copy-btn" id="copy-d" onclick="copyPrompt('copy-d')">Copy</button>
+          <button class="banner-dismiss" onclick="dismissBanner('banner-d')" title="Dismiss for this session">×</button>
+        </div>
+
+        <div class="panel-tabs">
+          <div class="panel-tab active">Design</div>
+          <div class="panel-tab">Message</div>
+          <div class="panel-tab">Draw</div>
+        </div>
+        <div class="panel-body">
+          <div class="chip-row">
+            <div class="chip highlight">text-xl</div>
+            <div class="chip highlight">font-semibold</div>
+            <div class="chip">p-4</div>
+            <div class="chip">rounded-lg</div>
+            <div class="chip">bg-white</div>
+            <div class="chip">shadow-sm</div>
+          </div>
+        </div>
+        <div class="queue-footer">
+          <span class="q-pill"><span class="count">2</span> draft</span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">1</span> committed</span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">4</span> done</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Behaviour</strong>
+        <ul>
+          <li>Slides down from below the header when warning condition is met</li>
+          <li><code>×</code> dismisses for the session (reappears on new commit or reload)</li>
+          <li>Auto-hides when agent connects or queue empties</li>
+          <li>"Copy" button copies prompt, shows ✓ confirmation</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <strong>Tradeoff</strong><br>
+        Most prominent placement. Suitable if Option A is being missed in user testing.
+        The 32px height is a minor layout cost worth it for discoverability in early onboarding.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       OPTION A+B COMBINATION (bonus)
+  ══════════════════════════════════════════════════════════ -->
+  <section class="section" id="section-combo">
+    <div class="section-header">
+      <span class="section-tag green">Bonus</span>
+      <span class="section-title">Combination: A + B (Footer Strip + Pill State)</span>
+    </div>
+    <p class="section-desc">
+      Option A (footer strip) combined with the amended committed pill from Option B.
+      Provides two reinforcing signals without being visually heavy — the strip explains the situation
+      in text, and the pill colour change makes the "committed" count visually pop in the footer.
+    </p>
+
+    <div class="toggle-bar">
+      <span class="state-dot" id="dot-combo" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
+      <span class="toggle-label" id="label-combo-bar" style="color:var(--text)">No agent polling</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-combo" onchange="setAgentState('combo', this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span style="font-size:10px;font-family:var(--font-mono);color:var(--muted)">agent connected</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">HeroCard</span>
+          <span class="comp-badge">×3</span>
+        </div>
+        <div class="panel-tabs">
+          <div class="panel-tab active">Design</div>
+          <div class="panel-tab">Message</div>
+          <div class="panel-tab">Draw</div>
+        </div>
+        <div class="panel-body">
+          <div class="chip-row">
+            <div class="chip highlight">text-xl</div>
+            <div class="chip highlight">font-semibold</div>
+            <div class="chip">p-4</div>
+            <div class="chip">rounded-lg</div>
+            <div class="chip">bg-white</div>
+          </div>
+        </div>
+        <div class="warning-strip" id="strip-combo">
+          <svg viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;width:13px;height:13px">
+            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+          </svg>
+          <span class="warning-strip-text">
+            No agent watching — ask: <code>implement_next_change</code>
+          </span>
+          <button class="copy-btn" id="copy-combo" onclick="copyPrompt('copy-combo')">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 1.5h6a.5.5 0 01.5.5v8a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V4a.5.5 0 01.5-.5z"/><path d="M6 0a2 2 0 012 2H6.5A.5.5 0 016 1.5V0zm2 0h2a2 2 0 012 2h-1.5A.5.5 0 0110 1.5V0z"/></svg>
+            Copy prompt
+          </button>
+        </div>
+        <div class="queue-footer">
+          <span class="q-pill"><span class="count">2</span> draft</span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill tooltip-wrap warn" id="committed-combo">
+            <span class="pulse-dot" id="pulse-combo"></span>
+            <span class="count">1</span> committed
+            <div class="tooltip">No AI agent watching.<br>Ask: <code>implement_next_change</code></div>
+          </span>
+          <span class="dot-sep">·</span>
+          <span class="q-pill"><span class="count">4</span> done</span>
+        </div>
+      </div>
+
+      <div class="rec-note">
+        <strong>✓ Best overall UX</strong><br>
+        Strip + amber pill together provide both textual guidance and a persistent
+        visual indicator. Minimal layout overhead. The pill remains even if the
+        strip is hidden (e.g., when implementing count covers it up).
+      </div>
+    </div>
+  </section>
+
+</div><!-- /sections -->
+
+<script>
+  // ─── STATE ────────────────────────────────────────────────────
+  const agentStates = { a: false, b: false, c: false, d: false, combo: false };
+
+  // ─── TOGGLE ──────────────────────────────────────────────────
+  function setAgentState(id, connected) {
+    agentStates[id] = connected;
+    applyState(id);
+  }
+
+  function applyState(id) {
+    const connected = agentStates[id];
+
+    const dot   = document.getElementById('dot-' + id);
+    const label = document.getElementById('label-' + id + '-bar');
+
+    if (dot) {
+      dot.style.background = connected ? '#10B981' : 'var(--amber)';
+    }
+    if (label) {
+      label.textContent = connected
+        ? 'Agent polling — warnings hidden'
+        : 'No agent polling — warning visible';
+      label.style.color = connected ? 'var(--text-mid)' : 'var(--text)';
+    }
+
+    // Option A
+    if (id === 'a') {
+      const strip = document.getElementById('strip-a');
+      if (strip) strip.classList.toggle('hidden', connected);
+    }
+
+    // Option B
+    if (id === 'b') {
+      const pill  = document.getElementById('committed-b');
+      const pulse = document.getElementById('pulse-b');
+      if (pill)  pill.classList.toggle('warn', !connected);
+      if (pulse) pulse.style.display = connected ? 'none' : '';
+    }
+
+    // Option C
+    if (id === 'c') {
+      const card = document.getElementById('callout-c');
+      if (card) {
+        card.classList.toggle('hidden', connected);
+        // Reset dismiss state when agent disconnects
+        if (!connected) card.classList.remove('hidden');
+      }
+    }
+
+    // Option D
+    if (id === 'd') {
+      const banner = document.getElementById('banner-d');
+      if (banner) {
+        // Don't show if user manually dismissed
+        if (!connected && !banner.dataset.dismissed) {
+          banner.classList.remove('hidden');
+        } else if (connected) {
+          banner.classList.add('hidden');
+        }
+      }
+    }
+
+    // Combo
+    if (id === 'combo') {
+      const strip  = document.getElementById('strip-combo');
+      const pill   = document.getElementById('committed-combo');
+      const pulse  = document.getElementById('pulse-combo');
+      if (strip) strip.classList.toggle('hidden', connected);
+      if (pill)  pill.classList.toggle('warn', !connected);
+      if (pulse) pulse.style.display = connected ? 'none' : '';
+    }
+  }
+
+  // ─── COPY PROMPT ─────────────────────────────────────────────
+  function copyPrompt(btnId) {
+    const prompt = 'implement_next_change';
+    navigator.clipboard.writeText(prompt).catch(() => {});
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.textContent = '✓ Copied';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = orig;
+    }, 2000);
+  }
+
+  // ─── DISMISS ─────────────────────────────────────────────────
+  function dismissCallout(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  }
+
+  function dismissBanner(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.add('hidden');
+      el.dataset.dismissed = '1';
+    }
+  }
+
+  // ─── INITIAL STATE ────────────────────────────────────────────
+  // B: start with warning visible (no agent)
+  (function initB() {
+    const pill  = document.getElementById('committed-b');
+    const pulse = document.getElementById('pulse-b');
+    if (pill)  pill.classList.add('warn');
+    if (pulse) pulse.style.display = '';
+  })();
+</script>
+</body>
+</html>
