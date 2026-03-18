@@ -1,6 +1,6 @@
 {
   "name": "@bitovi/vybit",
-  "version": "0.4.10",
+  "version": "0.5.0",
   "description": "Browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app",
   "keywords": [
     "tailwind",
@@ -58,6 +58,7 @@
     "@types/express": "^5.0.0",
     "@types/ws": "^8.5.0",
     "esbuild": "^0.27.4",
+    "html-to-image": "^1.11.13",
     "typescript": "^5.6.0",
     "vitest": "^4.1.0"
   }

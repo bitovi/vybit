@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useFloating, offset, flip, shift, autoUpdate, FloatingPortal, useDismiss, useInteractions } from '@floating-ui/react';
+import { useFloating, offset, flip, shift, size, autoUpdate, FloatingPortal, useDismiss, useInteractions } from '@floating-ui/react';
 import type { ParsedClass } from '../../overlay/src/class-parser';
 import { ColorGrid } from './components/ColorGrid';
 import { ScaleScrubber } from './components/ScaleScrubber';
@@ -9,6 +9,7 @@ import { boxModelLayersFromClasses } from './components/BoxModel/layerUtils';
 import type { LayerName, LayerState, SlotKey } from './components/BoxModel/types';
 import { PropertySection } from './components/PropertySection';
 import type { AvailableProperty } from './components/PropertySection/types';
+import { GradientEditor, parsedClassesToGradientEditorProps } from './components/GradientEditor';
 import { sendTo } from './ws';
 import type { PatchManager } from './hooks/usePatchManager';
 
@@ -36,14 +37,20 @@ const BOX_MODEL_PREFIXES = new Set([
 /** Exact-match classes consumed by box model */
 const BOX_MODEL_EXACT = new Set(['border', 'rounded']);
 
+/** Prefixes owned entirely by GradientEditor — excluded from standard chip/scrubber rendering */
+const GRADIENT_EDITOR_PREFIXES = new Set(['bg-', 'bg-gradient-to-', 'from-', 'via-', 'to-']);
+
 /** Available properties for the + button per section */
 const TYPOGRAPHY_PROPERTIES: AvailableProperty[] = [
+  { name: 'Font family', prefixHint: 'font-sans/serif/mono', prefix: 'font-family' },
   { name: 'Font size', prefixHint: 'text-{size}', prefix: 'text-size' },
+  { name: 'Font style', prefixHint: 'italic / not-italic', prefix: 'font-style' },
   { name: 'Font weight', prefixHint: 'font-*', prefix: 'font-' },
   { name: 'Text color', prefixHint: 'text-{color}', prefix: 'text-color' },
   { name: 'Text align', prefixHint: 'text-{align}', prefix: 'text-align' },
   { name: 'Line height', prefixHint: 'leading-*', prefix: 'leading-' },
   { name: 'Letter spacing', prefixHint: 'tracking-*', prefix: 'tracking-' },
+  { name: 'Vertical align', prefixHint: 'align-*', prefix: 'vertical-align' },
 ];
 
 const SIZING_PROPERTIES: AvailableProperty[] = [
@@ -63,31 +70,88 @@ const BACKGROUNDS_PROPERTIES: AvailableProperty[] = [
 /** Priority sections that always render (in order) */
 const PRIORITY_SECTIONS = ['sizing', 'typography', 'color'] as const;
 
-/** Maps addable-property prefix → { parserPrefix, themeKey } so we can render the right control */
-const PENDING_PREFIX_CONFIG: Record<string, { parserPrefix: string; themeKey: string | null; valueType: 'scalar' | 'color' | 'enum' }> = {
-  'w-':       { parserPrefix: 'w-',       themeKey: 'spacing',       valueType: 'scalar' },
-  'h-':       { parserPrefix: 'h-',       themeKey: 'spacing',       valueType: 'scalar' },
-  'min-w-':   { parserPrefix: 'min-w-',   themeKey: 'spacing',       valueType: 'scalar' },
-  'max-w-':   { parserPrefix: 'max-w-',   themeKey: 'spacing',       valueType: 'scalar' },
-  'min-h-':   { parserPrefix: 'min-h-',   themeKey: 'spacing',       valueType: 'scalar' },
-  'max-h-':   { parserPrefix: 'max-h-',   themeKey: 'spacing',       valueType: 'scalar' },
-  'size-':    { parserPrefix: 'size-',    themeKey: 'spacing',       valueType: 'scalar' },
-  'font-':    { parserPrefix: 'font-',    themeKey: 'fontWeight',    valueType: 'scalar' },
-  'text-size':  { parserPrefix: 'text-',  themeKey: 'fontSize',      valueType: 'scalar' },
-  'text-color': { parserPrefix: 'text-',  themeKey: 'colors',        valueType: 'color' },
-  'text-align': { parserPrefix: 'text-',  themeKey: null,            valueType: 'enum' },
-  'leading-': { parserPrefix: 'leading-', themeKey: 'lineHeight',    valueType: 'scalar' },
-  'tracking-':{ parserPrefix: 'tracking-',themeKey: 'letterSpacing', valueType: 'scalar' },
-  'bg-':      { parserPrefix: 'bg-',      themeKey: 'colors',        valueType: 'color' },
+interface EnumGroup {
+  alternatives: string[];
+  /** Canonical property key used for patchManager dedup */
+  propertyKey: string;
+}
+
+/** Maps a Tailwind enum class to its group of related alternatives */
+const ENUM_GROUPS: Record<string, EnumGroup> = {
+  // Text alignment
+  'text-left':    { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
+  'text-center':  { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
+  'text-right':   { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
+  'text-justify': { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
+  'text-start':   { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
+  'text-end':     { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
+  // Font style
+  'italic':     { alternatives: ['italic', 'not-italic'], propertyKey: 'font-style' },
+  'not-italic': { alternatives: ['italic', 'not-italic'], propertyKey: 'font-style' },
+  // Font family
+  'font-sans':  { alternatives: ['font-sans', 'font-serif', 'font-mono'], propertyKey: 'font-family' },
+  'font-serif': { alternatives: ['font-sans', 'font-serif', 'font-mono'], propertyKey: 'font-family' },
+  'font-mono':  { alternatives: ['font-sans', 'font-serif', 'font-mono'], propertyKey: 'font-family' },
+  // Vertical alignment
+  'align-baseline':    { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-top':         { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-middle':      { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-bottom':      { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-text-top':    { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-text-bottom': { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-sub':         { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  'align-super':       { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
+  // Text transform
+  'uppercase':   { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
+  'lowercase':   { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
+  'capitalize':  { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
+  'normal-case': { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
+};
+
+/** Maps addable-property prefix → config so we can render the right control */
+interface PendingConfig {
+  parserPrefix: string;
+  themeKey: string | null;
+  valueType: 'scalar' | 'color' | 'enum';
+  /** For enum types: full list of alternative class names (used for display + presence detection) */
+  enumAlts?: string[];
+}
+const PENDING_PREFIX_CONFIG: Record<string, PendingConfig> = {
+  'w-':           { parserPrefix: 'w-',           themeKey: 'spacing',       valueType: 'scalar' },
+  'h-':           { parserPrefix: 'h-',           themeKey: 'spacing',       valueType: 'scalar' },
+  'min-w-':       { parserPrefix: 'min-w-',       themeKey: 'spacing',       valueType: 'scalar' },
+  'max-w-':       { parserPrefix: 'max-w-',       themeKey: 'spacing',       valueType: 'scalar' },
+  'min-h-':       { parserPrefix: 'min-h-',       themeKey: 'spacing',       valueType: 'scalar' },
+  'max-h-':       { parserPrefix: 'max-h-',       themeKey: 'spacing',       valueType: 'scalar' },
+  'size-':        { parserPrefix: 'size-',        themeKey: 'spacing',       valueType: 'scalar' },
+  'font-':        { parserPrefix: 'font-',        themeKey: 'fontWeight',    valueType: 'scalar' },
+  'text-size':    { parserPrefix: 'text-',        themeKey: 'fontSize',      valueType: 'scalar' },
+  'text-color':   { parserPrefix: 'text-',        themeKey: 'colors',        valueType: 'color' },
+  'text-align':   { parserPrefix: 'text-align',   themeKey: null,            valueType: 'enum',
+    enumAlts: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'] },
+  'font-family':  { parserPrefix: 'font-family',  themeKey: null,            valueType: 'enum',
+    enumAlts: ['font-sans', 'font-serif', 'font-mono'] },
+  'font-style':   { parserPrefix: 'font-style',   themeKey: null,            valueType: 'enum',
+    enumAlts: ['italic', 'not-italic'] },
+  'vertical-align': { parserPrefix: 'vertical-align', themeKey: null,        valueType: 'enum',
+    enumAlts: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'] },
+  'leading-':     { parserPrefix: 'leading-',     themeKey: 'lineHeight',    valueType: 'scalar' },
+  'tracking-':    { parserPrefix: 'tracking-',    themeKey: 'letterSpacing', valueType: 'scalar' },
+  'bg-':          { parserPrefix: 'bg-',          themeKey: 'colors',        valueType: 'color' },
 };
 
 /** Filter available properties to only those not already set, pending, or committed */
 function filterAvailable(available: AvailableProperty[], classes: ParsedClass[], pending: Set<string>, staged?: Set<string>): AvailableProperty[] {
   const usedPrefixes = new Set(classes.map(c => c.prefix));
+  const usedFullClasses = new Set(classes.map(c => c.fullClass));
   return available.filter(p => {
     if (pending.has(p.prefix)) return false;
     if (staged?.has(p.prefix)) return false;
     const config = PENDING_PREFIX_CONFIG[p.prefix];
+    // Enum properties: hide if any alternative is already present on the element
+    if (config?.valueType === 'enum' && config.enumAlts) {
+      return !config.enumAlts.some(alt => usedFullClasses.has(alt));
+    }
     const parserPrefix = config?.parserPrefix ?? p.prefix;
     return !usedPrefixes.has(parserPrefix);
   });
@@ -117,14 +181,27 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
   const [boxModelOverrides, setBoxModelOverrides] = useState<Map<string, string>>(new Map());
   // Active color picker for a box model color slot
   const [boxModelColorPicker, setBoxModelColorPicker] = useState<{ layer: LayerName; prefix: string; currentClass: string; staged: boolean; anchorEl: Element } | null>(null);
+  // Active color picker for a property chip (Backgrounds, etc.)
+  const [chipColorPicker, setChipColorPicker] = useState<{ cls: ParsedClass; anchorEl: Element } | null>(null);
   // Tracks the last hovered color swatch so onLeave can snap back to the staged color
   const boxModelHoveredColorRef = useRef<string | null>(null);
 
   const { refs: colorPickerRefs, floatingStyles: colorPickerStyles, context: colorPickerContext } = useFloating({
     open: boxModelColorPicker !== null,
     onOpenChange: (open) => { if (!open) setBoxModelColorPicker(null); },
+    strategy: 'fixed',
     placement: 'bottom-start',
-    middleware: [offset(4), flip(), shift({ padding: 8 })],
+    middleware: [
+      offset(4),
+      flip(),
+      shift({ padding: 8 }),
+      size({
+        apply({ availableHeight, elements }) {
+          Object.assign(elements.floating.style, { maxHeight: `${availableHeight}px` });
+        },
+        padding: 8,
+      }),
+    ],
     whileElementsMounted: autoUpdate,
   });
   const colorPickerDismiss = useDismiss(colorPickerContext);
@@ -135,6 +212,34 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
       colorPickerRefs.setReference(boxModelColorPicker.anchorEl);
     }
   }, [boxModelColorPicker?.anchorEl]);
+
+  const { refs: chipColorPickerRefs, floatingStyles: chipColorPickerStyles, context: chipColorPickerContext } = useFloating({
+    open: chipColorPicker !== null,
+    onOpenChange: (open) => { if (!open) { setChipColorPicker(null); patchManager.revertPreview(); } },
+    strategy: 'fixed',
+    placement: 'bottom-start',
+    middleware: [
+      offset(4),
+      flip(),
+      shift({ padding: 8 }),
+      size({
+        apply({ availableHeight, elements }) {
+          Object.assign(elements.floating.style, { maxHeight: `${availableHeight}px` });
+        },
+        padding: 8,
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+  const chipColorPickerDismiss = useDismiss(chipColorPickerContext);
+  const { getFloatingProps: getChipColorPickerFloatingProps } = useInteractions([chipColorPickerDismiss]);
+
+  useEffect(() => {
+    if (chipColorPicker?.anchorEl) {
+      chipColorPickerRefs.setReference(chipColorPicker.anchorEl);
+    }
+  }, [chipColorPicker?.anchorEl]);
+
   // Prefixes activated via the "+" button but not yet staged
   const [pendingPrefixes, setPendingPrefixes] = useState<Set<string>>(new Set());
 
@@ -147,6 +252,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
       classesKeyRef.current = currentClassesKey;
       setBoxModelOverrides(new Map());
       setBoxModelColorPicker(null);
+      setChipColorPicker(null);
       setPendingPrefixes(new Set());
     }
   });
@@ -190,10 +296,26 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
     patchManager.stage(elementKey, property, originalClass, newClass);
   }
 
-  function handleChipClick(cls: ParsedClass) {
+  function handleGradientStage(oldClass: string, newClass: string) {
+    const cls = oldClass || newClass;
+    const property = cls.startsWith('bg-gradient-to-') ? 'bg-gradient-to-'
+      : cls.startsWith('from-') ? 'from-'
+      : cls.startsWith('via-') ? 'via-'
+      : cls.startsWith('to-') ? 'to-'
+      : 'bg-';
+    handleStage(property, oldClass, newClass);
+  }
+
+  function handleChipClick(cls: ParsedClass, anchorEl?: Element) {
     patchManager.revertPreview();
     sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' });
-    setSelectedClass(cls);
+    if (cls.valueType === 'color' && anchorEl) {
+      setChipColorPicker(prev => prev?.cls.fullClass === cls.fullClass ? null : { cls, anchorEl });
+      setSelectedClass(null);
+    } else {
+      setChipColorPicker(null);
+      setSelectedClass(cls);
+    }
   }
 
   function handleScrubberPreview(cls: ParsedClass, newClass: string) {
@@ -274,7 +396,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
         />
         {boxModelColorPicker && (
           <FloatingPortal>
-            <div ref={colorPickerRefs.setFloating} style={{ ...colorPickerStyles, zIndex: 9999 }} {...getColorPickerFloatingProps()}>
+            <div ref={colorPickerRefs.setFloating} style={{ ...colorPickerStyles, zIndex: 9999, overflowY: 'auto' }} {...getColorPickerFloatingProps()}>
               <ColorGrid
               prefix={boxModelColorPicker.prefix}
               currentValue={boxModelColorPicker.currentClass.startsWith(boxModelColorPicker.prefix)
@@ -308,14 +430,35 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
         )}
       </div>
 
+      {chipColorPicker && (
+        <FloatingPortal>
+          <div ref={chipColorPickerRefs.setFloating} style={{ ...chipColorPickerStyles, zIndex: 9999, overflowY: 'auto' }} {...getChipColorPickerFloatingProps()}>
+            <ColorGrid
+              prefix={chipColorPicker.cls.prefix}
+              currentValue={chipColorPicker.cls.value}
+              colors={tailwindConfig?.colors || {}}
+              locked={false}
+              lockedValue={stagedPatches.find(p => p.property === chipColorPicker.cls.prefix)?.newClass ?? null}
+              onHover={(fullClass) => handlePreview(chipColorPicker.cls.fullClass, fullClass)}
+              onLeave={handleRevert}
+              onClick={(fullClass) => handleStage(chipColorPicker.cls.prefix, chipColorPicker.cls.fullClass, fullClass)}
+            />
+          </div>
+        </FloatingPortal>
+      )}
+
       {/* ── Priority Sections (always visible) ─────────────── */}
       {PRIORITY_SECTIONS.map((category) => {
         const rawClasses = groups.get(category) || [];
-        const classes = rawClasses.filter(c => !BOX_MODEL_PREFIXES.has(c.prefix) && !BOX_MODEL_EXACT.has(c.fullClass));
+        const classes = rawClasses.filter(c =>
+          !BOX_MODEL_PREFIXES.has(c.prefix) &&
+          !BOX_MODEL_EXACT.has(c.fullClass) &&
+          !(category === 'color' && GRADIENT_EDITOR_PREFIXES.has(c.prefix))
+        );
         const availableMap: Record<string, AvailableProperty[]> = {
           typography: TYPOGRAPHY_PROPERTIES,
           sizing: SIZING_PROPERTIES,
-          color: BACKGROUNDS_PROPERTIES,
+          color: [],  // GradientEditor is always shown; no + button needed for bg-
         };
         const available = filterAvailable(availableMap[category] || [], classes, pendingPrefixes, stagedPendingPrefixes);
         const sectionPending = (availableMap[category] || [])
@@ -331,8 +474,16 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
             label={category === 'color' ? 'Backgrounds' : (CATEGORY_LABELS[category] || category)}
             availableProperties={available}
             onAddProperty={handleAddProperty}
-            isEmpty={classes.length === 0 && sectionPending.length === 0 && sectionStaged.length === 0}
+            isEmpty={category === 'color' ? false : (classes.length === 0 && sectionPending.length === 0 && sectionStaged.length === 0)}
           >
+            {category === 'color' && (
+              <GradientEditor
+                {...parsedClassesToGradientEditorProps(parsedClasses, tailwindConfig?.colors || {})}
+                onPreview={handlePreview}
+                onRevert={handleRevert}
+                onStage={handleGradientStage}
+              />
+            )}
             {classes.map((cls) => {
               if (cls.valueType === 'scalar') {
                 const scaleValues = getScaleValues(cls.prefix, cls.themeKey, tailwindConfig);
@@ -353,15 +504,34 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                   );
                 }
               }
+              if (cls.valueType === 'enum') {
+                const group = ENUM_GROUPS[cls.fullClass];
+                if (group) {
+                  const stagedValue = stagedPatches.find(p => p.property === group.propertyKey)?.newClass ?? null;
+                  return (
+                    <ScaleScrubber
+                      key={cls.fullClass}
+                      values={group.alternatives}
+                      currentValue={cls.fullClass}
+                      lockedValue={stagedValue}
+                      locked={false}
+                      onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                      onHover={(newClass) => handleScrubberPreview(cls, newClass)}
+                      onLeave={() => handleScrubberRevert(cls)}
+                      onClick={(newClass) => handleStage(group.propertyKey, cls.fullClass, newClass)}
+                    />
+                  );
+                }
+              }
               return (
                 <div
                   key={cls.fullClass}
                   className={`px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border transition-colors ${
-                    selectedClass?.fullClass === cls.fullClass
+                    (selectedClass?.fullClass === cls.fullClass || chipColorPicker?.cls.fullClass === cls.fullClass)
                       ? 'border-bv-border bg-bv-surface-hi text-bv-text'
                       : 'bg-bv-surface text-bv-text-mid border-transparent hover:border-bv-teal hover:text-bv-teal'
                   }`}
-                  onClick={() => handleChipClick(cls)}
+                  onClick={(e) => handleChipClick(cls, e.currentTarget)}
                 >
                   {cls.fullClass}
                 </div>
@@ -373,23 +543,42 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
               .filter(p => stagedPendingPrefixes.has(p.prefix))
               .map(p => {
                 const config = PENDING_PREFIX_CONFIG[p.prefix];
-                if (!config || config.valueType !== 'scalar') return null;
-                const scaleValues = getScaleValues(config.parserPrefix, config.themeKey, tailwindConfig);
-                if (scaleValues.length === 0) return null;
-                const patch = stagedPatches.find(pt => pt.property === (config.parserPrefix ?? p.prefix));
-                return (
-                  <ScaleScrubber
-                    key={`staged-${p.prefix}`}
-                    values={scaleValues}
-                    currentValue={patch?.newClass ?? scaleValues[Math.floor(scaleValues.length / 2)]}
-                    lockedValue={patch?.newClass ?? null}
-                    locked={false}
-                    onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
-                    onHover={(newClass) => handlePendingPreview(p.prefix, newClass)}
-                    onLeave={() => handlePendingRevert(p.prefix)}
-                    onClick={(newClass) => handlePendingStage(p.prefix, newClass)}
-                  />
-                );
+                if (!config) return null;
+                if (config.valueType === 'scalar') {
+                  const scaleValues = getScaleValues(config.parserPrefix, config.themeKey, tailwindConfig);
+                  if (scaleValues.length === 0) return null;
+                  const patch = stagedPatches.find(pt => pt.property === (config.parserPrefix ?? p.prefix));
+                  return (
+                    <ScaleScrubber
+                      key={`staged-${p.prefix}`}
+                      values={scaleValues}
+                      currentValue={patch?.newClass ?? scaleValues[Math.floor(scaleValues.length / 2)]}
+                      lockedValue={patch?.newClass ?? null}
+                      locked={false}
+                      onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                      onHover={(newClass) => handlePendingPreview(p.prefix, newClass)}
+                      onLeave={() => handlePendingRevert(p.prefix)}
+                      onClick={(newClass) => handlePendingStage(p.prefix, newClass)}
+                    />
+                  );
+                }
+                if (config.valueType === 'enum' && config.enumAlts) {
+                  const patch = stagedPatches.find(pt => pt.property === config.parserPrefix);
+                  return (
+                    <ScaleScrubber
+                      key={`staged-${p.prefix}`}
+                      values={config.enumAlts}
+                      currentValue={patch?.newClass ?? config.enumAlts[0]}
+                      lockedValue={patch?.newClass ?? null}
+                      locked={false}
+                      onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                      onHover={(newClass) => handlePendingPreview(p.prefix, newClass)}
+                      onLeave={() => handlePendingRevert(p.prefix)}
+                      onClick={(newClass) => handlePendingStage(p.prefix, newClass)}
+                    />
+                  );
+                }
+                return null;
               })}
 
             {/* Pending ghost scrubbers from + button (not yet staged) */}
@@ -415,21 +604,39 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                   );
                 }
               }
+              if (config.valueType === 'enum' && config.enumAlts) {
+                return (
+                  <ScaleScrubber
+                    key={`pending-${prefix}`}
+                    values={config.enumAlts}
+                    currentValue={config.enumAlts[0]}
+                    lockedValue={null}
+                    locked={false}
+                    ghost
+                    onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                    onHover={(newClass) => handlePendingPreview(prefix, newClass)}
+                    onLeave={() => handlePendingRevert(prefix)}
+                    onClick={(newClass) => handlePendingStage(prefix, newClass)}
+                  />
+                );
+              }
               if (config.valueType === 'color') {
                 return (
                   <div
                     key={`pending-${prefix}`}
                     data-testid={`pending-ghost-${prefix}`}
                     className="px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border border-dashed border-bv-border text-bv-muted hover:border-bv-teal hover:text-bv-teal transition-colors"
-                    onClick={() => {
-                      setSelectedClass({
+                    onClick={(e) => {
+                      const ghostCls: ParsedClass = {
                         category: 'color',
                         valueType: 'color',
                         prefix: config.parserPrefix,
                         value: '',
                         fullClass: '',
                         themeKey: 'colors',
-                      });
+                      };
+                      setChipColorPicker({ cls: ghostCls, anchorEl: e.currentTarget });
+                      setSelectedClass(null);
                     }}
                   >
                     {config.parserPrefix}color
@@ -439,25 +646,13 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
               return null;
             })}
 
-            {selectedClass && classes.some(c => c.fullClass === selectedClass.fullClass) && selectedClass.valueType === 'color' && (
-              <ColorGrid
-                prefix={selectedClass.prefix}
-                currentValue={selectedClass.value}
-                colors={tailwindConfig?.colors || {}}
-                locked={false}
-                lockedValue={stagedPatches.find(p => p.property === selectedClass.prefix)?.newClass ?? null}
-                onHover={(fullClass) => handlePreview(selectedClass.fullClass, fullClass)}
-                onLeave={handleRevert}
-                onClick={(fullClass) => handleStage(selectedClass.prefix, selectedClass.fullClass, fullClass)}
-              />
-            )}
           </PropertySection>
         );
       })}
 
       {/* ── Remaining Categories ───────────────────────────── */}
       {Array.from(groups)
-        .filter(([category]) => !(PRIORITY_SECTIONS as readonly string[]).includes(category))
+        .filter(([category]) => !(PRIORITY_SECTIONS as readonly string[]).includes(category) && category !== 'gradient')
         .map(([category, rawClasses]) => {
           const classes = rawClasses.filter(c => !BOX_MODEL_PREFIXES.has(c.prefix) && !BOX_MODEL_EXACT.has(c.fullClass));
           if (classes.length === 0) return null;
@@ -490,34 +685,40 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                       );
                     }
                   }
+                  if (cls.valueType === 'enum') {
+                    const group = ENUM_GROUPS[cls.fullClass];
+                    if (group) {
+                      const stagedValue = stagedPatches.find(p => p.property === group.propertyKey)?.newClass ?? null;
+                      return (
+                        <ScaleScrubber
+                          key={cls.fullClass}
+                          values={group.alternatives}
+                          currentValue={cls.fullClass}
+                          lockedValue={stagedValue}
+                          locked={false}
+                          onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                          onHover={(newClass) => handleScrubberPreview(cls, newClass)}
+                          onLeave={() => handleScrubberRevert(cls)}
+                          onClick={(newClass) => handleStage(group.propertyKey, cls.fullClass, newClass)}
+                        />
+                      );
+                    }
+                  }
                   return (
                     <div
                       key={cls.fullClass}
                       className={`px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border transition-colors ${
-                        selectedClass?.fullClass === cls.fullClass
+                        (selectedClass?.fullClass === cls.fullClass || chipColorPicker?.cls.fullClass === cls.fullClass)
                           ? 'border-bv-border bg-bv-surface-hi text-bv-text'
                           : 'bg-bv-surface text-bv-text-mid border-transparent hover:border-bv-teal hover:text-bv-teal'
                       }`}
-                      onClick={() => handleChipClick(cls)}
+                      onClick={(e) => handleChipClick(cls, e.currentTarget)}
                     >
                       {cls.fullClass}
                     </div>
                   );
                 })}
               </div>
-
-              {selectedClass && classes.some(c => c.fullClass === selectedClass.fullClass) && selectedClass.valueType === 'color' && (
-                <ColorGrid
-                  prefix={selectedClass.prefix}
-                  currentValue={selectedClass.value}
-                  colors={tailwindConfig?.colors || {}}
-                  locked={false}
-                  lockedValue={stagedPatches.find(p => p.property === selectedClass.prefix)?.newClass ?? null}
-                  onHover={(fullClass) => handlePreview(selectedClass.fullClass, fullClass)}
-                  onLeave={handleRevert}
-                  onClick={(fullClass) => handleStage(selectedClass.prefix, selectedClass.fullClass, fullClass)}
-                />
-              )}
             </div>
           );
         })}

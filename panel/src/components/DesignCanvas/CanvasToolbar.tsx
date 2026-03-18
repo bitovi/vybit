@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import type { DrawingTool } from './types';
 import { BASIC_COLORS } from './types';
 
@@ -38,6 +38,8 @@ interface CanvasToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  onSubmit?: () => void;
+  onClose?: () => void;
 }
 
 const TOOLS: { id: DrawingTool; label: string; icon: ReactNode }[] = [
@@ -63,9 +65,26 @@ export function CanvasToolbar({
   onUndo,
   onRedo,
   onClear,
+  onSubmit,
+  onClose,
 }: CanvasToolbarProps) {
   const [showFillPalette, setShowFillPalette] = useState(false);
   const [showStrokePalette, setShowStrokePalette] = useState(false);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const strokeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showFillPalette && fillRef.current && !fillRef.current.contains(e.target as Node)) {
+        setShowFillPalette(false);
+      }
+      if (showStrokePalette && strokeRef.current && !strokeRef.current.contains(e.target as Node)) {
+        setShowStrokePalette(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFillPalette, showStrokePalette]);
 
   return (
     <div className="flex items-center gap-0.5 px-1.5 py-1 bg-bv-bg border-b border-bv-border text-[10px] shrink-0 flex-wrap">
@@ -87,13 +106,17 @@ export function CanvasToolbar({
       <div className="w-px h-[18px] bg-bv-border mx-1" />
 
       {/* Fill color */}
-      <span className="text-[9px] font-mono text-bv-muted ml-0.5 mr-1">Fill</span>
-      <div className="relative">
+      <div ref={fillRef} className="relative">
         <button
-          className="w-5 h-5 rounded border-2 border-bv-border cursor-pointer transition-all hover:border-bv-teal hover:scale-110"
-          style={{ background: fillColor === 'transparent' ? 'repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 50%/8px 8px' : fillColor }}
+          title="Fill color"
+          className="w-7 h-[26px] rounded border border-transparent flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all hover:bg-bv-surface hover:border-bv-border"
           onClick={() => { setShowFillPalette(!showFillPalette); setShowStrokePalette(false); }}
-        />
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-bv-text-mid">
+            <path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>
+            <path d="M0 20h24v4H0z" style={{ fill: fillColor === 'transparent' ? 'none' : fillColor, stroke: fillColor === 'transparent' ? '#aaa' : 'none', strokeWidth: fillColor === 'transparent' ? 1 : 0 }} />
+          </svg>
+        </button>
         {showFillPalette && (
           <div className="absolute top-full left-0 mt-1 z-50 bg-bv-bg border border-bv-border rounded-lg shadow-lg p-2 w-[164px]">
             <div className="text-[9px] font-semibold uppercase tracking-wider text-bv-muted mb-1.5">Fill Color</div>
@@ -122,13 +145,17 @@ export function CanvasToolbar({
       </div>
 
       {/* Stroke color */}
-      <span className="text-[9px] font-mono text-bv-muted ml-1.5 mr-1">Stroke</span>
-      <div className="relative">
+      <div ref={strokeRef} className="relative">
         <button
-          className="w-5 h-5 rounded border-2 border-bv-border cursor-pointer transition-all hover:border-bv-teal hover:scale-110"
-          style={{ background: strokeColor }}
+          title="Stroke color"
+          className="w-7 h-[26px] rounded border border-transparent flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all hover:bg-bv-surface hover:border-bv-border"
           onClick={() => { setShowStrokePalette(!showStrokePalette); setShowFillPalette(false); }}
-        />
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-bv-text-mid">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            <rect x="0" y="21" width="24" height="3" style={{ fill: strokeColor }} />
+          </svg>
+        </button>
         {showStrokePalette && (
           <div className="absolute top-full left-0 mt-1 z-50 bg-bv-bg border border-bv-border rounded-lg shadow-lg p-2 w-[164px]">
             <div className="text-[9px] font-semibold uppercase tracking-wider text-bv-muted mb-1.5">Stroke Color</div>
@@ -175,6 +202,23 @@ export function CanvasToolbar({
       >
         <TrashIcon />
       </button>
+
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="ml-auto px-2.5 py-0.5 rounded border border-bv-border bg-bv-bg text-bv-muted text-[10px] font-medium cursor-pointer hover:bg-bv-orange/10 hover:border-bv-orange hover:text-bv-orange transition-all"
+        >
+          ✕ Cancel
+        </button>
+      )}
+      {onSubmit && (
+        <button
+          onClick={onSubmit}
+          className="px-2.5 py-0.5 rounded border border-bv-teal bg-bv-teal text-white text-[10px] font-medium cursor-pointer hover:bg-bv-teal/80 transition-all"
+        >
+          ✓ Add to Drafts
+        </button>
+      )}
     </div>
   );
 }

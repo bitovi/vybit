@@ -11,7 +11,8 @@ interface ElementContext {
     innerText: string;
   };
   context: string;
-  insertMode: 'before' | 'after' | 'first-child' | 'last-child';
+  insertMode: 'before' | 'after' | 'first-child' | 'last-child' | 'replace';
+  screenshot?: string;
 }
 
 export function DesignMode() {
@@ -30,6 +31,7 @@ export function DesignMode() {
           target: msg.target,
           context: msg.context,
           insertMode: msg.insertMode ?? 'after',
+          screenshot: msg.screenshot,
         });
       }
     });
@@ -57,14 +59,8 @@ export function DesignMode() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
-      {elementContext && (
-        <div className="px-2 py-1 bg-bv-surface border-b border-bv-border text-[10px] font-mono text-bv-muted shrink-0">
-          {elementContext.insertMode} &lt;{elementContext.target.tag}.{elementContext.target.classes.split(' ')[0]}&gt;
-          {' '}in {elementContext.componentName}
-        </div>
-      )}
       <div className="flex-1 overflow-hidden">
-        <DesignCanvas onSubmit={handleSubmit} onClose={handleClose} />
+        <DesignCanvas onSubmit={handleSubmit} onClose={handleClose} backgroundImage={elementContext?.screenshot} />
       </div>
     </div>
   );

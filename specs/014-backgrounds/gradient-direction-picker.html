@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gradient Direction + Stop Position — Interactive Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #FFFFFF;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #EAECED;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      padding: 32px;
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col { display: flex; flex-direction: column; gap: 8px; }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-family: var(--font-mono);
+      color: #8A9599;
+      max-width: 398px;
+    }
+
+    .panel {
+      width: 398px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+
+    .panel-body { padding: 12px; }
+
+    .section-hd {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+
+    .section-hd .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      opacity: 0.5;
+    }
+
+    .section-hd .label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-mid);
+      flex: 1;
+    }
+
+    /* ─── GRADIENT BAR ───────────────────────────────── */
+    .gradient-bar {
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+      margin-bottom: 10px;
+      transition: background 200ms ease;
+      position: relative;
+    }
+
+    /* stop markers on the bar */
+    .gradient-bar .stop-marker {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      width: 3px;
+      background: white;
+      border: 1px solid rgba(0,0,0,0.3);
+      border-radius: 1px;
+      pointer-events: none;
+    }
+
+    /* ─── LAYOUT ─────────────────────────────────────── */
+    .editor-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .direction-col {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stops-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* ─── DIRECTION PICKER ───────────────────────────── */
+    .direction-picker {
+      display: grid;
+      grid-template-columns: repeat(3, 24px);
+      grid-template-rows: repeat(3, 24px);
+      gap: 3px;
+    }
+
+    .dir-cell {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .dir-cell:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .dir-cell.is-active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .dir-cell.dir-center {
+      border-color: transparent;
+      background: var(--surface);
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .dir-cell.dir-center::after {
+      content: '';
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .dir-label {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+    }
+
+    .dir-label .val {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    /* ─── COLOR STOP CHIPS ───────────────────────────── */
+    .sub-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+    }
+
+    .stop-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px 4px 5px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      background: var(--surface);
+      color: var(--text-mid);
+    }
+
+    .stop-chip .swatch {
+      width: 16px; height: 16px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,0,0,0.10);
+      flex-shrink: 0;
+    }
+
+    .stop-chip .prefix {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .stop-chip:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .stop-chip.is-active {
+      border-color: var(--orange);
+      background: var(--orange-dim);
+      color: var(--orange);
+    }
+
+    .stop-chip.is-editing {
+      border-color: var(--teal);
+      background: var(--bg);
+      color: var(--teal);
+      box-shadow: 0 1px 5px rgba(0, 132, 139, 0.18);
+    }
+
+    .stop-chip .remove {
+      font-size: 9px;
+      color: var(--muted);
+      cursor: pointer;
+      margin-left: 2px;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .stop-chip:hover .remove { opacity: 1; }
+    .stop-chip .remove:hover { color: var(--orange); }
+
+    .stop-chip.ghost {
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      padding: 4px 10px;
+    }
+
+    .stop-chip.ghost:hover {
+      border-color: var(--teal);
+      border-style: solid;
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    /* ─── STOP POSITION SCRUBBER ──────────────────────── */
+    .stop-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stop-pct {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      border: 1px solid transparent;
+      cursor: ew-resize;
+      user-select: none;
+      transition: all var(--t-fast);
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .stop-pct:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .stop-pct.is-scrubbing {
+      border-color: var(--teal);
+      background: var(--bg);
+      color: var(--teal);
+      box-shadow: 0 1px 4px rgba(0, 132, 139, 0.15);
+    }
+
+    .stop-pct.is-scrubbing .pct-val { font-weight: 700; }
+
+    .stop-pct .pct-arrow {
+      font-size: 7px;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .stop-pct:hover .pct-arrow,
+    .stop-pct.is-scrubbing .pct-arrow { opacity: 0.5; }
+
+    .stop-pct.ghost {
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      cursor: ew-resize;
+    }
+
+    .stop-pct.ghost:hover {
+      border-color: var(--teal);
+      border-style: solid;
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .stop-pct .pct-remove {
+      font-size: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+      margin-left: 1px;
+    }
+
+    .stop-pct:hover .pct-remove { opacity: 1; }
+    .stop-pct .pct-remove:hover { color: var(--orange); }
+
+    /* ─── GRADIENT BAR HANDLES ────────────────────────── */
+    .grad-handle {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      width: 4px;
+      background: white;
+      border: 1px solid rgba(0,0,0,0.3);
+      border-radius: 1px;
+      pointer-events: none;
+      transition: left 100ms ease;
+    }
+
+    /* ─── COLOR GRID (mini, for stop editing) ────────── */
+    .color-grid {
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: none;
+    }
+
+    .color-grid.is-open { display: block; }
+
+    .color-grid-row {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .color-grid-hue-label {
+      width: 36px;
+      text-align: right;
+      padding-right: 4px;
+      font-size: 8px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .color-cell {
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 100ms, transform 100ms;
+    }
+
+    .color-cell:hover {
+      border-color: var(--text);
+      transform: scale(1.2);
+      z-index: 5;
+      position: relative;
+    }
+
+    .color-cell.is-current {
+      outline: 2px solid var(--orange);
+      outline-offset: 1px;
+    }
+
+    /* ─── STATUS BAR ─────────────────────────────────── */
+    .status {
+      margin-top: 10px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      min-height: 30px;
+    }
+
+    .status .action {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    .status .class-name {
+      color: var(--orange);
+      font-weight: 700;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 10px 0;
+    }
+
+    /* ─── POSITION GRID ──────────────────────────────── */
+    .prop-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2px;
+    }
+
+    .prop-label {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      min-width: 48px;
+      text-align: right;
+    }
+
+    .position-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 18px);
+      grid-template-rows: repeat(3, 18px);
+      gap: 2px;
+    }
+
+    .pos-cell {
+      width: 18px; height: 18px;
+      border-radius: 3px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      transition: all var(--t-fast);
+      position: relative;
+    }
+
+    .pos-cell:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .pos-cell.is-active {
+      border-color: var(--teal);
+      background: var(--teal);
+    }
+
+    .pos-cell.is-active::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .pos-value {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--teal);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════════
+       INTERACTIVE GRADIENT EDITOR
+       Click directions, click color stops to change them.
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="col">
+    <div class="col-label">Interactive — click directions, hover colors, click to commit</div>
+    <div class="panel" id="panel1">
+      <div class="panel-body">
+
+        <div class="section-hd">
+          <span class="dot"></span>
+          <span class="label">Backgrounds</span>
+        </div>
+
+        <!-- Gradient bar — updated by JS -->
+        <div class="gradient-bar" id="gradBar"></div>
+
+        <div class="editor-row">
+          <!-- Direction picker -->
+          <div class="direction-col">
+            <div class="direction-picker" id="dirPicker">
+              <div class="dir-cell" data-dir="tl" data-css="to top left">↖</div>
+              <div class="dir-cell" data-dir="t"  data-css="to top">↑</div>
+              <div class="dir-cell" data-dir="tr" data-css="to top right">↗</div>
+              <div class="dir-cell" data-dir="l"  data-css="to left">←</div>
+              <div class="dir-cell dir-center"></div>
+              <div class="dir-cell" data-dir="r"  data-css="to right">→</div>
+              <div class="dir-cell" data-dir="bl" data-css="to bottom left">↙</div>
+              <div class="dir-cell" data-dir="b"  data-css="to bottom">↓</div>
+              <div class="dir-cell" data-dir="br" data-css="to bottom right">↘</div>
+            </div>
+            <div class="dir-label">to-<span class="val" id="dirLabel">r</span></div>
+          </div>
+
+          <!-- Color stops -->
+          <div class="stops-col">
+            <div class="sub-label">Color stops</div>
+
+            <div>
+              <div class="stop-wrapper">
+                <div class="stop-chip is-active" id="fromChip" data-stop="from">
+                  <span class="swatch" id="fromSwatch" style="background: #3B82F6;"></span>
+                  <span class="prefix">from</span>
+                  <span id="fromName">blue-500</span>
+                </div>
+                <div class="stop-pct ghost" id="fromPct" data-stop="from" title="Drag to set from-N%">
+                  <span class="pct-arrow">◂</span>
+                  <span class="pct-val">%</span>
+                  <span class="pct-arrow">▸</span>
+                </div>
+              </div>
+              <div class="color-grid" id="fromGrid"></div>
+            </div>
+
+            <div>
+              <div class="stop-wrapper">
+                <div class="stop-chip ghost" id="viaChip" data-stop="via">
+                  <span>+ via</span>
+                </div>
+              </div>
+              <div class="color-grid" id="viaGrid"></div>
+            </div>
+
+            <div>
+              <div class="stop-wrapper">
+                <div class="stop-chip is-active" id="toChip" data-stop="to">
+                  <span class="swatch" id="toSwatch" style="background: #EC4899;"></span>
+                  <span class="prefix">to</span>
+                  <span id="toName">pink-500</span>
+                </div>
+                <div class="stop-pct ghost" id="toPct" data-stop="to" title="Drag to set to-N%">
+                  <span class="pct-arrow">◂</span>
+                  <span class="pct-val">%</span>
+                  <span class="pct-arrow">▸</span>
+                </div>
+              </div>
+              <div class="color-grid" id="toGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <hr />
+
+        <!-- Background position picker -->
+        <div class="prop-row">
+          <span class="prop-label">position</span>
+          <div class="position-grid" id="posGrid">
+            <div class="pos-cell" data-pos="left-top"></div>
+            <div class="pos-cell" data-pos="top"></div>
+            <div class="pos-cell" data-pos="right-top"></div>
+            <div class="pos-cell" data-pos="left"></div>
+            <div class="pos-cell is-active" data-pos="center"></div>
+            <div class="pos-cell" data-pos="right"></div>
+            <div class="pos-cell" data-pos="left-bottom"></div>
+            <div class="pos-cell" data-pos="bottom"></div>
+            <div class="pos-cell" data-pos="right-bottom"></div>
+          </div>
+          <span class="pos-value" id="posLabel">center</span>
+        </div>
+
+        <!-- Status log -->
+        <div class="status" id="status">
+          <span class="action">Ready</span> — hover and click to edit
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Color palette (subset for prototype) ────────────────────
+    const COLORS = {
+      'black':     '#000000',
+      'white':     '#FFFFFF',
+      'slate-300': '#CBD5E1', 'slate-500': '#64748B', 'slate-700': '#334155',
+      'red-300':   '#FCA5A5', 'red-400':   '#F87171', 'red-500':   '#EF4444', 'red-600':   '#DC2626', 'red-700': '#B91C1C',
+      'orange-300':'#FDBA74', 'orange-400':'#FB923C', 'orange-500':'#F97316', 'orange-600':'#EA580C',
+      'amber-300': '#FCD34D', 'amber-400': '#FBBF24', 'amber-500': '#F59E0B',
+      'yellow-300':'#FDE047', 'yellow-400':'#FACC15', 'yellow-500':'#EAB308',
+      'lime-300':  '#BEF264', 'lime-400':  '#A3E635', 'lime-500':  '#84CC16',
+      'green-300': '#86EFAC', 'green-400': '#4ADE80', 'green-500': '#22C55E', 'green-600':'#16A34A',
+      'emerald-400':'#34D399','emerald-500':'#10B981',
+      'teal-300':  '#5EEAD4', 'teal-400':  '#2DD4BF', 'teal-500':  '#14B8A6',
+      'cyan-300':  '#67E8F9', 'cyan-400':  '#22D3EE', 'cyan-500':  '#06B6D4',
+      'sky-300':   '#7DD3FC', 'sky-400':   '#38BDF8', 'sky-500':   '#0EA5E9',
+      'blue-300':  '#93C5FD', 'blue-400':  '#60A5FA', 'blue-500':  '#3B82F6', 'blue-600':  '#2563EB', 'blue-700': '#1D4ED8',
+      'indigo-400':'#818CF8', 'indigo-500':'#6366F1', 'indigo-600':'#4F46E5',
+      'violet-400':'#A78BFA', 'violet-500':'#8B5CF6', 'violet-600':'#7C3AED',
+      'purple-400':'#C084FC', 'purple-500':'#A855F7', 'purple-600':'#9333EA',
+      'fuchsia-400':'#E879F9','fuchsia-500':'#D946EF',
+      'pink-300':  '#F9A8D4', 'pink-400':  '#F472B6', 'pink-500':  '#EC4899', 'pink-600': '#DB2777',
+      'rose-400':  '#FB7185', 'rose-500':  '#F43F5E', 'rose-600':  '#E11D48',
+    };
+
+    // Group by hue for grid
+    const HUES = [
+      { name: '',       colors: ['black', 'white'] },
+      { name: 'slate',  colors: ['slate-300', 'slate-500', 'slate-700'] },
+      { name: 'red',    colors: ['red-300', 'red-400', 'red-500', 'red-600', 'red-700'] },
+      { name: 'orange', colors: ['orange-300', 'orange-400', 'orange-500', 'orange-600'] },
+      { name: 'amber',  colors: ['amber-300', 'amber-400', 'amber-500'] },
+      { name: 'yellow', colors: ['yellow-300', 'yellow-400', 'yellow-500'] },
+      { name: 'green',  colors: ['green-300', 'green-400', 'green-500', 'green-600'] },
+      { name: 'teal',   colors: ['teal-300', 'teal-400', 'teal-500'] },
+      { name: 'cyan',   colors: ['cyan-300', 'cyan-400', 'cyan-500'] },
+      { name: 'sky',    colors: ['sky-300', 'sky-400', 'sky-500'] },
+      { name: 'blue',   colors: ['blue-300', 'blue-400', 'blue-500', 'blue-600', 'blue-700'] },
+      { name: 'indigo', colors: ['indigo-400', 'indigo-500', 'indigo-600'] },
+      { name: 'violet', colors: ['violet-400', 'violet-500', 'violet-600'] },
+      { name: 'purple', colors: ['purple-400', 'purple-500', 'purple-600'] },
+      { name: 'pink',   colors: ['pink-300', 'pink-400', 'pink-500', 'pink-600'] },
+      { name: 'rose',   colors: ['rose-400', 'rose-500', 'rose-600'] },
+    ];
+
+    // ─── State ──────────────────────────────────────────────────
+    let state = {
+      direction: 'r',
+      directionCSS: 'to right',
+      from: { name: 'blue-500', hex: '#3B82F6' },
+      via:  null,  // { name, hex } or null
+      to:   { name: 'pink-500', hex: '#EC4899' },
+      position: 'center',
+      // Stop positions (null = auto/default)
+      fromPos: null,  // 0-100 or null
+      viaPos:  null,
+      toPos:   null,
+    };
+
+    let openGrid = null; // 'from' | 'via' | 'to' | null
+    let hoverColor = null; // temporary hover state for preview
+
+    // ─── Elements ───────────────────────────────────────────────
+    const gradBar    = document.getElementById('gradBar');
+    const dirPicker  = document.getElementById('dirPicker');
+    const dirLabel   = document.getElementById('dirLabel');
+    const fromChip   = document.getElementById('fromChip');
+    const fromSwatch = document.getElementById('fromSwatch');
+    const fromName   = document.getElementById('fromName');
+    const fromGrid   = document.getElementById('fromGrid');
+    const viaChip    = document.getElementById('viaChip');
+    const viaGrid    = document.getElementById('viaGrid');
+    const toChip     = document.getElementById('toChip');
+    const toSwatch   = document.getElementById('toSwatch');
+    const toName     = document.getElementById('toName');
+    const toGrid     = document.getElementById('toGrid');
+    const fromPct    = document.getElementById('fromPct');
+    const toPct      = document.getElementById('toPct');
+    const posGrid    = document.getElementById('posGrid');
+    const posLabel   = document.getElementById('posLabel');
+    const statusEl   = document.getElementById('status');
+
+    // ─── Render gradient bar ────────────────────────────────────
+    function buildStopCSS(hex, pos) {
+      return pos !== null ? `${hex} ${pos}%` : hex;
+    }
+
+    function renderGradient() {
+      const stops = [buildStopCSS(state.from.hex, state.fromPos)];
+      if (state.via) stops.push(buildStopCSS(state.via.hex, state.viaPos));
+      stops.push(buildStopCSS(state.to.hex, state.toPos));
+      gradBar.style.background = `linear-gradient(${state.directionCSS}, ${stops.join(', ')})`;
+      renderHandles();
+    }
+
+    // Preview: temporarily show a different color for a stop
+    function renderGradientPreview(stop, hex) {
+      const from = stop === 'from' ? hex : state.from.hex;
+      const to   = stop === 'to'   ? hex : state.to.hex;
+      const stops = [buildStopCSS(from, state.fromPos)];
+      if (state.via || stop === 'via') {
+        const viaHex = stop === 'via' ? hex : (state.via ? state.via.hex : hex);
+        stops.push(buildStopCSS(viaHex, state.viaPos));
+      }
+      stops.push(buildStopCSS(to, state.toPos));
+      gradBar.style.background = `linear-gradient(${state.directionCSS}, ${stops.join(', ')})`;
+    }
+
+    // ─── Gradient bar handle markers ────────────────────────────
+    function renderHandles() {
+      // Remove old handles
+      gradBar.querySelectorAll('.grad-handle').forEach(h => h.remove());
+      // Add handles for stops that have positions
+      const posEntries = [
+        { pos: state.fromPos, color: state.from.hex },
+        state.via ? { pos: state.viaPos, color: state.via.hex } : null,
+        { pos: state.toPos, color: state.to.hex },
+      ].filter(Boolean);
+      posEntries.forEach(entry => {
+        if (entry.pos !== null) {
+          const handle = document.createElement('div');
+          handle.className = 'grad-handle';
+          handle.style.left = `${entry.pos}%`;
+          gradBar.appendChild(handle);
+        }
+      });
+    }
+
+    // ─── Build color grid HTML ──────────────────────────────────
+    function buildGrid(container, stop, currentName) {
+      container.innerHTML = '';
+      HUES.forEach(hue => {
+        const row = document.createElement('div');
+        row.className = 'color-grid-row';
+        const label = document.createElement('span');
+        label.className = 'color-grid-hue-label';
+        label.textContent = hue.name;
+        row.appendChild(label);
+
+        hue.colors.forEach(name => {
+          const cell = document.createElement('div');
+          cell.className = 'color-cell' + (name === currentName ? ' is-current' : '');
+          cell.style.background = COLORS[name];
+          if (name === 'white') cell.style.border = '2px solid #ddd';
+          cell.title = `${stop}-${name}`;
+
+          cell.addEventListener('mouseenter', () => {
+            renderGradientPreview(stop, COLORS[name]);
+            log('preview', `${stop}-${name}`);
+          });
+
+          cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            commitColor(stop, name, COLORS[name]);
+          });
+
+          row.appendChild(cell);
+        });
+
+        container.appendChild(row);
+      });
+
+      container.addEventListener('mouseleave', () => {
+        renderGradient();
+        log('revert', 'preview cancelled');
+      });
+    }
+
+    // ─── Commit a color to a stop ───────────────────────────────
+    function commitColor(stop, name, hex) {
+      if (stop === 'from') {
+        state.from = { name, hex };
+        fromSwatch.style.background = hex;
+        fromName.textContent = name;
+      } else if (stop === 'to') {
+        state.to = { name, hex };
+        toSwatch.style.background = hex;
+        toName.textContent = name;
+      } else if (stop === 'via') {
+        state.via = { name, hex };
+        // Transform via chip from ghost to real, add position scrubber
+        viaChip.className = 'stop-chip is-active';
+        const wrapper = viaChip.closest('.stop-wrapper');
+        viaChip.innerHTML = `
+          <span class="swatch" style="background: ${hex};"></span>
+          <span class="prefix">via</span>
+          <span>${name}</span>
+          <span class="remove" onclick="removeVia(event)">×</span>
+        `;
+        // Add pct scrubber if not present
+        if (!document.getElementById('viaPct')) {
+          const pctEl = document.createElement('div');
+          pctEl.className = 'stop-pct ghost';
+          pctEl.id = 'viaPct';
+          pctEl.dataset.stop = 'via';
+          pctEl.title = 'Drag to set via-N%';
+          pctEl.innerHTML = '<span class="pct-arrow">◂</span><span class="pct-val">%</span><span class="pct-arrow">▸</span>';
+          wrapper.appendChild(pctEl);
+          initPctScrubber(pctEl, 'via');
+        }
+      }
+
+      renderGradient();
+      closeAllGrids();
+      log('commit', `${stop}-${name}`);
+    }
+
+    // ─── Remove via stop ────────────────────────────────────────
+    function removeVia(e) {
+      e.stopPropagation();
+      state.via = null;
+      state.viaPos = null;
+      viaChip.className = 'stop-chip ghost';
+      viaChip.innerHTML = '<span>+ via</span>';
+      // Remove via pct scrubber
+      const viaPctEl = document.getElementById('viaPct');
+      if (viaPctEl) viaPctEl.remove();
+      renderGradient();
+      closeAllGrids();
+      log('remove', 'via');
+    }
+
+    // ─── Grid open/close ────────────────────────────────────────
+    function closeAllGrids() {
+      fromGrid.classList.remove('is-open');
+      viaGrid.classList.remove('is-open');
+      toGrid.classList.remove('is-open');
+      fromChip.classList.remove('is-editing');
+      toChip.classList.remove('is-editing');
+      viaChip.classList.remove('is-editing');
+      openGrid = null;
+    }
+
+    function toggleGrid(stop) {
+      if (openGrid === stop) {
+        closeAllGrids();
+        return;
+      }
+
+      closeAllGrids();
+      openGrid = stop;
+
+      const grid = stop === 'from' ? fromGrid : stop === 'to' ? toGrid : viaGrid;
+      const chip = stop === 'from' ? fromChip : stop === 'to' ? toChip : viaChip;
+      const current = stop === 'from' ? state.from?.name : stop === 'to' ? state.to?.name : state.via?.name;
+
+      buildGrid(grid, stop, current || '');
+      grid.classList.add('is-open');
+      chip.classList.add('is-editing');
+    }
+
+    // ─── Direction picker ───────────────────────────────────────
+    dirPicker.querySelectorAll('.dir-cell[data-dir]').forEach(cell => {
+      cell.addEventListener('mouseenter', () => {
+        // Preview direction
+        const css = cell.dataset.css;
+        const stops = [buildStopCSS(state.from.hex, state.fromPos)];
+        if (state.via) stops.push(buildStopCSS(state.via.hex, state.viaPos));
+        stops.push(buildStopCSS(state.to.hex, state.toPos));
+        gradBar.style.background = `linear-gradient(${css}, ${stops.join(', ')})`;
+        log('preview', `bg-gradient-to-${cell.dataset.dir}`);
+      });
+
+      cell.addEventListener('mouseleave', () => {
+        renderGradient();
+      });
+
+      cell.addEventListener('click', () => {
+        state.direction = cell.dataset.dir;
+        state.directionCSS = cell.dataset.css;
+        dirLabel.textContent = cell.dataset.dir;
+
+        // Update active state
+        dirPicker.querySelectorAll('.dir-cell').forEach(c => c.classList.remove('is-active'));
+        cell.classList.add('is-active');
+
+        renderGradient();
+        log('commit', `bg-gradient-to-${cell.dataset.dir}`);
+      });
+    });
+
+    // Set initial active
+    dirPicker.querySelector('[data-dir="r"]').classList.add('is-active');
+
+    // ─── Stop chip clicks ───────────────────────────────────────
+    fromChip.addEventListener('click', () => toggleGrid('from'));
+    toChip.addEventListener('click', () => toggleGrid('to'));
+    viaChip.addEventListener('click', () => toggleGrid('via'));
+
+    // ─── Position grid ──────────────────────────────────────────
+    posGrid.querySelectorAll('.pos-cell').forEach(cell => {
+      cell.addEventListener('mouseenter', () => {
+        log('preview', `bg-${cell.dataset.pos}`);
+      });
+
+      cell.addEventListener('click', () => {
+        posGrid.querySelectorAll('.pos-cell').forEach(c => c.classList.remove('is-active'));
+        cell.classList.add('is-active');
+        state.position = cell.dataset.pos;
+        posLabel.textContent = cell.dataset.pos;
+        log('commit', `bg-${cell.dataset.pos}`);
+      });
+    });
+
+    // ─── Status log ─────────────────────────────────────────────
+    function log(action, className) {
+      statusEl.innerHTML = `<span class="action">${action}</span> → <span class="class-name">${className}</span>`;
+    }
+
+    // ─── Init ───────────────────────────────────────────────────
+    renderGradient();
+
+    // ─── Stop position scrubber (drag left/right) ───────────────
+    const STEP = 5;
+    const MIN = 0;
+    const MAX = 100;
+
+    function getStopPosKey(stop) {
+      return stop === 'from' ? 'fromPos' : stop === 'to' ? 'toPos' : 'viaPos';
+    }
+
+    function getPctEl(stop) {
+      if (stop === 'from') return fromPct;
+      if (stop === 'to') return toPct;
+      return document.getElementById('viaPct');
+    }
+
+    function updatePctDisplay(el, stop, value) {
+      if (value === null) {
+        el.className = 'stop-pct ghost';
+        el.innerHTML = '<span class="pct-arrow">◂</span><span class="pct-val">%</span><span class="pct-arrow">▸</span>';
+      } else {
+        el.className = 'stop-pct';
+        el.innerHTML = `<span class="pct-arrow">◂</span><span class="pct-val">${value}%</span><span class="pct-arrow">▸</span><span class="pct-remove" title="Remove position">×</span>`;
+        // Bind remove
+        el.querySelector('.pct-remove').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state[getStopPosKey(stop)] = null;
+          updatePctDisplay(el, stop, null);
+          renderGradient();
+          log('remove', `${stop}-N%`);
+        });
+      }
+    }
+
+    function initPctScrubber(el, stop) {
+      let startX = 0;
+      let startVal = 0;
+
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const key = getStopPosKey(stop);
+        startX = e.clientX;
+        startVal = state[key] !== null ? state[key] : 50; // Start at 50% if adding new
+
+        el.classList.add('is-scrubbing');
+
+        function onMove(ev) {
+          const dx = ev.clientX - startX;
+          const steps = Math.round(dx / 6); // 6px per 5% step
+          let newVal = Math.max(MIN, Math.min(MAX, startVal + steps * STEP));
+          newVal = Math.round(newVal / STEP) * STEP;
+
+          state[key] = newVal;
+          updatePctDisplay(el, stop, newVal);
+          renderGradient();
+          log('preview', `${stop}-${newVal}%`);
+        }
+
+        function onUp() {
+          el.classList.remove('is-scrubbing');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          const key2 = getStopPosKey(stop);
+          if (state[key2] !== null) {
+            log('commit', `${stop}-${state[key2]}%`);
+          }
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    // Init scrubbers for from and to
+    initPctScrubber(fromPct, 'from');
+    initPctScrubber(toPct, 'to');
+  </script>
+
+</body>
+</html>

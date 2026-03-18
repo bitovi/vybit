@@ -1,6 +1,8 @@
 import { computePosition, flip, offset } from '@floating-ui/dom';
 import { connect, send, sendTo, onMessage } from './ws';
 import { getFiber, findComponentBoundary, getRootFiber, findAllInstances, getChildPath, resolvePathToDOM, findInlineRepeatedNodes, findDOMEquivalents } from './fiber';
+import { findExactMatches, computeNearGroups } from './grouping';
+import type { ElementGroup } from './grouping';
 import { parseClasses } from './class-parser';
 import { buildContext } from './context';
 import { applyPreview, revertPreview, getPreviewState, commitPreview } from './patcher';
@@ -10,6 +12,7 @@ import { PopoverContainer } from './containers/PopoverContainer';
 import { ModalContainer } from './containers/ModalContainer';
 import { SidebarContainer } from './containers/SidebarContainer';
 import { PopupContainer } from './containers/PopupContainer';
+import { areSiblings, captureRegion } from './screenshot';
 
 let shadowRoot: ShadowRoot;
 let shadowHost: HTMLElement;
@@ -23,8 +26,8 @@ let currentTargetEl: HTMLElement | null = null;
 let currentBoundary: { componentName: string } | null = null;
 let currentInstances: Array<{ index: number; label: string; parent: string }> = [];
 
-// Whether the next click should add to the current selection instead of replacing it
-let addingMode = false;
+// Cached near-groups for the current selection (computed lazily on first + click)
+let cachedNearGroups: ElementGroup[] | null = null;
 
 // Hover preview state (shown while selection mode is active + mouse moves)
 let hoverOutlineEl: HTMLElement | null = null;
@@ -162,7 +165,7 @@ const OVERLAY_CSS = `
     align-self: stretch;
   }
   /* Base style for all buttons inside the toolbar */
-  .draw-btn, .el-pick-btn, .el-add-btn {
+  .draw-btn, .el-reselect-btn, .el-pick-btn, .el-add-btn {
     background: transparent;
     border: none;
     border-radius: 0;
@@ -186,10 +189,59 @@ const OVERLAY_CSS = `
   .el-pick-btn { gap: 3px; padding: 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; }
   .el-pick-btn svg { opacity: 0.7; flex-shrink: 0; }
   .el-add-btn { padding: 0 10px; font-size: 15px; font-weight: 400; }
-  .draw-btn:hover, .el-pick-btn:hover, .el-add-btn:hover,
+  .el-reselect-btn { padding: 0 9px; }
+  .draw-btn:hover, .el-reselect-btn:hover, .el-pick-btn:hover, .el-add-btn:hover,
   .el-pick-btn.open {
     background: rgba(255,255,255,0.12);
   }
+  /* ── Hover preview highlight (dashed, for group hover) ── */
+  .highlight-preview {
+    position: fixed;
+    pointer-events: none;
+    border: 2px dashed #00848B;
+    border-radius: 2px;
+    box-sizing: border-box;
+    z-index: 999998;
+  }
+  /* ── Group picker popover (replaces instance picker) ── */
+  .el-group-empty {
+    padding: 12px 14px;
+    font-size: 11px;
+    color: #687879;
+    text-align: center;
+  }
+  .el-group-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .el-group-row:hover { background: rgba(0,132,139,0.05); }
+  .el-group-row input[type=checkbox] {
+    accent-color: #00848B;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .el-group-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #334041;
+    min-width: 20px;
+  }
+  .el-group-diff {
+    flex: 1;
+    font-size: 10px;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .el-group-diff .diff-add { color: #16a34a; }
+  .el-group-diff .diff-rem { color: #dc2626; }
   /* ── Instance picker popover ── */
   .el-picker {
     position: fixed;
@@ -392,7 +444,6 @@ let toolbarEl: HTMLElement | null = null;
 let drawPopoverEl: HTMLElement | null = null;
 let pickerEl: HTMLElement | null = null;
 let pickerCloseHandler: ((e: MouseEvent) => void) | null = null;
-let selectedInstanceIndices: Set<number> = new Set();
 
 function removeDrawButton(): void {
   toolbarEl?.remove();
@@ -471,6 +522,8 @@ const PENCIL_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
 
 const CHEVRON_SVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
+const RESELECT_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l2.5 6 1.5-3 3-1.5z"/></svg>`;
+
 async function positionWithFlip(anchor: HTMLElement, floating: HTMLElement, placement: 'top-start' | 'bottom-start' = 'top-start'): Promise<void> {
   const { x, y } = await computePosition(anchor, floating, {
     placement,
@@ -483,18 +536,28 @@ async function positionWithFlip(anchor: HTMLElement, floating: HTMLElement, plac
 function showDrawButton(targetEl: HTMLElement): void {
   removeDrawButton();
 
-  // Snapshot the full node list at selection time so the picker can subset it
-  const allEquivalentNodes = [...currentEquivalentNodes];
-  const instanceCount = allEquivalentNodes.length;
+  const instanceCount = currentEquivalentNodes.length;
 
   // ── Build toolbar ──────────────────────────────────────────
   const toolbar = document.createElement('div');
   toolbar.className = 'el-toolbar';
-  // Initial position (will be updated by floating-ui)
   toolbar.style.left = '0px';
   toolbar.style.top = '0px';
   shadowRoot.appendChild(toolbar);
   toolbarEl = toolbar;
+
+  // Re-select button — activates crosshair to pick a new element
+  const reselectBtn = document.createElement('button');
+  reselectBtn.className = 'el-reselect-btn';
+  reselectBtn.innerHTML = RESELECT_SVG;
+  reselectBtn.title = 'Re-select element';
+  toolbar.appendChild(reselectBtn);
+
+  reselectBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearHighlights();
+    setSelectMode(true);
+  });
 
   // Draw button
   const drawBtn = document.createElement('button');
@@ -514,82 +577,58 @@ function showDrawButton(targetEl: HTMLElement): void {
     }
   });
 
-  // Show count + picker button if there are 2+ instances
-  if (instanceCount > 1) {
-    const sep = document.createElement('div');
-    sep.className = 'el-toolbar-sep';
-    toolbar.appendChild(sep);
+  // Separator
+  const sep = document.createElement('div');
+  sep.className = 'el-toolbar-sep';
+  toolbar.appendChild(sep);
 
-    // Single count button — shows N selected, click to pick
-    const countBtn = document.createElement('button');
-    countBtn.className = 'el-pick-btn';
-    const updateCountBtn = (n: number) => {
-      countBtn.innerHTML = `${n} ${CHEVRON_SVG}`;
-    };
-    updateCountBtn(instanceCount);
-    countBtn.title = 'Select which instances to edit';
-    toolbar.appendChild(countBtn);
+  // Combined "N +" button — shows count and opens group dropdown
+  const addGroupBtn = document.createElement('button');
+  addGroupBtn.className = 'el-add-btn';
+  addGroupBtn.textContent = `${instanceCount} +`;
+  addGroupBtn.title = `${instanceCount} matching element${instanceCount !== 1 ? 's' : ''} selected — click to add similar`;
+  toolbar.appendChild(addGroupBtn);
 
-    countBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      drawPopoverEl?.remove(); drawPopoverEl = null;
-      if (pickerEl) {
-        pickerEl.remove(); pickerEl = null;
-        countBtn.classList.remove('open');
-      } else {
-        countBtn.classList.add('open');
-        showInstancePicker(
-          countBtn,
-          () => countBtn.classList.remove('open'),
-          (indices) => {
-            // Update the active node set and re-draw highlights
-            currentEquivalentNodes = indices.map((i) => allEquivalentNodes[i]).filter(Boolean) as HTMLElement[];
-            shadowRoot.querySelectorAll('.highlight-overlay').forEach((el) => el.remove());
-            currentEquivalentNodes.forEach((n) => highlightElement(n));
-            updateCountBtn(currentEquivalentNodes.length);
-          },
-        );
-      }
-    });
-
-    // "+" add different element button
-    const addBtn = document.createElement('button');
-    addBtn.className = 'el-add-btn';
-    addBtn.textContent = '+';
-    addBtn.title = 'Add a different element to selection';
-    toolbar.appendChild(addBtn);
-
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      pickerEl?.remove(); pickerEl = null;
-      drawPopoverEl?.remove(); drawPopoverEl = null;
-      addingMode = true;
-      setSelectMode(true);
-      showToast('Click another element to add it to the selection', 2500);
-    });
-  }
+  addGroupBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    drawPopoverEl?.remove(); drawPopoverEl = null;
+    if (pickerEl) {
+      pickerEl.remove(); pickerEl = null;
+      addGroupBtn.classList.remove('open');
+    } else {
+      addGroupBtn.classList.add('open');
+      showGroupPicker(
+        addGroupBtn,
+        () => addGroupBtn.classList.remove('open'),
+        (totalCount) => {
+          addGroupBtn.textContent = `${totalCount} +`;
+          addGroupBtn.title = `${totalCount} matching element${totalCount !== 1 ? 's' : ''} selected — click to add similar`;
+        },
+      );
+    }
+  });
 
   // Position toolbar using @floating-ui/dom
-  // We need a real DOM element as the anchor; use the targetEl itself
   positionWithFlip(targetEl, toolbar);
 }
 
-function showInstancePicker(anchorBtn: HTMLElement, onClose: () => void, onApply?: (indices: number[]) => void): void {
-  // Remove any stale outside-click handler from a previous open
+function showGroupPicker(
+  anchorBtn: HTMLElement,
+  onClose: () => void,
+  onCountChange: (totalCount: number) => void,
+): void {
   if (pickerCloseHandler) {
     document.removeEventListener('click', pickerCloseHandler, { capture: true });
     pickerCloseHandler = null;
   }
   pickerEl?.remove();
 
-  const instances = currentInstances;
-  // Restore previous selection if it matches this instance list, otherwise default to all
-  const allIndices = instances.map((_, i) => i);
-  const selected = new Set<number>(
-    selectedInstanceIndices.size > 0 && selectedInstanceIndices.size <= instances.length
-      ? [...selectedInstanceIndices].filter((i) => i < instances.length)
-      : allIndices
-  );
+  // Lazily compute near-groups on first open
+  if (!cachedNearGroups && currentTargetEl) {
+    const exactSet = new Set(currentEquivalentNodes);
+    cachedNearGroups = computeNearGroups(currentTargetEl, exactSet, shadowHost);
+  }
+  const groups = cachedNearGroups ?? [];
 
   const picker = document.createElement('div');
   picker.className = 'el-picker';
@@ -603,106 +642,118 @@ function showInstancePicker(anchorBtn: HTMLElement, onClose: () => void, onApply
   header.className = 'el-picker-header';
   const title = document.createElement('span');
   title.className = 'el-picker-title';
-  title.textContent = currentBoundary?.componentName ?? 'Instances';
-  const actions = document.createElement('div');
-  actions.className = 'el-picker-actions';
-  const allLink = document.createElement('a');
-  allLink.textContent = 'All';
-  const noneLink = document.createElement('a');
-  noneLink.textContent = 'None';
-  actions.appendChild(allLink);
-  actions.appendChild(noneLink);
+  title.textContent = 'Similar elements';
   header.appendChild(title);
-  header.appendChild(actions);
   picker.appendChild(header);
 
-  // List
-  const list = document.createElement('div');
-  list.className = 'el-picker-list';
-  picker.appendChild(list);
+  if (groups.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'el-group-empty';
+    empty.textContent = 'No similar elements found';
+    picker.appendChild(empty);
+  } else {
+    const list = document.createElement('div');
+    list.className = 'el-picker-list';
+    picker.appendChild(list);
 
-  const checkboxes: HTMLInputElement[] = [];
+    // Track which groups are checked (includes their elements in selection)
+    const checkedGroups = new Set<number>();
+    // Base exact-match nodes that are always included
+    const baseNodes = [...currentEquivalentNodes];
 
-  function renderRows() {
-    list.innerHTML = '';
-    checkboxes.length = 0;
-    instances.forEach((inst, i) => {
+    function clearPreviewHighlights() {
+      shadowRoot.querySelectorAll('.highlight-preview').forEach((el) => el.remove());
+    }
+
+    function updateSelection() {
+      // Rebuild currentEquivalentNodes from base + checked groups
+      const allNodes = [...baseNodes];
+      for (const idx of checkedGroups) {
+        for (const el of groups[idx].elements) {
+          if (!allNodes.includes(el)) allNodes.push(el);
+        }
+      }
+      currentEquivalentNodes = allNodes;
+      // Redraw highlights
+      shadowRoot.querySelectorAll('.highlight-overlay').forEach((el) => el.remove());
+      currentEquivalentNodes.forEach((n) => highlightElement(n));
+      onCountChange(currentEquivalentNodes.length);
+      // Update panel
+      if (currentTargetEl && currentBoundary) {
+        sendTo('panel', {
+          type: 'ELEMENT_SELECTED',
+          componentName: currentBoundary.componentName,
+          instanceCount: currentEquivalentNodes.length,
+          classes: typeof currentTargetEl.className === 'string' ? currentTargetEl.className : '',
+          tailwindConfig: tailwindConfigCache,
+        });
+      }
+    }
+
+    groups.forEach((group, idx) => {
       const row = document.createElement('label');
-      row.className = 'el-picker-row';
+      row.className = 'el-group-row';
 
       const cb = document.createElement('input');
       cb.type = 'checkbox';
-      cb.checked = selected.has(i);
+      cb.checked = false;
       cb.addEventListener('change', () => {
-        if (cb.checked) selected.add(i); else selected.delete(i);
-        badge.className = 'el-picker-badge' + (cb.checked ? ' checked' : '');
-        updateApply();
+        if (cb.checked) checkedGroups.add(idx);
+        else checkedGroups.delete(idx);
+        updateSelection();
       });
-      checkboxes.push(cb);
 
-      const badge = document.createElement('span');
-      badge.className = 'el-picker-badge' + (cb.checked ? ' checked' : '');
-      badge.textContent = String(i + 1);
+      const count = document.createElement('span');
+      count.className = 'el-group-count';
+      count.textContent = `(${group.elements.length})`;
 
-      const label = document.createElement('span');
-      label.className = 'el-picker-label';
-      label.innerHTML = `${inst.label} <span class="el-picker-tag">${inst.parent}</span>`;
+      const diff = document.createElement('span');
+      diff.className = 'el-group-diff';
+      const parts: string[] = [];
+      for (const a of group.added) parts.push(`<span class="diff-add">+${a}</span>`);
+      for (const r of group.removed) parts.push(`<span class="diff-rem">-${r}</span>`);
+      diff.innerHTML = parts.join(' ');
 
       row.appendChild(cb);
-      row.appendChild(badge);
-      row.appendChild(label);
+      row.appendChild(count);
+      row.appendChild(diff);
       list.appendChild(row);
+
+      // Hover preview: show dashed outlines for this group's elements
+      row.addEventListener('mouseenter', () => {
+        clearPreviewHighlights();
+        for (const el of group.elements) {
+          const rect = el.getBoundingClientRect();
+          const preview = document.createElement('div');
+          preview.className = 'highlight-preview';
+          preview.style.top = `${rect.top - 3}px`;
+          preview.style.left = `${rect.left - 3}px`;
+          preview.style.width = `${rect.width + 6}px`;
+          preview.style.height = `${rect.height + 6}px`;
+          shadowRoot.appendChild(preview);
+        }
+      });
+
+      row.addEventListener('mouseleave', () => {
+        clearPreviewHighlights();
+      });
     });
   }
 
-  renderRows();
+  // Position
+  positionWithFlip(anchorBtn, picker);
 
-  allLink.addEventListener('click', () => {
-    instances.forEach((_, i) => selected.add(i));
-    renderRows();
-    updateApply();
-  });
-  noneLink.addEventListener('click', () => {
-    selected.clear();
-    renderRows();
-    updateApply();
-  });
-
-  // Footer
-  const footer = document.createElement('div');
-  footer.className = 'el-picker-footer';
-  const applyBtn = document.createElement('button');
-  applyBtn.className = 'el-picker-apply';
-  footer.appendChild(applyBtn);
-  picker.appendChild(footer);
-
-  function updateApply() {
-    applyBtn.textContent = `Apply (${selected.size} selected)`;
-  }
-  updateApply();
-
+  // Close on outside click
   const removePicker = () => {
+    shadowRoot.querySelectorAll('.highlight-preview').forEach((el) => el.remove());
     if (pickerCloseHandler) {
       document.removeEventListener('click', pickerCloseHandler, { capture: true });
       pickerCloseHandler = null;
     }
-    pickerEl?.remove(); pickerEl = null;
+    pickerEl?.remove();
+    pickerEl = null;
   };
 
-  applyBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const selectedIndices = [...selected];
-    selectedInstanceIndices = new Set(selectedIndices); // persist for next open
-    sendTo('panel', { type: 'SELECT_MATCHING', indices: selectedIndices });
-    onApply?.(selectedIndices);
-    removePicker();
-    onClose();
-  });
-
-  // Position using floating-ui (prefers top-start, flips to bottom-start)
-  positionWithFlip(anchorBtn, picker);
-
-  // Close on outside click
   setTimeout(() => {
     pickerCloseHandler = (e: MouseEvent) => {
       const path = e.composedPath();
@@ -751,6 +802,32 @@ function showDrawPopover(anchorBtn: HTMLElement): void {
     });
     popover.appendChild(row);
   }
+
+  // Separator
+  const sep = document.createElement('div');
+  sep.style.cssText = 'height:1px;background:#DFE2E2;margin:4px 0;';
+  popover.appendChild(sep);
+
+  // Screenshot & Annotate header
+  const screenshotHeader = document.createElement('div');
+  screenshotHeader.className = 'draw-popover-header';
+  screenshotHeader.textContent = 'Screenshot & Annotate';
+  popover.appendChild(screenshotHeader);
+
+  // Screenshot button
+  const screenshotRow = document.createElement('button');
+  screenshotRow.className = 'draw-popover-item';
+  screenshotRow.innerHTML = `
+    <span class="draw-popover-icon">📷</span>
+    <span class="draw-popover-label">Screenshot & Annotate</span>
+  `;
+  screenshotRow.addEventListener('click', (e) => {
+    e.stopPropagation();
+    drawPopoverEl?.remove();
+    drawPopoverEl = null;
+    handleCaptureScreenshot();
+  });
+  popover.appendChild(screenshotRow);
 
   drawPopoverEl = popover;
   shadowRoot.appendChild(popover);
@@ -812,106 +889,35 @@ async function clickHandler(e: MouseEvent): Promise<void> {
   e.stopPropagation();
 
   const target = e.target as Element;
-  const fiber = getFiber(target);
-  const boundary = fiber ? findComponentBoundary(fiber) : null;
-  const hasFiber = fiber !== null && boundary !== null;
+  const targetEl = target as HTMLElement;
+  const classString = typeof targetEl.className === 'string' ? targetEl.className : '';
 
-  const newNodes: HTMLElement[] = [];
-  let componentName: string;
-
-  if (hasFiber) {
-    const rootFiber = getRootFiber();
-    if (!rootFiber) {
-      showToast('Could not find React root.');
-      return;
-    }
-    const instances = findAllInstances(rootFiber, boundary!.componentType);
-    const path = getChildPath(boundary!.componentFiber, fiber);
-    for (const inst of instances) {
-      const node = resolvePathToDOM(inst, path);
-      if (node) newNodes.push(node);
-    }
-    componentName = boundary!.componentName;
-  } else {
-    // Non-React page (Astro, plain HTML, etc.) — fall back to DOM-based matching
-    const targetEl = target as HTMLElement;
-    newNodes.push(...findDOMEquivalents(targetEl));
-    componentName = targetEl.tagName.toLowerCase();
-  }
-
-  // In add mode, merge new nodes into the existing selection (dedup by reference)
-  if (addingMode && currentEquivalentNodes.length > 0) {
-    addingMode = false;
-    const merged = [...currentEquivalentNodes];
-    for (const n of newNodes) {
-      if (!merged.includes(n)) merged.push(n);
-    }
-    clearHighlights();
-    merged.forEach((n) => highlightElement(n));
-    currentEquivalentNodes = merged;
-    selectedInstanceIndices = new Set(); // reset picker
-    // Rebuild toolbar anchored to the first (original) target
-    if (currentTargetEl) showDrawButton(currentTargetEl);
-    sendTo('panel', { type: 'ELEMENT_SELECTED', componentName: currentBoundary?.componentName ?? componentName, instanceCount: merged.length, classes: currentTargetEl?.className ?? '', tailwindConfig: await fetchTailwindConfig() });
-    return;
-  }
+  // Use the new exact-match grouping logic
+  const result = findExactMatches(targetEl, shadowHost);
+  const componentName = result.componentName ?? targetEl.tagName.toLowerCase();
 
   clearHighlights();
-
-  const equivalentNodes: HTMLElement[] = [];
-  for (const node of newNodes) {
-    equivalentNodes.push(node);
+  for (const node of result.exactMatch) {
     highlightElement(node);
   }
 
-  // React fallback: if only one node found, the element may be rendered inline via .map()
-  // without its own component boundary — walk the fiber tree to find repeated siblings.
-  if (hasFiber && equivalentNodes.length <= 1) {
-    const repeated = findInlineRepeatedNodes(fiber, boundary!.componentFiber);
-    if (repeated.length > 0) {
-      clearHighlights();
-      equivalentNodes.length = 0;
-      for (const node of repeated) {
-        equivalentNodes.push(node);
-        highlightElement(node);
-      }
-    }
-  }
-
-  console.log(`[overlay] ${componentName} — ${equivalentNodes.length} highlighted`);
+  console.log(`[overlay] ${componentName} — ${result.exactMatch.length} exact matches highlighted`);
 
   // Fetch tailwind config (cached after first fetch)
   const config = await fetchTailwindConfig();
 
-  // Parse classes on the clicked element
-  const targetEl = target as HTMLElement;
-  const classString = targetEl.className;
-  if (typeof classString !== 'string') return;
-
   // Store selection state for Patcher WS handlers
-  currentEquivalentNodes = equivalentNodes;
+  currentEquivalentNodes = result.exactMatch;
   currentTargetEl = targetEl;
   currentBoundary = { componentName };
-  selectedInstanceIndices = new Set(); // reset picker state for new element
-  if (hasFiber) {
-    const rootFiber = getRootFiber();
-    const instances = rootFiber ? findAllInstances(rootFiber, boundary!.componentType) : [];
-    currentInstances = instances.map((inst, i) => {
-      const domNode = inst.stateNode instanceof HTMLElement ? inst.stateNode : null;
-      const label = domNode
-        ? (domNode.innerText || '').trim().slice(0, 40) || `#${i + 1}`
-        : `#${i + 1}`;
-      const parentFiber = inst.return;
-      const parent = parentFiber?.type?.name ?? '';
-      return { index: i, label, parent };
-    });
-  } else {
-    currentInstances = equivalentNodes.map((node, i) => ({
-      index: i,
-      label: (node.innerText || '').trim().slice(0, 40) || `#${i + 1}`,
-      parent: node.parentElement?.tagName.toLowerCase() ?? '',
-    }));
-  }
+  cachedNearGroups = null; // Reset cached groups for new selection
+
+  // Build instances metadata for context
+  currentInstances = result.exactMatch.map((node, i) => ({
+    index: i,
+    label: (node.innerText || '').trim().slice(0, 40) || `#${i + 1}`,
+    parent: node.parentElement?.tagName.toLowerCase() ?? '',
+  }));
 
   // Selection complete — deactivate hover preview and selection mode cursor
   clearHoverPreview();
@@ -930,7 +936,7 @@ async function clickHandler(e: MouseEvent): Promise<void> {
   sendTo('panel', {
     type: 'ELEMENT_SELECTED',
     componentName,
-    instanceCount: equivalentNodes.length,
+    instanceCount: result.exactMatch.length,
     classes: classString,
     tailwindConfig: config,
   });
@@ -942,7 +948,6 @@ function setSelectMode(on: boolean): void {
     document.addEventListener('click', clickHandler, { capture: true });
     document.addEventListener('mousemove', mouseMoveHandler, { passive: true });
   } else {
-    addingMode = false;
     document.documentElement.style.cursor = '';
     document.removeEventListener('click', clickHandler, { capture: true });
     document.removeEventListener('mousemove', mouseMoveHandler);
@@ -951,10 +956,13 @@ function setSelectMode(on: boolean): void {
   sendTo('panel', { type: 'SELECT_MODE_CHANGED', active: on });
 }
 
+const PANEL_OPEN_KEY = 'tw-inspector-panel-open';
+
 function toggleInspect(btn: HTMLButtonElement): void {
   active = !active;
   if (active) {
     btn.classList.add('active');
+    sessionStorage.setItem(PANEL_OPEN_KEY, '1');
     // Open the container — select mode is activated via the panel's SelectElementButton
     const panelUrl = `${SERVER_ORIGIN}/panel`;
     if (!activeContainer.isOpen()) {
@@ -962,6 +970,7 @@ function toggleInspect(btn: HTMLButtonElement): void {
     }
   } else {
     btn.classList.remove('active');
+    sessionStorage.removeItem(PANEL_OPEN_KEY);
     setSelectMode(false);
     activeContainer.close();
     revertPreview();
@@ -981,8 +990,14 @@ export function showToast(message: string, duration: number = 3000): void {
   }, duration);
 }
 
-// Active design canvas wrappers (tracked for cleanup)
-const designCanvasWrappers: HTMLElement[] = [];
+// Active design canvas wrappers (tracked for cleanup / cancel restore)
+interface DesignCanvasEntry {
+  wrapper: HTMLElement;
+  replacedNodes: HTMLElement[] | null; // null for inject (no replaced nodes)
+  parent: HTMLElement | null;
+  anchor: ChildNode | null;
+}
+const designCanvasWrappers: DesignCanvasEntry[] = [];
 
 function injectDesignCanvas(insertMode: InsertMode): void {
   if (!currentTargetEl || !currentBoundary) {
@@ -999,7 +1014,8 @@ function injectDesignCanvas(insertMode: InsertMode): void {
   const wrapper = document.createElement('div');
   wrapper.setAttribute('data-tw-design-canvas', 'true');
   wrapper.style.cssText = `
-    border: 2px dashed #00848B;
+    outline: 2px dashed #00848B;
+    outline-offset: 2px;
     border-radius: 6px;
     background: #FAFBFB;
     position: relative;
@@ -1138,9 +1154,7 @@ function injectDesignCanvas(insertMode: InsertMode): void {
       targetEl.insertAdjacentElement('beforebegin', wrapper);
   }
 
-  designCanvasWrappers.push(wrapper);
-
-  // After iframe loads, send element context via WS
+  designCanvasWrappers.push({ wrapper, replacedNodes: null, parent: null, anchor: null });
   // Use a short delay to allow the iframe's WS client to connect and register
   iframe.addEventListener('load', () => {
     const contextMsg = {
@@ -1166,9 +1180,125 @@ function injectDesignCanvas(insertMode: InsertMode): void {
   });
 }
 
+async function handleCaptureScreenshot(): Promise<void> {
+  if (!currentTargetEl || !currentBoundary) {
+    showToast('Select an element first');
+    return;
+  }
+
+  if (!areSiblings(currentEquivalentNodes)) {
+    showToast('Screenshot & Annotate requires all selected elements to be siblings in the DOM.');
+    return;
+  }
+
+  let screenshot: string;
+  let screenshotWidth: number;
+  let screenshotHeight: number;
+  try {
+    ({ dataUrl: screenshot, width: screenshotWidth, height: screenshotHeight } = await captureRegion(currentEquivalentNodes));
+  } catch (err) {
+    showToast('Screenshot capture failed');
+    console.error('[overlay] captureRegion error:', err);
+    return;
+  }
+
+  // Record insertion anchor before we remove nodes
+  const parent = currentEquivalentNodes[0].parentElement!;
+  const anchor = currentEquivalentNodes[0].nextSibling;
+
+  // Capture margins from the outer nodes before removal
+  const firstStyle = getComputedStyle(currentEquivalentNodes[0]);
+  const lastStyle = getComputedStyle(currentEquivalentNodes[currentEquivalentNodes.length - 1]);
+  const marginTop = firstStyle.marginTop;
+  const marginBottom = lastStyle.marginBottom;
+  const marginLeft = firstStyle.marginLeft;
+  const marginRight = firstStyle.marginRight;
+
+  // Snapshot the nodes to restore on cancel — take references before removal
+  const replacedNodes = [...currentEquivalentNodes];
+
+  // Snapshot context before DOM mutation
+  const targetEl = currentTargetEl;
+  const boundary = currentBoundary;
+  const instanceCount = currentEquivalentNodes.length;
+
+  // Remove selection highlights and draw button
+  clearHighlights();
+
+  // Remove all selected nodes from the DOM
+  for (const node of currentEquivalentNodes) {
+    node.remove();
+  }
+
+  // toolbar ~40px = no footer now
+  const PANEL_CHROME_HEIGHT = 40;
+
+  // Build wrapper + iframe (same structure as injectDesignCanvas)
+  const wrapper = document.createElement('div');
+  wrapper.setAttribute('data-tw-design-canvas', 'true');
+  wrapper.style.cssText = `
+    outline: 2px dashed #00848B;
+    outline-offset: 2px;
+    border-radius: 6px;
+    background: #FAFBFB;
+    position: relative;
+    overflow: hidden;
+    width: ${screenshotWidth}px;
+    height: ${screenshotHeight + PANEL_CHROME_HEIGHT}px;
+    min-width: 300px;
+    margin-top: ${marginTop};
+    margin-bottom: ${marginBottom};
+    margin-left: ${marginLeft};
+    margin-right: ${marginRight};
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    box-sizing: border-box;
+  `;
+
+  const iframe = document.createElement('iframe');
+  iframe.src = `${SERVER_ORIGIN}/panel/?mode=design`;
+  iframe.style.cssText = `
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  `;
+  wrapper.appendChild(iframe);
+
+  // Insert at original position
+  if (anchor) {
+    parent.insertBefore(wrapper, anchor);
+  } else {
+    parent.appendChild(wrapper);
+  }
+
+  designCanvasWrappers.push({ wrapper, replacedNodes, parent, anchor });
+  iframe.addEventListener('load', () => {
+    const contextMsg = {
+      type: 'ELEMENT_CONTEXT',
+      componentName: boundary.componentName,
+      instanceCount,
+      target: {
+        tag: targetEl.tagName.toLowerCase(),
+        classes: typeof targetEl.className === 'string' ? targetEl.className : '',
+        innerText: (targetEl.innerText || '').trim().slice(0, 60),
+      },
+      context: buildContext(targetEl, '', '', new Map()),
+      insertMode: 'replace' as InsertMode,
+      screenshot,
+    };
+    let attempts = 0;
+    const trySend = () => {
+      sendTo('design', contextMsg);
+      attempts++;
+      if (attempts < 5) setTimeout(trySend, 300);
+    };
+    setTimeout(trySend, 200);
+  });
+}
+
 function removeAllDesignCanvases(): void {
-  for (const wrapper of designCanvasWrappers) {
-    wrapper.remove();
+  for (const entry of designCanvasWrappers) {
+    entry.wrapper.remove();
   }
   designCanvasWrappers.length = 0;
 }
@@ -1292,9 +1422,12 @@ function init(): void {
       }
     } else if (msg.type === 'INSERT_DESIGN_CANVAS') {
       injectDesignCanvas(msg.insertMode as InsertMode);
+    } else if (msg.type === 'CAPTURE_SCREENSHOT') {
+      handleCaptureScreenshot();
     } else if (msg.type === 'DESIGN_SUBMITTED') {
       // Replace the most recent canvas iframe with a static image preview
-      const last = designCanvasWrappers[designCanvasWrappers.length - 1];
+      const lastEntry = designCanvasWrappers[designCanvasWrappers.length - 1];
+      const last = lastEntry?.wrapper;
       if (last) {
         const iframe = last.querySelector('iframe');
         if (iframe && msg.image) {
@@ -1315,9 +1448,21 @@ function init(): void {
         }
       }
     } else if (msg.type === 'DESIGN_CLOSE') {
-      // Remove the most recently added canvas wrapper
+      // Remove the most recently added canvas wrapper, restoring replaced nodes if any
       const last = designCanvasWrappers.pop();
-      if (last) last.remove();
+      if (last) {
+        if (last.replacedNodes && last.parent) {
+          // Restore the original nodes at the same position
+          for (const node of last.replacedNodes) {
+            if (last.anchor) {
+              last.parent.insertBefore(node, last.anchor);
+            } else {
+              last.parent.appendChild(node);
+            }
+          }
+        }
+        last.wrapper.remove();
+      }
     }
   });
 
@@ -1326,6 +1471,9 @@ function init(): void {
       shadowRoot.querySelectorAll('.highlight-overlay').forEach((el) => el.remove());
       currentEquivalentNodes.forEach((n) => highlightElement(n));
     }
+    if (toolbarEl && currentTargetEl) {
+      positionWithFlip(currentTargetEl, toolbarEl);
+    }
   });
 
   window.addEventListener('scroll', () => {
@@ -1333,7 +1481,17 @@ function init(): void {
       shadowRoot.querySelectorAll('.highlight-overlay').forEach((el) => el.remove());
       currentEquivalentNodes.forEach((n) => highlightElement(n));
     }
+    if (toolbarEl && currentTargetEl) {
+      positionWithFlip(currentTargetEl, toolbarEl);
+    }
   }, { capture: true, passive: true });
+
+  // Auto-open panel if it was open before the last page refresh
+  if (sessionStorage.getItem(PANEL_OPEN_KEY) === '1') {
+    active = true;
+    btn.classList.add('active');
+    activeContainer.open(`${SERVER_ORIGIN}/panel`);
+  }
 
   window.addEventListener('overlay-ws-connected', () => {
     if (wasConnected) {

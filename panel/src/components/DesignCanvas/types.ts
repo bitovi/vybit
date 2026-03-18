@@ -18,4 +18,5 @@ export const BASIC_COLORS = [
 export interface DesignCanvasProps {
   onSubmit: (imageDataUrl: string, width: number, height: number) => void;
   onClose?: () => void;
+  backgroundImage?: string;  // base64 PNG data URL — locked background for screenshot annotation
 }

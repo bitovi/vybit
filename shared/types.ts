@@ -205,13 +205,19 @@ export interface PatchErrorMessage {
 // Design canvas messages
 // ---------------------------------------------------------------------------
 
-export type InsertMode = 'before' | 'after' | 'first-child' | 'last-child';
+export type InsertMode = 'before' | 'after' | 'first-child' | 'last-child' | 'replace';
 
 /** Panel → Overlay: request to inject a design canvas */
 export interface InsertDesignCanvasMessage {
   type: 'INSERT_DESIGN_CANVAS';
   to: 'overlay';
   insertMode: InsertMode;
+}
+
+/** Panel → Overlay: capture screenshot of selected element(s) and replace with canvas */
+export interface CaptureScreenshotMessage {
+  type: 'CAPTURE_SCREENSHOT';
+  to: 'overlay';
 }
 
 /** Overlay → Design iframe: element context for the canvas */
@@ -227,6 +233,7 @@ export interface ElementContextMessage {
   };
   context: string;
   insertMode: InsertMode;
+  screenshot?: string;  // base64 PNG data URL; present when insertMode is 'replace'
 }
 
 /** Design iframe → Server: submit the sketch */
@@ -261,7 +268,8 @@ export type PanelToOverlay =
   | PatchStageMessage
   | ClearHighlightsMessage
   | SwitchContainerMessage
-  | InsertDesignCanvasMessage;
+  | InsertDesignCanvasMessage
+  | CaptureScreenshotMessage;
 export type OverlayToServer = PatchStagedMessage;
 export type PanelToServer = PatchCommitMessage | MessageStageMessage;
 export type ClientToServer =

@@ -50,12 +50,12 @@ export function PropertySection({
               +
             </button>
             {dropdownOpen && (
-              <div className="absolute z-50 top-[calc(100%+2px)] right-0 bg-bv-bg border border-bv-border rounded-md shadow-[0_4px_16px_rgba(0,0,0,0.10)] min-w-[180px] py-1">
+              <div className="absolute z-50 top-[calc(100%+2px)] right-0 bg-bv-bg border border-bv-border rounded-md shadow-[0_4px_16px_rgba(0,0,0,0.10)] min-w-[180px] max-w-[calc(100vw-16px)] py-1">
                 {availableProperties.map((prop) => (
                   <button
                     type="button"
                     key={prop.prefix}
-                    className="w-full px-2.5 py-[5px] text-[11px] font-[family-name:var(--font-ui)] text-bv-text-mid flex items-center gap-1.5 transition-colors hover:bg-bv-teal/10 hover:text-bv-teal cursor-pointer border-none bg-transparent text-left"
+                    className="w-full px-2.5 py-[5px] text-[11px] font-[family-name:var(--font-ui)] text-bv-text-mid flex items-center gap-1.5 transition-colors hover:bg-bv-teal/10 hover:text-bv-teal cursor-pointer border-none bg-transparent text-left whitespace-nowrap"
                     onClick={() => handleSelect(prop.prefix)}
                   >
                     {prop.name}

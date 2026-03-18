@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { parseClasses } from '../../overlay/src/class-parser';
 import { connect, onMessage, onConnect, onDisconnect, isConnected, sendTo } from './ws';
 import { Picker } from './Picker';
@@ -8,8 +8,8 @@ import { TabBar } from './components/TabBar';
 import type { Tab } from './components/TabBar';
 import { MessageTab } from './components/MessageTab';
 import { ContainerSwitcher } from './components/ContainerSwitcher';
-import { DrawTab } from './components/DrawTab';
-import { DesignMode } from './DesignMode';
+
+const DesignMode = lazy(() => import('./DesignMode').then((m) => ({ default: m.DesignMode })));
 
 // URL param routing: ?mode=design renders the drawing canvas instead of the Picker
 const urlParams = new URLSearchParams(window.location.search);
@@ -18,7 +18,6 @@ const appMode = urlParams.get('mode');
 const TABS: Tab[] = [
   { id: 'design', label: 'Design' },
   { id: 'message', label: 'Message' },
-  { id: 'draw', label: 'Draw' },
 ];
 
 interface ElementData {
@@ -31,7 +30,11 @@ interface ElementData {
 export function App() {
   // If URL has ?mode=design, render the design canvas (used inside the overlay iframe)
   if (appMode === 'design') {
-    return <DesignMode />;
+    return (
+      <Suspense fallback={null}>
+        <DesignMode />
+      </Suspense>
+    );
   }
 
   return <InspectorApp />;
@@ -40,6 +43,7 @@ export function App() {
 function InspectorApp() {
   const [wsConnected, setWsConnected] = useState(false);
   const [elementData, setElementData] = useState<ElementData | null>(null);
+  const [selectionId, setSelectionId] = useState(0);
   const [activeTab, setActiveTab] = useState('design');
   const [selectModeActive, setSelectModeActive] = useState(false);
   const patchManager = usePatchManager();
@@ -66,6 +70,7 @@ function InspectorApp() {
           classes: msg.classes,
           tailwindConfig: msg.tailwindConfig,
         });
+        setSelectionId(prev => prev + 1);
         setSelectModeActive(false);
       } else if (msg.type === 'SELECT_MODE_CHANGED') {
         setSelectModeActive(!!msg.active);
@@ -331,6 +336,7 @@ function InspectorApp() {
       <div className="flex-1 overflow-auto">
         {activeTab === 'design' && (
           <Picker
+            key={selectionId}
             componentName={elementData.componentName}
             instanceCount={elementData.instanceCount}
             parsedClasses={parsedClasses}
@@ -344,12 +350,6 @@ function InspectorApp() {
             currentElementKey={elementData.componentName}
             onAddMessage={(message, elementKey) => patchManager.stageMessage(message, elementKey, elementData.componentName)}
             onDiscard={(id) => patchManager.discard(id)}
-          />
-        )}
-        {activeTab === 'draw' && (
-          <DrawTab
-            componentName={elementData.componentName}
-            instanceCount={elementData.instanceCount}
           />
         )}
       </div>

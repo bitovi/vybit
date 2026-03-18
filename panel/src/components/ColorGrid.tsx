@@ -17,17 +17,34 @@ interface ColorGridProps {
   onHover: (fullClass: string) => void;
   onLeave: () => void;
   onClick: (fullClass: string) => void;
+  /** When provided, renders a red-X "remove" cell in the special colors row */
+  onRemove?: () => void;
+  /** Called when the mouse enters the remove cell — use to preview removal */
+  onRemoveHover?: () => void;
 }
 
-export function ColorGrid({ prefix, currentValue, colors, locked, lockedValue, onHover, onLeave, onClick }: ColorGridProps) {
+export function ColorGrid({ prefix, currentValue, colors, locked, lockedValue, onHover, onLeave, onClick, onRemove, onRemoveHover }: ColorGridProps) {
   return (
     <div
       className="p-2 bg-bv-surface border border-bv-border rounded-md my-2"
       onMouseLeave={() => { if (!locked) onLeave(); }}
     >
-      {/* Special colors: black, white, transparent */}
+      {/* Special colors: black, white, transparent + optional remove cell */}
       <div className="flex items-center gap-0.5 mb-0.5">
         <span className="w-[52px] text-[10px] text-bv-muted text-right pr-1.5 shrink-0"></span>
+        {onRemove && (
+          <div
+            title="Remove class"
+            className={`w-5 h-5 rounded cursor-pointer border-2 shrink-0 transition-[border-color,transform] flex items-center justify-center ${currentValue === '' ? 'outline outline-2 outline-offset-2 outline-bv-orange border-transparent' : 'border-transparent hover:border-bv-orange hover:scale-110'}`}
+            onMouseEnter={() => { if (!locked && onRemoveHover) onRemoveHover(); }}
+            onClick={onRemove}
+          >
+            <svg viewBox="0 0 10 10" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+              <line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
         {['black', 'white', 'transparent'].map((name) =>
           colors[name] !== undefined ? (
             <ColorCell

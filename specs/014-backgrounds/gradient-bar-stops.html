@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gradient Bar — Draggable Stops Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #FFFFFF;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #EAECED;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: -12px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-family: var(--font-mono);
+      color: #8A9599;
+      max-width: 398px;
+    }
+
+    /* ─── PANEL ──────────────────────────────────────── */
+    .panel {
+      width: 398px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      overflow: visible;
+    }
+
+    .panel-body { padding: 12px; }
+
+    .section-hd {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    .section-hd .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      opacity: 0.5;
+    }
+
+    .section-hd .label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-mid);
+      flex: 1;
+    }
+
+    /* ─── COMBO ROW (direction + gradient side by side) ─ */
+    .combo-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    /* ─── GRADIENT TRACK AREA ────────────────────────── */
+    .grad-area {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      /* room for handles above the bar */
+      padding-top: 28px;
+    }
+
+    /* Solid-color swatch (shown in solid mode) */
+    .solid-swatch {
+      display: none;
+      flex: 1;
+      min-width: 0;
+      align-self: stretch;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+      cursor: pointer;
+    }
+
+    .is-solid .solid-swatch { display: block; }
+    .is-solid .grad-area { display: none; }
+
+    /* The rendered gradient bar */
+    .grad-track {
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .grad-track:hover::after {
+      content: '+';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: rgba(255,255,255,0.6);
+      font-weight: 700;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .grad-track:hover::after { opacity: 1; }
+
+    /* ─── STOP HANDLE (pentagon arrow) ───────────────── */
+    .stop-handle {
+      position: absolute;
+      top: 0;
+      width: 22px;
+      height: 26px;
+      transform: translateX(-50%);
+      cursor: grab;
+      z-index: 10;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+      transition: filter 100ms;
+    }
+
+    .stop-handle:hover {
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      z-index: 20;
+    }
+
+    .stop-handle.is-dragging {
+      cursor: grabbing;
+      z-index: 30;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+    }
+
+    .stop-handle.is-selected {
+      z-index: 25;
+    }
+
+    /* Pentagon shape via SVG */
+    .stop-handle svg {
+      width: 22px;
+      height: 26px;
+    }
+
+    .stop-handle .handle-fill {
+      transition: stroke 100ms;
+    }
+
+    .stop-handle.is-selected .handle-fill {
+      stroke: var(--teal);
+      stroke-width: 2;
+    }
+
+    /* Remove button — appears on hover */
+    .stop-handle .handle-remove {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--orange);
+      color: white;
+      font-size: 9px;
+      line-height: 14px;
+      text-align: center;
+      cursor: pointer;
+      display: none;
+      z-index: 40;
+    }
+
+    .stop-handle:hover .handle-remove { display: block; }
+    .stop-handle.is-endpoint .handle-remove { display: none !important; }
+
+    /* ─── DIRECTION PICKER ───────────────────────────── */
+    .direction-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .direction-row .dir-label {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+    }
+
+    .direction-picker {
+      display: grid;
+      grid-template-columns: repeat(3, 20px);
+      grid-template-rows: repeat(3, 20px);
+      gap: 2px;
+    }
+
+    .dir-cell {
+      width: 20px; height: 20px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .dir-cell:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .dir-cell.is-active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    /* Center cell = solid color toggle */
+    .dir-cell.dir-center {
+      border-color: var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      pointer-events: auto;
+      font-size: 12px;
+      color: var(--muted);
+      transition: all var(--t-fast);
+    }
+
+    .dir-cell.dir-center:hover {
+      border-color: var(--orange);
+      background: var(--orange-dim);
+      color: var(--orange);
+    }
+
+    .dir-cell.dir-center.is-active {
+      border-color: var(--orange);
+      background: var(--orange);
+      color: #fff;
+    }
+
+    /* Dim direction arrows when solid mode is active */
+    .is-solid .dir-cell:not(.dir-center) {
+      opacity: 0.35;
+      pointer-events: auto;
+    }
+    .is-solid .dir-cell:not(.dir-center):hover {
+      opacity: 1;
+    }
+
+    .dir-value {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      margin-top: 3px;
+    }
+
+    .dir-value .val {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    .is-solid .dir-value .val {
+      color: var(--orange);
+    }
+
+    /* ─── COLOR GRID (inline, for stop editing) ──────── */
+    .color-picker-area {
+      display: none;
+      padding: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 6px;
+    }
+
+    .color-picker-area.is-open { display: block; }
+
+    .picker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .picker-header .title {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+    }
+
+    .picker-header .title .stop-name {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    .picker-header .close-btn {
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .picker-header .close-btn:hover {
+      color: var(--orange);
+      border-color: var(--orange);
+    }
+
+    .color-grid-row {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .color-grid-hue-label {
+      width: 36px;
+      text-align: right;
+      padding-right: 4px;
+      font-size: 8px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .color-cell {
+      width: 17px; height: 17px;
+      border-radius: 3px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 100ms, transform 100ms;
+    }
+
+    .color-cell:hover {
+      border-color: var(--text);
+      transform: scale(1.15);
+      z-index: 5;
+      position: relative;
+    }
+
+    .color-cell.is-current {
+      outline: 2px solid var(--orange);
+      outline-offset: 1px;
+    }
+
+    /* ─── STATUS + CLASSES ───────────────────────────── */
+    .output-bar {
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+
+    .output-bar .class-list {
+      color: var(--orange);
+      font-weight: 700;
+      word-break: break-all;
+    }
+
+    .output-bar .action-label {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 8px 0;
+    }
+
+    .hint {
+      font-size: 10px;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Gradient Bar — Draggable Color Stops</h2>
+  <div class="col-label">Click handles to change color &middot; Drag handles to reposition &middot; Click the bar to add a via stop &middot; Click &times; to remove a via stop</div>
+
+  <div class="panel">
+    <div class="panel-body">
+
+      <div class="section-hd">
+        <span class="dot"></span>
+        <span class="label">Backgrounds</span>
+      </div>
+
+      <!-- Direction picker + gradient bar (same row) -->
+      <div class="combo-row" id="comboRow">
+        <div class="direction-col">
+          <div class="direction-picker" id="dirPicker">
+            <div class="dir-cell" data-dir="tl" data-css="to top left">↖</div>
+            <div class="dir-cell" data-dir="t"  data-css="to top">↑</div>
+            <div class="dir-cell" data-dir="tr" data-css="to top right">↗</div>
+            <div class="dir-cell" data-dir="l"  data-css="to left">←</div>
+            <div class="dir-cell dir-center" id="solidToggle" title="Solid color">●</div>
+            <div class="dir-cell is-active" data-dir="r"  data-css="to right">→</div>
+            <div class="dir-cell" data-dir="bl" data-css="to bottom left">↙</div>
+            <div class="dir-cell" data-dir="b"  data-css="to bottom">↓</div>
+            <div class="dir-cell" data-dir="br" data-css="to bottom right">↘</div>
+          </div>
+          <div class="dir-value" id="dirValue">to-<span class="val" id="dirLabel">r</span></div>
+        </div>
+
+        <!-- Gradient bar with draggable handles -->
+        <div class="grad-area" id="gradArea">
+          <div class="grad-track" id="gradTrack"></div>
+        </div>
+
+        <!-- Solid color swatch (shown in solid mode) -->
+        <div class="solid-swatch" id="solidSwatch"></div>
+      </div>
+
+      <!-- Inline color picker (shown when a handle is clicked) -->
+      <div class="color-picker-area" id="colorPicker">
+        <div class="picker-header">
+          <span class="title">Editing <span class="stop-name" id="pickerStopName">from</span></span>
+          <button class="close-btn" id="pickerClose">×</button>
+        </div>
+        <div id="colorGrid"></div>
+      </div>
+
+      <div class="hint" id="hint">Click the gradient bar between stops to add a new color stop</div>
+
+      <hr />
+
+      <!-- Output: generated Tailwind classes -->
+      <div class="output-bar">
+        <span class="action-label">Classes:</span><br>
+        <span class="class-list" id="classOutput"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ─── Color palette ──────────────────────────────────────────
+    const COLORS = {
+      'black': '#000000', 'white': '#FFFFFF',
+      'slate-200': '#E2E8F0', 'slate-400': '#94A3B8', 'slate-600': '#475569', 'slate-800': '#1E293B',
+      'red-200': '#FECACA', 'red-400': '#F87171', 'red-500': '#EF4444', 'red-600': '#DC2626',
+      'orange-300': '#FDBA74', 'orange-500': '#F97316',
+      'amber-300': '#FCD34D', 'amber-500': '#F59E0B',
+      'yellow-300': '#FDE047', 'yellow-500': '#EAB308',
+      'lime-400': '#A3E635', 'lime-500': '#84CC16',
+      'green-300': '#86EFAC', 'green-500': '#22C55E', 'green-700': '#15803D',
+      'emerald-400': '#34D399', 'emerald-500': '#10B981',
+      'teal-300': '#5EEAD4', 'teal-500': '#14B8A6',
+      'cyan-300': '#67E8F9', 'cyan-500': '#06B6D4',
+      'sky-300': '#7DD3FC', 'sky-500': '#0EA5E9',
+      'blue-300': '#93C5FD', 'blue-500': '#3B82F6', 'blue-700': '#1D4ED8',
+      'indigo-400': '#818CF8', 'indigo-500': '#6366F1', 'indigo-700': '#4338CA',
+      'violet-400': '#A78BFA', 'violet-500': '#8B5CF6', 'violet-700': '#6D28D9',
+      'purple-400': '#C084FC', 'purple-500': '#A855F7', 'purple-700': '#7E22CE',
+      'fuchsia-400': '#E879F9', 'fuchsia-500': '#D946EF',
+      'pink-300': '#F9A8D4', 'pink-400': '#F472B6', 'pink-500': '#EC4899', 'pink-700': '#BE185D',
+      'rose-400': '#FB7185', 'rose-500': '#F43F5E',
+    };
+
+    const HUES = [
+      { name: '', colors: ['black', 'white'] },
+      { name: 'slate', colors: ['slate-200', 'slate-400', 'slate-600', 'slate-800'] },
+      { name: 'red', colors: ['red-200', 'red-400', 'red-500', 'red-600'] },
+      { name: 'orange', colors: ['orange-300', 'orange-500'] },
+      { name: 'amber', colors: ['amber-300', 'amber-500'] },
+      { name: 'yellow', colors: ['yellow-300', 'yellow-500'] },
+      { name: 'green', colors: ['green-300', 'green-500', 'green-700'] },
+      { name: 'teal', colors: ['teal-300', 'teal-500'] },
+      { name: 'cyan', colors: ['cyan-300', 'cyan-500'] },
+      { name: 'sky', colors: ['sky-300', 'sky-500'] },
+      { name: 'blue', colors: ['blue-300', 'blue-500', 'blue-700'] },
+      { name: 'indigo', colors: ['indigo-400', 'indigo-500', 'indigo-700'] },
+      { name: 'violet', colors: ['violet-400', 'violet-500', 'violet-700'] },
+      { name: 'purple', colors: ['purple-400', 'purple-500', 'purple-700'] },
+      { name: 'pink', colors: ['pink-300', 'pink-400', 'pink-500', 'pink-700'] },
+      { name: 'rose', colors: ['rose-400', 'rose-500'] },
+    ];
+
+    // ─── State ──────────────────────────────────────────────────
+    // Each stop: { id, name, hex, position (0–100) }
+    // First and last are "from" and "to", middle ones are "via"
+    let stops = [
+      { id: 1, name: 'indigo-500', hex: '#6366F1', position: 5 },
+      { id: 2, name: 'purple-500', hex: '#A855F7', position: 50 },
+      { id: 3, name: 'pink-500',   hex: '#EC4899', position: 95 },
+    ];
+
+    let nextId = 4;
+    let dirCSS = 'to right';
+    let dirShort = 'r';
+    let selectedStopId = null;  // which handle has color picker open
+    let mode = 'gradient';     // 'gradient' | 'solid'
+    let solidColor = { name: 'indigo-500', hex: '#6366F1' };
+
+    // ─── DOM refs ───────────────────────────────────────────────
+    const gradArea     = document.getElementById('gradArea');
+    const gradTrack    = document.getElementById('gradTrack');
+    const colorPicker  = document.getElementById('colorPicker');
+    const colorGrid    = document.getElementById('colorGrid');
+    const pickerClose  = document.getElementById('pickerClose');
+    const pickerName   = document.getElementById('pickerStopName');
+    const classOutput  = document.getElementById('classOutput');
+    const dirPicker    = document.getElementById('dirPicker');
+    const dirLabel     = document.getElementById('dirLabel');
+    const dirValue     = document.getElementById('dirValue');
+    const hintEl       = document.getElementById('hint');
+    const comboRow     = document.getElementById('comboRow');
+    const solidToggle  = document.getElementById('solidToggle');
+    const solidSwatch  = document.getElementById('solidSwatch');
+
+    // ─── Pentagon SVG handle ────────────────────────────────────
+    function makeHandleSVG(hex) {
+      // Pentagon: flat top, arrow pointing down
+      return `<svg viewBox="0 0 22 26" xmlns="http://www.w3.org/2000/svg">
+        <path class="handle-fill" d="M2 1 L20 1 L20 16 L11 25 L2 16 Z"
+              fill="${hex}" stroke="white" stroke-width="1.5"
+              stroke-linejoin="round" />
+      </svg>`;
+    }
+
+    // ─── Render everything ──────────────────────────────────────
+    function render() {      // Toggle solid vs gradient classes
+      if (mode === 'solid') {
+        comboRow.classList.add('is-solid');
+        solidToggle.classList.add('is-active');
+        solidSwatch.style.background = solidColor.hex;
+        dirValue.innerHTML = `bg-<span class="val">${solidColor.name}</span>`;
+        hintEl.textContent = 'Click the swatch to change color \u00b7 Click a direction arrow for gradient';
+      } else {
+        comboRow.classList.remove('is-solid');
+        solidToggle.classList.remove('is-active');
+        dirValue.innerHTML = `to-<span class="val">${dirShort}</span>`;
+        hintEl.textContent = 'Click the gradient bar between stops to add a new color stop';
+      }
+      // Sort stops by position
+      stops.sort((a, b) => a.position - b.position);
+
+      // Build CSS gradient
+      const gradStops = stops.map(s => `${s.hex} ${s.position}%`).join(', ');
+      gradTrack.style.background = `linear-gradient(${dirCSS}, ${gradStops})`;
+
+      // Remove old handles
+      gradArea.querySelectorAll('.stop-handle').forEach(h => h.remove());
+
+      // Create handles
+      stops.forEach((stop, i) => {
+        const handle = document.createElement('div');
+        handle.className = 'stop-handle';
+        if (i === 0 || i === stops.length - 1) handle.classList.add('is-endpoint');
+        if (stop.id === selectedStopId) handle.classList.add('is-selected');
+        handle.style.left = `${stop.position}%`;
+        handle.innerHTML = makeHandleSVG(stop.hex);
+        handle.title = stopLabel(i) + '-' + stop.name + (stop.position != null ? ` ${stop.position}%` : '');
+
+        // Remove button (only for via stops)
+        if (i > 0 && i < stops.length - 1) {
+          const removeBtn = document.createElement('div');
+          removeBtn.className = 'handle-remove';
+          removeBtn.textContent = '×';
+          removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeStop(stop.id);
+          });
+          handle.appendChild(removeBtn);
+        }
+
+        // Click → open color picker for this stop
+        handle.addEventListener('click', (e) => {
+          if (handle.classList.contains('is-dragging')) return;
+          e.stopPropagation();
+          openColorPicker(stop.id, i);
+        });
+
+        // Drag → reposition
+        initDrag(handle, stop);
+
+        gradArea.appendChild(handle);
+      });
+
+      // Update class output
+      updateClassOutput();
+    }
+
+    function stopLabel(index) {
+      if (index === 0) return 'from';
+      if (index === stops.length - 1) return 'to';
+      return 'via';
+    }
+
+    // ─── Drag behavior ──────────────────────────────────────────
+    function initDrag(handle, stop) {
+      let startX, startPos, dragged;
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        startPos = stop.position;
+        dragged = false;
+
+        handle.classList.add('is-dragging');
+
+        function onMove(ev) {
+          const trackRect = gradTrack.getBoundingClientRect();
+          const dx = ev.clientX - startX;
+          const pctDelta = (dx / trackRect.width) * 100;
+          let newPos = Math.round(Math.max(0, Math.min(100, startPos + pctDelta)));
+          // Snap to 5% increments
+          newPos = Math.round(newPos / 5) * 5;
+
+          if (Math.abs(newPos - startPos) > 1) dragged = true;
+
+          stop.position = newPos;
+          render();
+          handle.classList.add('is-dragging'); // re-add after render
+        }
+
+        function onUp() {
+          handle.classList.remove('is-dragging');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+
+          // If it was just a click (no drag), let the click handler fire
+          if (dragged) {
+            // Suppress click
+            handle.addEventListener('click', suppress, { once: true, capture: true });
+          }
+        }
+
+        function suppress(e) { e.stopImmediatePropagation(); }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    // ─── Add stop (click on track) ──────────────────────────────
+    gradTrack.addEventListener('click', (e) => {
+      const rect = gradTrack.getBoundingClientRect();
+      const pct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+      const snapped = Math.round(pct / 5) * 5;
+
+      // Find the two neighboring stops to interpolate a color
+      const sorted = [...stops].sort((a, b) => a.position - b.position);
+      let before = sorted[0], after = sorted[sorted.length - 1];
+      for (let i = 0; i < sorted.length - 1; i++) {
+        if (sorted[i].position <= snapped && sorted[i + 1].position >= snapped) {
+          before = sorted[i];
+          after = sorted[i + 1];
+          break;
+        }
+      }
+
+      // Pick a default color: midpoint between neighbors (just use the "before" color for simplicity)
+      const newStop = {
+        id: nextId++,
+        name: before.name,
+        hex: before.hex,
+        position: snapped,
+      };
+
+      stops.push(newStop);
+      closeColorPicker();
+      render();
+
+      // Immediately open color picker for the new stop
+      const idx = stops.findIndex(s => s.id === newStop.id);
+      openColorPicker(newStop.id, idx);
+    });
+
+    // ─── Remove stop ────────────────────────────────────────────
+    function removeStop(id) {
+      if (stops.length <= 2) return; // must keep at least from + to
+      stops = stops.filter(s => s.id !== id);
+      if (selectedStopId === id) closeColorPicker();
+      render();
+    }
+
+    // ─── Color picker ───────────────────────────────────────────
+    function openColorPicker(stopId, index) {
+      selectedStopId = stopId;
+      const stop = stops.find(s => s.id === stopId);
+      const label = stopLabel(index);
+      pickerName.textContent = `${label} (${stop.name})`;
+
+      colorGrid.innerHTML = '';
+      HUES.forEach(hue => {
+        const row = document.createElement('div');
+        row.className = 'color-grid-row';
+        const lbl = document.createElement('span');
+        lbl.className = 'color-grid-hue-label';
+        lbl.textContent = hue.name;
+        row.appendChild(lbl);
+
+        hue.colors.forEach(name => {
+          const cell = document.createElement('div');
+          cell.className = 'color-cell' + (name === stop.name ? ' is-current' : '');
+          cell.style.background = COLORS[name];
+          if (name === 'white') cell.style.border = '2px solid #ddd';
+          cell.title = name;
+
+          // Hover → preview
+          cell.addEventListener('mouseenter', () => {
+            stop.hex = COLORS[name];
+            render();
+          });
+
+          // Click → commit
+          cell.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            stop.name = name;
+            stop.hex = COLORS[name];
+            render();
+            closeColorPicker();
+          });
+
+          row.appendChild(cell);
+        });
+
+        colorGrid.appendChild(row);
+      });
+
+      // Revert on leave
+      const origHex = stop.hex;
+      const origName = stop.name;
+      colorGrid.addEventListener('mouseleave', () => {
+        stop.hex = COLORS[stop.name]; // revert to committed color
+        render();
+      }, { once: false });
+
+      colorPicker.classList.add('is-open');
+      render();
+    }
+
+    function closeColorPicker() {
+      selectedStopId = null;
+      colorPicker.classList.remove('is-open');
+      render();
+    }
+
+    pickerClose.addEventListener('click', closeColorPicker);
+
+    // ─── Class output ───────────────────────────────────────────
+    function updateClassOutput() {      if (mode === 'solid') {
+        classOutput.textContent = `bg-${solidColor.name}`;
+        return;
+      }
+      const sorted = [...stops].sort((a, b) => a.position - b.position);
+      const classes = [`bg-gradient-to-${dirShort}`];
+
+      sorted.forEach((stop, i) => {
+        const prefix = i === 0 ? 'from' : i === sorted.length - 1 ? 'to' : 'via';
+        classes.push(`${prefix}-${stop.name}`);
+        // Always emit position
+        classes.push(`${prefix}-${stop.position}%`);
+      });
+
+      classOutput.textContent = classes.join(' ');
+    }
+
+    // ─── Direction picker ───────────────────────────────────────
+    dirPicker.querySelectorAll('.dir-cell[data-dir]').forEach(cell => {
+      cell.addEventListener('mouseenter', () => {
+        if (mode === 'solid') return;
+        // Live preview
+        const sorted = [...stops].sort((a, b) => a.position - b.position);
+        const gradStops = sorted.map(s => `${s.hex} ${s.position}%`).join(', ');
+        gradTrack.style.background = `linear-gradient(${cell.dataset.css}, ${gradStops})`;
+      });
+
+      cell.addEventListener('mouseleave', () => { render(); });
+
+      cell.addEventListener('click', () => {
+        // Clicking any direction arrow switches to gradient mode
+        if (mode === 'solid') {
+          mode = 'gradient';
+        }
+        dirCSS = cell.dataset.css;
+        dirShort = cell.dataset.dir;
+        dirPicker.querySelectorAll('.dir-cell:not(.dir-center)').forEach(c => c.classList.remove('is-active'));
+        cell.classList.add('is-active');
+        closeColorPicker();
+        render();
+      });
+    });
+
+    // ─── Solid toggle (center cell) ──────────────────────
+    solidToggle.addEventListener('click', () => {
+      mode = 'solid';
+      // Use first stop's color as the initial solid color
+      solidColor = { name: stops[0].name, hex: stops[0].hex };
+      // Deactivate direction arrows
+      dirPicker.querySelectorAll('.dir-cell:not(.dir-center)').forEach(c => c.classList.remove('is-active'));
+      closeColorPicker();
+      render();
+    });
+
+    // ─── Solid swatch click → open color picker ───────────
+    solidSwatch.addEventListener('click', () => {
+      openSolidColorPicker();
+    });
+
+    function openSolidColorPicker() {
+      selectedStopId = null;
+      pickerName.textContent = `bg (${solidColor.name})`;
+
+      colorGrid.innerHTML = '';
+      HUES.forEach(hue => {
+        const row = document.createElement('div');
+        row.className = 'color-grid-row';
+        const lbl = document.createElement('span');
+        lbl.className = 'color-grid-hue-label';
+        lbl.textContent = hue.name;
+        row.appendChild(lbl);
+
+        hue.colors.forEach(name => {
+          const cell = document.createElement('div');
+          cell.className = 'color-cell' + (name === solidColor.name ? ' is-current' : '');
+          cell.style.background = COLORS[name];
+          if (name === 'white') cell.style.border = '2px solid #ddd';
+          cell.title = name;
+
+          cell.addEventListener('mouseenter', () => {
+            solidColor.hex = COLORS[name];
+            render();
+          });
+
+          cell.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            solidColor.name = name;
+            solidColor.hex = COLORS[name];
+            render();
+            closeColorPicker();
+          });
+
+          row.appendChild(cell);
+        });
+
+        colorGrid.appendChild(row);
+      });
+
+      colorGrid.addEventListener('mouseleave', () => {
+        solidColor.hex = COLORS[solidColor.name];
+        render();
+      }, { once: false });
+
+      colorPicker.classList.add('is-open');
+      render();
+    }
+
+    // ─── Init ───────────────────────────────────────────────────
+    render();
+  </script>
+
+</body>
+</html>

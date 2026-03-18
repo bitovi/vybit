@@ -26,24 +26,26 @@ export async function applyPreview(
 
   // Fetch generated CSS for newClass from the MCP server and inject into
   // document.head so the class has styles even if purged from the user's build.
-  try {
-    const res = await fetch(`${serverOrigin}/css`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ classes: [newClass] }),
-    });
-    // If a revert (or newer preview) happened while we were fetching, bail out.
-    if (gen !== previewGeneration) return;
-    const { css } = await res.json() as { css: string };
-    if (gen !== previewGeneration) return;
-    if (!previewStyleEl) {
-      previewStyleEl = document.createElement('style');
-      previewStyleEl.setAttribute('data-tw-preview', '');
-      document.head.appendChild(previewStyleEl);
+  if (newClass) {
+    try {
+      const res = await fetch(`${serverOrigin}/css`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classes: [newClass] }),
+      });
+      // If a revert (or newer preview) happened while we were fetching, bail out.
+      if (gen !== previewGeneration) return;
+      const { css } = await res.json() as { css: string };
+      if (gen !== previewGeneration) return;
+      if (!previewStyleEl) {
+        previewStyleEl = document.createElement('style');
+        previewStyleEl.setAttribute('data-tw-preview', '');
+        document.head.appendChild(previewStyleEl);
+      }
+      previewStyleEl.textContent = css;
+    } catch {
+      // If the server is unavailable, apply the class anyway — it may already exist in the build
     }
-    previewStyleEl.textContent = css;
-  } catch {
-    // If the server is unavailable, apply the class anyway — it may already exist in the build
   }
 
   // One more staleness check before mutating the DOM.
@@ -59,7 +61,7 @@ export async function applyPreview(
   // Apply class swap to all equivalent nodes
   for (const node of elements) {
     if (oldClass) node.classList.remove(oldClass);
-    node.classList.add(newClass);
+    if (newClass) node.classList.add(newClass);
   }
 }
 

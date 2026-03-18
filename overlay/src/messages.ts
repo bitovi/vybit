@@ -22,6 +22,7 @@ export type {
   PatchImplementedMessage,
   PatchErrorMessage,
   InsertDesignCanvasMessage,
+  CaptureScreenshotMessage,
   ElementContextMessage,
   DesignSubmitMessage,
   DesignCloseMessage,

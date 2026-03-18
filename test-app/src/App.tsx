@@ -1,6 +1,7 @@
 import { Button } from './components/Button'
 import { Card } from './components/Card'
 import { Badge } from './components/Badge'
+import { Tag } from './components/Tag'
 
 const CASES = [
   { id: 1, title: 'Vehicle Accident Report', code: '#CAS-001' },
@@ -100,6 +101,39 @@ function App() {
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Case List (inline .map(), no item component)</h2>
         <div className="bg-white rounded-lg shadow p-4 mb-12 w-72">
           <CaseList />
+        </div>
+
+        {/* Tags — tests near-group matching (single-class diff between variants) */}
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Tags (group test: 1-class diff)</h2>
+        <div className="flex flex-wrap gap-2 mb-12">
+          <Tag color="blue">Frontend</Tag>
+          <Tag color="blue">Backend</Tag>
+          <Tag color="red">Urgent</Tag>
+          <Tag color="green">Done</Tag>
+          <Tag color="green">Shipped</Tag>
+        </div>
+
+        {/* Typography section — tests font-family, size, style, weight, stretch, spacing, etc. */}
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Typography Showcase</h2>
+        <div className="bg-white rounded-lg shadow p-6 mb-12 flex flex-col gap-4">
+          <h1 className="font-sans text-4xl font-bold not-italic tracking-tight leading-tight text-left text-gray-900 align-baseline">
+            Sans-serif, 4xl, Bold, Tight Tracking
+          </h1>
+          <h2 className="font-serif text-3xl font-extrabold italic tracking-wide leading-snug text-center text-indigo-700 align-middle">
+            Serif, 3xl, Extrabold, Italic, Wide Tracking
+          </h2>
+          <h3 className="font-mono text-2xl font-light not-italic tracking-widest leading-relaxed text-right text-teal-600 align-top">
+            Mono, 2xl, Light, Widest Tracking
+          </h3>
+          <h4 className="font-sans text-xl font-semibold italic tracking-normal leading-loose text-left text-rose-600 align-baseline">
+            Sans, xl, Semibold, Italic, Loose Line Height
+          </h4>
+          <h5 className="font-serif text-lg font-medium not-italic tracking-wider leading-none text-center text-amber-600 align-middle">
+            Serif, lg, Medium, Wider Tracking, None Line Height
+          </h5>
+          <h6 className="font-mono text-base font-thin italic tracking-tight leading-normal text-right text-gray-500 align-bottom">
+            Mono, base, Thin, Italic, Normal Line Height
+          </h6>
         </div>
 
         {/* Nested structure — tests deep fiber walking */}

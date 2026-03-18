@@ -1,12 +1,13 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Canvas as FabricCanvas, PencilBrush, Rect, Circle, Line, Textbox, type TPointerEventInfo } from 'fabric';
+import { Canvas as FabricCanvas, PencilBrush, Rect, Circle, Line, Textbox, FabricImage, type TPointerEventInfo } from 'fabric';
 import type { DrawingTool } from './types';
 
 export interface UseFabricCanvasOptions {
   onSubmit: (imageDataUrl: string, width: number, height: number) => void;
+  backgroundImage?: string;
 }
 
-export function useFabricCanvas({ onSubmit }: UseFabricCanvasOptions) {
+export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOptions) {
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<FabricCanvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -17,6 +18,9 @@ export function useFabricCanvas({ onSubmit }: UseFabricCanvasOptions) {
   const [redoStack, setRedoStack] = useState<string[]>([]);
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   const isDrawingShapeRef = useRef(false);
+  // Track whether a background image has been pinned — prevents ResizeObserver from clobbering dimensions
+  const hasBackgroundRef = useRef(false);
+  const [lockedHeight, setLockedHeight] = useState<number | null>(null);
 
   // Initialize Fabric.js canvas
   useEffect(() => {
@@ -29,9 +33,9 @@ export function useFabricCanvas({ onSubmit }: UseFabricCanvasOptions) {
 
     fabricRef.current = canvas;
 
-    // Fit to container
+    // Fit to container — skip if a screenshot background has locked the dimensions
     const resize = () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || hasBackgroundRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
       canvas.setDimensions({ width, height });
     };
@@ -48,6 +52,24 @@ export function useFabricCanvas({ onSubmit }: UseFabricCanvasOptions) {
       fabricRef.current = null;
     };
   }, []);
+
+  // Load background image when provided (screenshot annotation flow)
+  useEffect(() => {
+    if (!backgroundImage) return;
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    FabricImage.fromURL(backgroundImage).then((img) => {
+      if (!img.width || !img.height) return;
+      // Resize canvas to match the screenshot exactly and lock out the ResizeObserver
+      hasBackgroundRef.current = true;
+      canvas.setDimensions({ width: img.width, height: img.height });
+      setLockedHeight(img.height);
+      img.set({ selectable: false, evented: false, hasBorders: false, hasControls: false });
+      canvas.backgroundImage = img;
+      canvas.requestRenderAll();
+    });
+  }, [backgroundImage]);
 
   // Save state after modifications for undo/redo
   const saveState = useCallback(() => {
@@ -259,10 +281,20 @@ export function useFabricCanvas({ onSubmit }: UseFabricCanvasOptions) {
     const canvas = fabricRef.current;
     if (!canvas) return;
     canvas.clear();
-    canvas.backgroundColor = '#ffffff';
-    canvas.requestRenderAll();
+    if (backgroundImage) {
+      // Restore screenshot as background (only annotations are cleared)
+      FabricImage.fromURL(backgroundImage).then((img) => {
+        if (!img.width || !img.height) return;
+        img.set({ selectable: false, evented: false, hasBorders: false, hasControls: false });
+        canvas.backgroundImage = img;
+        canvas.requestRenderAll();
+      });
+    } else {
+      canvas.backgroundColor = '#ffffff';
+      canvas.requestRenderAll();
+    }
     saveState();
-  }, [saveState]);
+  }, [saveState, backgroundImage]);
 
   const handleSubmit = useCallback(() => {
     const canvas = fabricRef.current;
@@ -308,6 +340,7 @@ export function useFabricCanvas({ onSubmit }: UseFabricCanvasOptions) {
   return {
     canvasElRef,
     containerRef,
+    lockedHeight,
     activeTool,
     setActiveTool,
     fillColor,

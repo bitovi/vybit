@@ -1,7 +1,7 @@
 export type ValueType = 'scalar' | 'enum' | 'color';
 
 export interface ParsedClass {
-  category: 'spacing' | 'sizing' | 'typography' | 'color' | 'borders' | 'effects' | 'layout' | 'flexbox';
+  category: 'spacing' | 'sizing' | 'typography' | 'color' | 'borders' | 'effects' | 'layout' | 'flexbox' | 'gradient';
   valueType: ValueType;
   prefix: string;
   value: string;
@@ -60,7 +60,12 @@ const PREFIX_MAP: PrefixEntry[] = [
   { prefix: 'w-', category: 'sizing', themeKey: 'spacing' },
   { prefix: 'h-', category: 'sizing', themeKey: 'spacing' },
   // Color
+  { prefix: 'bg-gradient-to-', category: 'gradient', themeKey: null },
   { prefix: 'bg-', category: 'color', themeKey: 'colors' },
+  // Gradient stops
+  { prefix: 'from-', category: 'gradient', themeKey: 'colors' },
+  { prefix: 'via-', category: 'gradient', themeKey: 'colors' },
+  { prefix: 'to-', category: 'gradient', themeKey: 'colors' },
   { prefix: 'ring-', category: 'color', themeKey: 'colors' },
   { prefix: 'outline-', category: 'color', themeKey: 'colors' },
   { prefix: 'fill-', category: 'color', themeKey: 'colors' },
@@ -129,6 +134,19 @@ const EXACT_MATCH_MAP: Record<string, { category: ParsedClass['category']; theme
   'truncate': { category: 'typography', themeKey: null },
   'italic': { category: 'typography', themeKey: null },
   'not-italic': { category: 'typography', themeKey: null },
+  // Font family (must come before font- prefix in PREFIX_MAP)
+  'font-sans':  { category: 'typography', themeKey: null },
+  'font-serif': { category: 'typography', themeKey: null },
+  'font-mono':  { category: 'typography', themeKey: null },
+  // Vertical alignment
+  'align-baseline':    { category: 'typography', themeKey: null },
+  'align-top':         { category: 'typography', themeKey: null },
+  'align-middle':      { category: 'typography', themeKey: null },
+  'align-bottom':      { category: 'typography', themeKey: null },
+  'align-text-top':    { category: 'typography', themeKey: null },
+  'align-text-bottom': { category: 'typography', themeKey: null },
+  'align-sub':         { category: 'typography', themeKey: null },
+  'align-super':       { category: 'typography', themeKey: null },
   // Layout
   'block': { category: 'layout', themeKey: null },
   'inline-block': { category: 'layout', themeKey: null },
@@ -195,8 +213,8 @@ function parseTextClass(value: string): ParsedClass | null {
   if (TEXT_ALIGN_KEYWORDS.has(value)) {
     return { category: 'typography', valueType: 'enum', prefix: 'text-', value, fullClass: `text-${value}`, themeKey: null };
   }
-  // Otherwise treat as color
-  return { category: 'color', valueType: 'color', prefix: 'text-', value, fullClass: `text-${value}`, themeKey: 'colors' };
+  // Otherwise treat as text color (typography, not backgrounds)
+  return { category: 'typography', valueType: 'color', prefix: 'text-', value, fullClass: `text-${value}`, themeKey: 'colors' };
 }
 
 function parseBorderClass(value: string): ParsedClass | null {
