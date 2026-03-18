@@ -106,6 +106,20 @@ export function ContainerSwitcher() {
               {c.label}
             </button>
           ))}
+          <div className="h-px bg-bv-border mx-1 my-1" />
+          <button
+            onClick={() => {
+              setOpen(false);
+              sendTo('overlay', { type: 'CLOSE_PANEL' });
+            }}
+            className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] cursor-pointer border-none w-full text-left transition-colors bg-transparent text-bv-text-mid hover:bg-bv-surface hover:text-bv-text"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="12" y1="4" x2="4" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Close panel
+          </button>
         </div>
       )}
     </div>

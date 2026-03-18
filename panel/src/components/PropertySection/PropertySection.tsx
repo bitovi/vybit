@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import type { PropertySectionProps } from './types';
+import { FocusTrapContainer } from '../FocusTrapContainer';
 
 export function PropertySection({
   label,
@@ -9,18 +10,6 @@ export function PropertySection({
   children,
 }: PropertySectionProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!dropdownOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen]);
 
   function handleSelect(prefix: string) {
     onAddProperty?.(prefix);
@@ -36,7 +25,7 @@ export function PropertySection({
           {label}
         </span>
         {availableProperties.length > 0 && (
-          <div className="relative ml-auto" ref={dropdownRef}>
+          <div className="relative ml-auto">
             <button
               type="button"
               aria-label={`Add ${label} property`}
@@ -50,7 +39,10 @@ export function PropertySection({
               +
             </button>
             {dropdownOpen && (
-              <div className="absolute z-50 top-[calc(100%+2px)] right-0 bg-bv-bg border border-bv-border rounded-md shadow-[0_4px_16px_rgba(0,0,0,0.10)] min-w-[180px] max-w-[calc(100vw-16px)] py-1">
+              <FocusTrapContainer
+                className="absolute z-50 top-[calc(100%+2px)] right-0 bg-bv-bg border border-bv-border rounded-md shadow-[0_4px_16px_rgba(0,0,0,0.10)] min-w-[180px] max-w-[calc(100vw-16px)] py-1"
+                onClose={() => setDropdownOpen(false)}
+              >
                 {availableProperties.map((prop) => (
                   <button
                     type="button"
@@ -64,7 +56,7 @@ export function PropertySection({
                     </span>
                   </button>
                 ))}
-              </div>
+              </FocusTrapContainer>
             )}
           </div>
         )}

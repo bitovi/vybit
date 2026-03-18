@@ -33,6 +33,8 @@ export function BoxModelSlot({
   onScrubEnd,
   onOpen,
   onClose,
+  onValueRemove,
+  onValueRemoveHover,
 }: BoxModelSlotProps) {
   const hasVal = value != null;
   const displayText = hasVal ? truncateValue(value, layer) : null;
@@ -55,6 +57,8 @@ export function BoxModelSlot({
         onScrubEnd={onScrubEnd}
         onOpen={onOpen}
         onClose={onClose}
+        onRemove={onValueRemove}
+        onRemoveHover={onValueRemoveHover}
       />
     );
   }

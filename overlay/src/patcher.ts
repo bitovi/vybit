@@ -65,6 +65,64 @@ export async function applyPreview(
   }
 }
 
+/**
+ * Atomically apply multiple class swaps as a single preview.
+ * All pairs are applied in one DOM pass after a single CSS fetch.
+ */
+export async function applyPreviewBatch(
+  elements: HTMLElement[],
+  pairs: Array<{ oldClass: string; newClass: string }>,
+  serverOrigin: string,
+): Promise<void> {
+  const gen = ++previewGeneration;
+
+  if (!previewState) {
+    previewState = {
+      elements,
+      originalClasses: elements.map(n => n.className),
+    };
+  }
+
+  const newClasses = pairs.map(p => p.newClass).filter(Boolean);
+  if (newClasses.length > 0) {
+    try {
+      const res = await fetch(`${serverOrigin}/css`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classes: newClasses }),
+      });
+      if (gen !== previewGeneration) return;
+      const { css } = await res.json() as { css: string };
+      if (gen !== previewGeneration) return;
+      if (!previewStyleEl) {
+        previewStyleEl = document.createElement('style');
+        previewStyleEl.setAttribute('data-tw-preview', '');
+        document.head.appendChild(previewStyleEl);
+      }
+      previewStyleEl.textContent = css;
+    } catch {
+      // Apply anyway if server is unavailable
+    }
+  }
+
+  if (gen !== previewGeneration) return;
+
+  // Restore originals before applying batch
+  if (previewState) {
+    for (let i = 0; i < previewState.elements.length; i++) {
+      previewState.elements[i].className = previewState.originalClasses[i];
+    }
+  }
+
+  // Apply all pairs in one DOM pass
+  for (const node of elements) {
+    for (const { oldClass, newClass } of pairs) {
+      if (oldClass) node.classList.remove(oldClass);
+      if (newClass) node.classList.add(newClass);
+    }
+  }
+}
+
 export function revertPreview(): void {
   // Invalidate any in-flight applyPreview so it won't apply after this revert.
   previewGeneration++;

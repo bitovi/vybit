@@ -65,6 +65,7 @@ export class ModalContainer implements IContainer {
     // Iframe
     const iframe = document.createElement('iframe');
     iframe.src = panelUrl;
+    iframe.allow = 'microphone';
     iframe.style.cssText = 'flex:1; border:none; width:100%;';
     host.appendChild(iframe);
 

@@ -26,6 +26,7 @@ export type {
   ElementContextMessage,
   DesignSubmitMessage,
   DesignCloseMessage,
+  ClosePanelMessage,
   OverlayToPanel,
   PanelToOverlay,
   OverlayToServer,

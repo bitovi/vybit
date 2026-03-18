@@ -5,7 +5,7 @@ import { findExactMatches, computeNearGroups } from './grouping';
 import type { ElementGroup } from './grouping';
 import { parseClasses } from './class-parser';
 import { buildContext } from './context';
-import { applyPreview, revertPreview, getPreviewState, commitPreview } from './patcher';
+import { applyPreview, applyPreviewBatch, revertPreview, getPreviewState, commitPreview } from './patcher';
 import type { IContainer, ContainerName } from './containers/IContainer';
 import type { InsertMode } from './messages';
 import { PopoverContainer } from './containers/PopoverContainer';
@@ -1031,6 +1031,7 @@ function injectDesignCanvas(insertMode: InsertMode): void {
   // Create iframe for the design canvas
   const iframe = document.createElement('iframe');
   iframe.src = `${SERVER_ORIGIN}/panel/?mode=design`;
+  iframe.allow = 'microphone';
   iframe.style.cssText = `
     width: 100%;
     height: 100%;
@@ -1363,6 +1364,8 @@ function init(): void {
       }
     } else if (msg.type === 'PATCH_PREVIEW' && currentEquivalentNodes.length > 0) {
       applyPreview(currentEquivalentNodes, msg.oldClass, msg.newClass, SERVER_ORIGIN);
+    } else if (msg.type === 'PATCH_PREVIEW_BATCH' && currentEquivalentNodes.length > 0) {
+      applyPreviewBatch(currentEquivalentNodes, msg.pairs, SERVER_ORIGIN);
     } else if (msg.type === 'PATCH_REVERT') {
       revertPreview();
     } else if (msg.type === 'PATCH_STAGE' && currentTargetEl && currentBoundary) {
@@ -1447,6 +1450,8 @@ function init(): void {
           last.appendChild(img);
         }
       }
+    } else if (msg.type === 'CLOSE_PANEL') {
+      if (active) toggleInspect(btn);
     } else if (msg.type === 'DESIGN_CLOSE') {
       // Remove the most recently added canvas wrapper, restoring replaced nodes if any
       const last = designCanvasWrappers.pop();

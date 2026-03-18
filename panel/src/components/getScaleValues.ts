@@ -1,8 +1,8 @@
 const SPECIAL_SPACING_ORDER: Record<string, number> = {
-  px: 0.0625,
+  px: 0.0625,  // between 0 and 0.5
 };
 
-function spacingKeyOrder(k: string): number {
+export function spacingKeyOrder(k: string): number {
   if (!isNaN(Number(k))) return Number(k);
   return SPECIAL_SPACING_ORDER[k] ?? Infinity;
 }

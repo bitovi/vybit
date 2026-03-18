@@ -33,6 +33,8 @@ export interface PatchManager {
   agentWaiting: boolean;
   /** Live-preview a class swap in the overlay */
   preview: (oldClass: string, newClass: string) => void;
+  /** Live-preview multiple class swaps atomically in the overlay */
+  previewBatch: (pairs: Array<{ oldClass: string; newClass: string }>) => void;
   /** Revert any active preview in the overlay */
   revertPreview: () => void;
   /** Stage a class-change — upserts by (elementKey, property). Removes if newClass === originalClass. */
@@ -75,6 +77,10 @@ export function usePatchManager(): PatchManager {
 
   const preview = useCallback((oldClass: string, newClass: string) => {
     sendTo('overlay', { type: 'PATCH_PREVIEW', oldClass, newClass });
+  }, []);
+
+  const previewBatch = useCallback((pairs: Array<{ oldClass: string; newClass: string }>) => {
+    sendTo('overlay', { type: 'PATCH_PREVIEW_BATCH', pairs });
   }, []);
 
   const revertPreview = useCallback(() => {
@@ -227,6 +233,7 @@ export function usePatchManager(): PatchManager {
     queueState,
     agentWaiting,
     preview,
+    previewBatch,
     revertPreview,
     stage,
     stageMessage,

@@ -29,6 +29,7 @@ function makeProps(overrides: Partial<GradientEditorProps> = {}): GradientEditor
     solidColorHex: null,
     colors: MOCK_COLORS,
     onPreview: vi.fn(),
+    onPreviewBatch: vi.fn(),
     onRevert: vi.fn(),
     onStage: vi.fn(),
     ...overrides,

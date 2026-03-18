@@ -114,6 +114,13 @@ export interface PatchPreviewMessage {
   newClass: string;
 }
 
+/** Panel → Overlay: live-preview multiple class swaps atomically */
+export interface PatchPreviewBatchMessage {
+  type: 'PATCH_PREVIEW_BATCH';
+  to: 'overlay';
+  pairs: Array<{ oldClass: string; newClass: string }>;
+}
+
 /** Panel → Overlay: revert any active preview */
 export interface PatchRevertMessage {
   type: 'PATCH_REVERT';
@@ -257,6 +264,11 @@ export interface DesignCloseMessage {
   type: 'DESIGN_CLOSE';
 }
 
+/** Panel → Overlay: close the inspector panel */
+export interface ClosePanelMessage {
+  type: 'CLOSE_PANEL';
+}
+
 // ---------------------------------------------------------------------------
 // Union types
 // ---------------------------------------------------------------------------
@@ -264,12 +276,14 @@ export interface DesignCloseMessage {
 export type OverlayToPanel = ElementSelectedMessage;
 export type PanelToOverlay =
   | PatchPreviewMessage
+  | PatchPreviewBatchMessage
   | PatchRevertMessage
   | PatchStageMessage
   | ClearHighlightsMessage
   | SwitchContainerMessage
   | InsertDesignCanvasMessage
-  | CaptureScreenshotMessage;
+  | CaptureScreenshotMessage
+  | ClosePanelMessage;
 export type OverlayToServer = PatchStagedMessage;
 export type PanelToServer = PatchCommitMessage | MessageStageMessage;
 export type ClientToServer =
@@ -308,5 +322,6 @@ export type AnyMessage =
   | ElementContextMessage
   | DesignSubmitMessage
   | DesignCloseMessage
+  | ClosePanelMessage
   | PingMessage
   | PongMessage;

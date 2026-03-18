@@ -5,7 +5,7 @@ import { BoxModelRing } from './components/BoxModelRing';
 
 const LAYER_ORDER: LayerName[] = ['margin', 'outline', 'border', 'padding'];
 
-export function BoxModel({ layers, frozen = false, onSlotClick, onSlotChange, onSlotHover, onEditStart }: BoxModelProps) {
+export function BoxModel({ layers, frozen = false, onSlotClick, onSlotChange, onSlotHover, onSlotRemove, onSlotRemoveHover, onEditStart }: BoxModelProps) {
   const [hoveredLayer, setHoveredLayer] = useState<LayerName | null>(null);
   // activeLayer: a slot in this layer is currently scrubbing or has an open dropdown
   const [activeLayer, setActiveLayer] = useState<LayerName | null>(null);
@@ -47,6 +47,8 @@ export function BoxModel({ layers, frozen = false, onSlotClick, onSlotChange, on
         onSlotClick={(slotKey, anchorEl) => handleSlotClick(layerName, slotKey, anchorEl)}
         onSlotChange={onSlotChange ? (slotKey, value) => onSlotChange(layerName, slotKey, value) : undefined}
         onSlotHover={onSlotHover ? (slotKey, value) => onSlotHover(layerName, slotKey, value) : undefined}
+        onSlotRemove={onSlotRemove ? (slotKey) => onSlotRemove(layerName, slotKey) : undefined}
+        onSlotRemoveHover={onSlotRemoveHover ? (slotKey) => onSlotRemoveHover(layerName, slotKey) : undefined}
         onScrubStart={() => { setActiveLayer(layerName); onEditStart?.(); }}
         onScrubEnd={() => setActiveLayer(null)}
         onSlotOpen={() => { setActiveLayer(layerName); onEditStart?.(); }}

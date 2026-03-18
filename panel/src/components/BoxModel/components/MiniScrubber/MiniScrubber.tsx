@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { MiniScrubberProps } from './types';
+import { FocusTrapContainer } from '../../../../components/FocusTrapContainer';
 
 const SCRUB_THRESHOLD = 4;
 const PX_PER_STEP = 10;
@@ -20,6 +21,8 @@ export function MiniScrubber({
   onScrubEnd,
   onOpen,
   onClose,
+  onRemove,
+  onRemoveHover,
 }: MiniScrubberProps) {
   const [open, setOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
@@ -50,20 +53,6 @@ export function MiniScrubber({
       setDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
     }
   }, [open]);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        onClose?.();
-        onLeave?.();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open, onLeave, onClose]);
 
   // Scroll active item into view when dropdown opens
   useEffect(() => {
@@ -156,13 +145,27 @@ export function MiniScrubber({
       {chipText}
 
       {open && dropdownPos && createPortal(
-        <div
+        <FocusTrapContainer
           className="bm-mini-dropdown"
           style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, transform: 'translateX(-50%)' }}
           onClick={e => e.stopPropagation()}
           onMouseLeave={() => onLeave?.()}
           onMouseDown={e => e.stopPropagation()}
+          onClose={() => { setOpen(false); onClose?.(); onLeave?.(); }}
         >
+          {onRemove && (
+            <div
+              className="bm-mini-dropdown-item bm-mini-dropdown-remove"
+              onMouseEnter={onRemoveHover}
+              onClick={e => { e.stopPropagation(); onRemove(); setOpen(false); onClose?.(); }}
+            >
+              <svg viewBox="0 0 10 10" width="8" height="8" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: 0 }}>
+                <line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+                <line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              remove
+            </div>
+          )}
           {values.map(val => {
             const isActiveItem = val === currentValue;
             return (
@@ -182,7 +185,7 @@ export function MiniScrubber({
               </div>
             );
           })}
-        </div>,
+        </FocusTrapContainer>,
         document.body
       )}
     </span>

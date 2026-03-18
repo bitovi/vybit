@@ -56,6 +56,10 @@ export interface BoxModelProps {
   onSlotChange?: (layer: LayerName, slotKey: SlotKey | 'shorthand', value: string) => void;
   /** Called when user hovers a candidate value (for preview), null on leave */
   onSlotHover?: (layer: LayerName, slotKey: SlotKey | 'shorthand', value: string | null) => void;
+  /** Called when the user removes a class from a slot */
+  onSlotRemove?: (layer: LayerName, slotKey: SlotKey | 'shorthand') => void;
+  /** Called when hover enters the remove row — use to preview removal */
+  onSlotRemoveHover?: (layer: LayerName, slotKey: SlotKey | 'shorthand') => void;
   /** Called when the user starts interacting with any slot (scrub or dropdown open) */
   onEditStart?: () => void;
 }
@@ -86,6 +90,10 @@ export interface BoxModelRingProps {
   onSlotOpen?: () => void;
   /** Called when a slot's dropdown closes */
   onSlotClose?: () => void;
+  /** Called when the user removes a slot's class (stages empty string) */
+  onSlotRemove?: (slotKey: SlotKey | 'shorthand') => void;
+  /** Called when hover enters the remove row — use to preview removal */
+  onSlotRemoveHover?: (slotKey: SlotKey | 'shorthand') => void;
   /** Content (next inner ring or content box) */
   children?: React.ReactNode;
 }
@@ -124,4 +132,8 @@ export interface BoxModelSlotProps {
   onOpen?: () => void;
   /** Called when this slot's dropdown closes */
   onClose?: () => void;
+  /** When provided, renders a red-✕ remove row in the slot's dropdown */
+  onValueRemove?: () => void;
+  /** Called when mouse enters the remove row — use to preview removal */
+  onValueRemoveHover?: () => void;
 }

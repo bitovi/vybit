@@ -80,6 +80,7 @@ export class SidebarContainer implements IContainer {
 
     const iframe = document.createElement('iframe');
     iframe.src = panelUrl;
+    iframe.allow = 'microphone';
     iframe.style.cssText = 'flex:1; border:none; height:100%;';
     host.appendChild(iframe);
 

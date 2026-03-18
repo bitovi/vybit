@@ -27,4 +27,8 @@ export interface MiniScrubberProps {
   onOpen?: () => void;
   /** Called when the dropdown closes */
   onClose?: () => void;
+  /** When provided, renders a red-✕ row at the top of the dropdown */
+  onRemove?: () => void;
+  /** Called when the mouse enters the remove row — use to preview removal */
+  onRemoveHover?: () => void;
 }

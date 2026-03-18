@@ -353,3 +353,16 @@
   color: var(--teal, #00848B);
   font-weight: 700;
 }
+
+.bm-mini-dropdown-remove {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid var(--border, #2a3a3b);
+  color: var(--text-muted, #4a5a5b);
+}
+
+.bm-mini-dropdown-remove:hover {
+  background: rgba(245, 83, 45, 0.09);
+  color: var(--orange, #F5532D);
+}

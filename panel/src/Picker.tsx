@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFloating, offset, flip, shift, size, autoUpdate, FloatingPortal, useDismiss, useInteractions } from '@floating-ui/react';
 import type { ParsedClass } from '../../overlay/src/class-parser';
+import { PROPERTY_RULES, type Category, getCompositeConsumingPrefixes, buildEnumGroupsFromRules, buildAddablePropertiesFromRules } from '../../overlay/src/propertyRules';
 import { ColorGrid } from './components/ColorGrid';
 import { ScaleScrubber } from './components/ScaleScrubber';
 import { getScaleValues } from './components/getScaleValues';
@@ -13,152 +14,110 @@ import { GradientEditor, parsedClassesToGradientEditorProps } from './components
 import { sendTo } from './ws';
 import type { PatchManager } from './hooks/usePatchManager';
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<Category, string> = {
   spacing: 'Spacing',
   sizing: 'Sizing',
   typography: 'Typography',
-  color: 'Color',
+  color: 'Backgrounds',
   borders: 'Borders',
   effects: 'Effects',
   layout: 'Layout',
   flexbox: 'Flexbox & Grid',
+  gradient: 'Gradient',
 };
 
-/** Prefixes consumed by the box model — excluded from category sections */
-const BOX_MODEL_PREFIXES = new Set([
-  'm-', 'mx-', 'my-', 'mt-', 'mr-', 'mb-', 'ml-', 'ms-', 'me-',
-  'p-', 'px-', 'py-', 'pt-', 'pr-', 'pb-', 'pl-', 'ps-', 'pe-',
-  'border-', 'border-t-', 'border-r-', 'border-b-', 'border-l-',
-  'outline-', 'outline-offset-',
-  'rounded-', 'rounded-t-', 'rounded-r-', 'rounded-b-', 'rounded-l-',
-  'rounded-tl-', 'rounded-tr-', 'rounded-br-', 'rounded-bl-',
-  'gap-', 'gap-x-', 'gap-y-', 'space-x-', 'space-y-',
-]);
-/** Exact-match classes consumed by box model */
-const BOX_MODEL_EXACT = new Set(['border', 'rounded']);
+/**
+ * Ordered list of all categories to render as sections (gradient excluded — it renders inside 'color').
+ * Categories always render, even when empty, so users can always add via [+].
+ */
+const ALL_CATEGORIES: Category[] = ['sizing', 'typography', 'color', 'flexbox', 'borders', 'effects', 'layout'];
 
-/** Prefixes owned entirely by GradientEditor — excluded from standard chip/scrubber rendering */
-const GRADIENT_EDITOR_PREFIXES = new Set(['bg-', 'bg-gradient-to-', 'from-', 'via-', 'to-']);
+/** Prefixes & exact classes consumed by composite components (BoxModel, GradientEditor). */
+const COMPOSITE_CONSUMING_PREFIXES = getCompositeConsumingPrefixes();
 
-/** Available properties for the + button per section */
-const TYPOGRAPHY_PROPERTIES: AvailableProperty[] = [
-  { name: 'Font family', prefixHint: 'font-sans/serif/mono', prefix: 'font-family' },
-  { name: 'Font size', prefixHint: 'text-{size}', prefix: 'text-size' },
-  { name: 'Font style', prefixHint: 'italic / not-italic', prefix: 'font-style' },
-  { name: 'Font weight', prefixHint: 'font-*', prefix: 'font-' },
-  { name: 'Text color', prefixHint: 'text-{color}', prefix: 'text-color' },
-  { name: 'Text align', prefixHint: 'text-{align}', prefix: 'text-align' },
-  { name: 'Line height', prefixHint: 'leading-*', prefix: 'leading-' },
-  { name: 'Letter spacing', prefixHint: 'tracking-*', prefix: 'tracking-' },
-  { name: 'Vertical align', prefixHint: 'align-*', prefix: 'vertical-align' },
-];
+/** Maps each class token → its enum alternatives + staging property key. Built from propertyRules. */
+const ENUM_GROUPS = buildEnumGroupsFromRules();
 
-const SIZING_PROPERTIES: AvailableProperty[] = [
-  { name: 'Width', prefixHint: 'w-*', prefix: 'w-' },
-  { name: 'Height', prefixHint: 'h-*', prefix: 'h-' },
-  { name: 'Min width', prefixHint: 'min-w-*', prefix: 'min-w-' },
-  { name: 'Max width', prefixHint: 'max-w-*', prefix: 'max-w-' },
-  { name: 'Min height', prefixHint: 'min-h-*', prefix: 'min-h-' },
-  { name: 'Max height', prefixHint: 'max-h-*', prefix: 'max-h-' },
-  { name: 'Size', prefixHint: 'size-*', prefix: 'size-' },
-];
+/** Per-category [+] menu entries, generated from propertyRules addable entries. */
+const ADDABLE_PROPERTIES_MAP = buildAddablePropertiesFromRules();
 
-const BACKGROUNDS_PROPERTIES: AvailableProperty[] = [
-  { name: 'Background color', prefixHint: 'bg-{color}', prefix: 'bg-' },
-];
+/**
+ * Typography properties that need virtual prefixes (text- is ambiguous: font-size vs color vs align).
+ * These are the only special cases not auto-generated from PROPERTY_RULES.
+ */
+const TYPOGRAPHY_ADDABLE_SPECIALS: Record<string, { themeKey: string | null; valueType: 'scalar' | 'color' | 'enum'; enumAlts?: string[] }> = {
+  'text-size':  { themeKey: 'fontSize',  valueType: 'scalar' },
+  'text-color': { themeKey: 'colors',    valueType: 'color' },
+};
 
-/** Priority sections that always render (in order) */
-const PRIORITY_SECTIONS = ['sizing', 'typography', 'color'] as const;
+/** Augment the typography section with the virtual specials not in PROPERTY_RULES. */
+ADDABLE_PROPERTIES_MAP.typography.unshift(
+  { name: 'Font size',  prefixHint: 'text-sm/base/lg/…', prefix: 'text-size' },
+  { name: 'Text color', prefixHint: 'text-{color}',       prefix: 'text-color' },
+);
 
-interface EnumGroup {
-  alternatives: string[];
-  /** Canonical property key used for patchManager dedup */
-  propertyKey: string;
+/** Look up pending/staging config for a prefix. Covers PROPERTY_RULES entries and typography specials. */
+function getPendingConfig(prefix: string): { themeKey: string | null; valueType: 'scalar' | 'color' | 'enum'; enumAlts?: string[]; stagingKey: string } | null {
+  // Typography specials (virtual prefixes)
+  const special = TYPOGRAPHY_ADDABLE_SPECIALS[prefix];
+  if (special) return { ...special, stagingKey: prefix };
+
+  // PROPERTY_RULES lookup by propertyKey (find the canonical entry that has this propertyKey)
+  const ruleEntry = Object.entries(PROPERTY_RULES).find(
+    ([key, r]) => (r.propertyKey ?? key.replace(/-$/g, '')) === prefix && r.addable
+  );
+  if (ruleEntry) {
+    const [key, rule] = ruleEntry;
+    return {
+      themeKey: rule.themeKey,
+      valueType: rule.valueType,
+      enumAlts: rule.enumAlts,
+      stagingKey: prefix,
+    };
+  }
+
+  // Direct PROPERTY_RULES lookup (for scalar prefixes like 'w-', 'h-', 'font-', etc.)
+  const directRule = PROPERTY_RULES[prefix];
+  if (directRule) {
+    return {
+      themeKey: directRule.themeKey,
+      valueType: directRule.valueType,
+      enumAlts: directRule.enumAlts,
+      stagingKey: prefix.replace(/-$/g, ''),
+    };
+  }
+
+  return null;
 }
 
-/** Maps a Tailwind enum class to its group of related alternatives */
-const ENUM_GROUPS: Record<string, EnumGroup> = {
-  // Text alignment
-  'text-left':    { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
-  'text-center':  { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
-  'text-right':   { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
-  'text-justify': { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
-  'text-start':   { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
-  'text-end':     { alternatives: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'], propertyKey: 'text-align' },
-  // Font style
-  'italic':     { alternatives: ['italic', 'not-italic'], propertyKey: 'font-style' },
-  'not-italic': { alternatives: ['italic', 'not-italic'], propertyKey: 'font-style' },
-  // Font family
-  'font-sans':  { alternatives: ['font-sans', 'font-serif', 'font-mono'], propertyKey: 'font-family' },
-  'font-serif': { alternatives: ['font-sans', 'font-serif', 'font-mono'], propertyKey: 'font-family' },
-  'font-mono':  { alternatives: ['font-sans', 'font-serif', 'font-mono'], propertyKey: 'font-family' },
-  // Vertical alignment
-  'align-baseline':    { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-top':         { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-middle':      { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-bottom':      { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-text-top':    { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-text-bottom': { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-sub':         { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  'align-super':       { alternatives: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'], propertyKey: 'vertical-align' },
-  // Text transform
-  'uppercase':   { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
-  'lowercase':   { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
-  'capitalize':  { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
-  'normal-case': { alternatives: ['uppercase', 'lowercase', 'capitalize', 'normal-case'], propertyKey: 'text-transform' },
-};
-
-/** Maps addable-property prefix → config so we can render the right control */
-interface PendingConfig {
-  parserPrefix: string;
-  themeKey: string | null;
-  valueType: 'scalar' | 'color' | 'enum';
-  /** For enum types: full list of alternative class names (used for display + presence detection) */
-  enumAlts?: string[];
-}
-const PENDING_PREFIX_CONFIG: Record<string, PendingConfig> = {
-  'w-':           { parserPrefix: 'w-',           themeKey: 'spacing',       valueType: 'scalar' },
-  'h-':           { parserPrefix: 'h-',           themeKey: 'spacing',       valueType: 'scalar' },
-  'min-w-':       { parserPrefix: 'min-w-',       themeKey: 'spacing',       valueType: 'scalar' },
-  'max-w-':       { parserPrefix: 'max-w-',       themeKey: 'spacing',       valueType: 'scalar' },
-  'min-h-':       { parserPrefix: 'min-h-',       themeKey: 'spacing',       valueType: 'scalar' },
-  'max-h-':       { parserPrefix: 'max-h-',       themeKey: 'spacing',       valueType: 'scalar' },
-  'size-':        { parserPrefix: 'size-',        themeKey: 'spacing',       valueType: 'scalar' },
-  'font-':        { parserPrefix: 'font-',        themeKey: 'fontWeight',    valueType: 'scalar' },
-  'text-size':    { parserPrefix: 'text-',        themeKey: 'fontSize',      valueType: 'scalar' },
-  'text-color':   { parserPrefix: 'text-',        themeKey: 'colors',        valueType: 'color' },
-  'text-align':   { parserPrefix: 'text-align',   themeKey: null,            valueType: 'enum',
-    enumAlts: ['text-left', 'text-center', 'text-right', 'text-justify', 'text-start', 'text-end'] },
-  'font-family':  { parserPrefix: 'font-family',  themeKey: null,            valueType: 'enum',
-    enumAlts: ['font-sans', 'font-serif', 'font-mono'] },
-  'font-style':   { parserPrefix: 'font-style',   themeKey: null,            valueType: 'enum',
-    enumAlts: ['italic', 'not-italic'] },
-  'vertical-align': { parserPrefix: 'vertical-align', themeKey: null,        valueType: 'enum',
-    enumAlts: ['align-baseline', 'align-top', 'align-middle', 'align-bottom', 'align-text-top', 'align-text-bottom', 'align-sub', 'align-super'] },
-  'leading-':     { parserPrefix: 'leading-',     themeKey: 'lineHeight',    valueType: 'scalar' },
-  'tracking-':    { parserPrefix: 'tracking-',    themeKey: 'letterSpacing', valueType: 'scalar' },
-  'bg-':          { parserPrefix: 'bg-',          themeKey: 'colors',        valueType: 'color' },
-};
-
-/** Filter available properties to only those not already set, pending, or committed */
-function filterAvailable(available: AvailableProperty[], classes: ParsedClass[], pending: Set<string>, staged?: Set<string>): AvailableProperty[] {
-  const usedPrefixes = new Set(classes.map(c => c.prefix));
+/** Filter available [+] properties to only those not already present, pending, or staged. */
+function filterAvailable(
+  available: AvailableProperty[],
+  classes: ParsedClass[],
+  pending: Set<string>,
+  staged?: Set<string>
+): AvailableProperty[] {
   const usedFullClasses = new Set(classes.map(c => c.fullClass));
+  const usedPrefixes = new Set(classes.map(c => c.prefix));
   return available.filter(p => {
     if (pending.has(p.prefix)) return false;
     if (staged?.has(p.prefix)) return false;
-    const config = PENDING_PREFIX_CONFIG[p.prefix];
-    // Enum properties: hide if any alternative is already present on the element
+    const config = getPendingConfig(p.prefix);
     if (config?.valueType === 'enum' && config.enumAlts) {
       return !config.enumAlts.some(alt => usedFullClasses.has(alt));
     }
-    const parserPrefix = config?.parserPrefix ?? p.prefix;
-    return !usedPrefixes.has(parserPrefix);
+    // For scalars/colors, check if the prefix is already used
+    if (config && config.valueType !== 'enum') {
+      // text-size and text-color share the 'text-' prefix — check themeKey too
+      if (p.prefix === 'text-size') return !classes.some(c => c.prefix === 'text-' && c.themeKey === 'fontSize');
+      if (p.prefix === 'text-color') return !classes.some(c => c.prefix === 'text-' && c.themeKey === 'colors');
+    }
+    return !usedPrefixes.has(p.prefix);
   });
 }
 
-function groupByCategory(classes: ParsedClass[]): Map<string, ParsedClass[]> {
-  const groups = new Map<string, ParsedClass[]>();
+function groupByCategory(classes: ParsedClass[]): Map<Category, ParsedClass[]> {
+  const groups = new Map<Category, ParsedClass[]>();
   for (const cls of classes) {
     const list = groups.get(cls.category) || [];
     list.push(cls);
@@ -188,7 +147,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
 
   const { refs: colorPickerRefs, floatingStyles: colorPickerStyles, context: colorPickerContext } = useFloating({
     open: boxModelColorPicker !== null,
-    onOpenChange: (open) => { if (!open) setBoxModelColorPicker(null); },
+    onOpenChange: (open) => { if (!open) { setBoxModelColorPicker(null); patchManager.revertPreview(); } },
     strategy: 'fixed',
     placement: 'bottom-start',
     middleware: [
@@ -250,6 +209,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
   useEffect(() => {
     if (classesKeyRef.current !== currentClassesKey) {
       classesKeyRef.current = currentClassesKey;
+      patchManager.revertPreview();
       setBoxModelOverrides(new Map());
       setBoxModelColorPicker(null);
       setChipColorPicker(null);
@@ -339,8 +299,8 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
   }
 
   function handlePendingStage(prefix: string, newClass: string) {
-    const config = PENDING_PREFIX_CONFIG[prefix];
-    patchManager.stage(elementKey, config?.parserPrefix ?? prefix, '', newClass);
+    const config = getPendingConfig(prefix);
+    patchManager.stage(elementKey, config?.stagingKey ?? prefix, '', newClass);
     // Move from pending ghost to staged
     setPendingPrefixes(prev => {
       const next = new Set(prev);
@@ -393,6 +353,25 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
             // Record locally so the slot updates immediately without waiting for re-selection
             setBoxModelOverrides(prev => new Map(prev).set(overrideKey, value));
           }}
+          onSlotRemoveHover={(layer: LayerName, slotKey: SlotKey | 'shorthand') => {
+            const overrideKey = `${layer}-${slotKey}`;
+            const baseLayer = boxModelLayersFromClasses(parsedClasses, tailwindConfig).find(l => l.layer === layer);
+            const currentClass = slotKey === 'shorthand'
+              ? (boxModelOverrides.get(overrideKey) ?? baseLayer?.shorthandValue)
+              : (boxModelOverrides.get(overrideKey) ?? baseLayer?.slots.find(s => s.key === slotKey)?.value);
+            if (currentClass) patchManager.preview(currentClass, '');
+          }}
+          onSlotRemove={(layer: LayerName, slotKey: SlotKey | 'shorthand') => {
+            const overrideKey = `${layer}-${slotKey}`;
+            const baseLayer = boxModelLayersFromClasses(parsedClasses, tailwindConfig).find(l => l.layer === layer);
+            const currentClass = slotKey === 'shorthand'
+              ? (boxModelOverrides.get(overrideKey) ?? baseLayer?.shorthandValue)
+              : (boxModelOverrides.get(overrideKey) ?? baseLayer?.slots.find(s => s.key === slotKey)?.value);
+            if (currentClass) {
+              handleStage(`${layer}-${slotKey}`, currentClass, '');
+              setBoxModelOverrides(prev => { const m = new Map(prev); m.delete(overrideKey); return m; });
+            }
+          }}
         />
         {boxModelColorPicker && (
           <FloatingPortal>
@@ -442,48 +421,57 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
               onHover={(fullClass) => handlePreview(chipColorPicker.cls.fullClass, fullClass)}
               onLeave={handleRevert}
               onClick={(fullClass) => handleStage(chipColorPicker.cls.prefix, chipColorPicker.cls.fullClass, fullClass)}
+              onRemoveHover={() => handlePreview(chipColorPicker.cls.fullClass, '')}
+              onRemove={() => { handleStage(chipColorPicker.cls.prefix, chipColorPicker.cls.fullClass, ''); setChipColorPicker(null); }}
             />
           </div>
         </FloatingPortal>
       )}
 
-      {/* ── Priority Sections (always visible) ─────────────── */}
-      {PRIORITY_SECTIONS.map((category) => {
+      {/* ── Property Sections — always rendered for every category ─── */}
+      {ALL_CATEGORIES.map((category) => {
         const rawClasses = groups.get(category) || [];
-        const classes = rawClasses.filter(c =>
-          !BOX_MODEL_PREFIXES.has(c.prefix) &&
-          !BOX_MODEL_EXACT.has(c.fullClass) &&
-          !(category === 'color' && GRADIENT_EDITOR_PREFIXES.has(c.prefix))
+        // Filter out classes consumed by composite components (BoxModel, GradientEditor)
+        const classes = rawClasses.filter(
+          c => !COMPOSITE_CONSUMING_PREFIXES.has(c.prefix) && !COMPOSITE_CONSUMING_PREFIXES.has(c.fullClass)
         );
-        const availableMap: Record<string, AvailableProperty[]> = {
-          typography: TYPOGRAPHY_PROPERTIES,
-          sizing: SIZING_PROPERTIES,
-          color: [],  // GradientEditor is always shown; no + button needed for bg-
-        };
-        const available = filterAvailable(availableMap[category] || [], classes, pendingPrefixes, stagedPendingPrefixes);
-        const sectionPending = (availableMap[category] || [])
+        const addableProps = ADDABLE_PROPERTIES_MAP[category] || [];
+        const available = filterAvailable(addableProps, classes, pendingPrefixes, stagedPendingPrefixes);
+        const sectionPendingPrefixes = addableProps
           .filter(p => pendingPrefixes.has(p.prefix))
           .map(p => p.prefix);
-        const sectionStaged = (availableMap[category] || [])
+        const sectionStagedPrefixes = addableProps
           .filter(p => stagedPendingPrefixes.has(p.prefix))
           .map(p => p.prefix);
+
+        const isEmpty = category === 'color'
+          ? false  // GradientEditor always renders
+          : classes.length === 0 && sectionPendingPrefixes.length === 0 && sectionStagedPrefixes.length === 0;
 
         return (
           <PropertySection
             key={category}
-            label={category === 'color' ? 'Backgrounds' : (CATEGORY_LABELS[category] || category)}
+            label={CATEGORY_LABELS[category]}
             availableProperties={available}
             onAddProperty={handleAddProperty}
-            isEmpty={category === 'color' ? false : (classes.length === 0 && sectionPending.length === 0 && sectionStaged.length === 0)}
+            isEmpty={isEmpty}
           >
+            {/* Composite: GradientEditor handles 'color' category */}
             {category === 'color' && (
               <GradientEditor
-                {...parsedClassesToGradientEditorProps(parsedClasses, tailwindConfig?.colors || {})}
+                {...parsedClassesToGradientEditorProps(
+                  parsedClasses,
+                  tailwindConfig?.colors || {},
+                  stagedPatches.filter(p => p.elementKey === elementKey)
+                )}
                 onPreview={handlePreview}
+                onPreviewBatch={(pairs) => patchManager.previewBatch(pairs)}
                 onRevert={handleRevert}
                 onStage={handleGradientStage}
               />
             )}
+
+            {/* Existing classes on the element */}
             {classes.map((cls) => {
               if (cls.valueType === 'scalar') {
                 const scaleValues = getScaleValues(cls.prefix, cls.themeKey, tailwindConfig);
@@ -500,6 +488,8 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                       onHover={(newClass) => handleScrubberPreview(cls, newClass)}
                       onLeave={() => handleScrubberRevert(cls)}
                       onClick={(newClass) => handleStage(cls.prefix, cls.fullClass, newClass)}
+                      onRemoveHover={() => patchManager.preview(cls.fullClass, '')}
+                      onRemove={() => handleStage(cls.prefix, cls.fullClass, '')}
                     />
                   );
                 }
@@ -519,6 +509,8 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                       onHover={(newClass) => handleScrubberPreview(cls, newClass)}
                       onLeave={() => handleScrubberRevert(cls)}
                       onClick={(newClass) => handleStage(group.propertyKey, cls.fullClass, newClass)}
+                      onRemoveHover={() => patchManager.preview(cls.fullClass, '')}
+                      onRemove={() => handleStage(group.propertyKey, cls.fullClass, '')}
                     />
                   );
                 }
@@ -526,7 +518,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
               return (
                 <div
                   key={cls.fullClass}
-                  className={`px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border transition-colors ${
+                  className={`group flex items-center gap-1 px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border transition-colors ${
                     (selectedClass?.fullClass === cls.fullClass || chipColorPicker?.cls.fullClass === cls.fullClass)
                       ? 'border-bv-border bg-bv-surface-hi text-bv-text'
                       : 'bg-bv-surface text-bv-text-mid border-transparent hover:border-bv-teal hover:text-bv-teal'
@@ -534,59 +526,69 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                   onClick={(e) => handleChipClick(cls, e.currentTarget)}
                 >
                   {cls.fullClass}
+                  <span
+                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 ml-0.5 shrink-0"
+                    title="Remove class"
+                    onClick={(e) => { e.stopPropagation(); handleStage(cls.prefix, cls.fullClass, ''); }}
+                    onMouseEnter={(e) => { e.stopPropagation(); patchManager.preview(cls.fullClass, ''); }}
+                    onMouseLeave={(e) => { e.stopPropagation(); patchManager.revertPreview(); }}
+                  >
+                    <svg viewBox="0 0 10 10" width="8" height="8" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+                      <line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </span>
                 </div>
               );
             })}
 
-            {/* Staged pending values (from + button, user selected a value) */}
-            {(availableMap[category] || [])
-              .filter(p => stagedPendingPrefixes.has(p.prefix))
-              .map(p => {
-                const config = PENDING_PREFIX_CONFIG[p.prefix];
-                if (!config) return null;
-                if (config.valueType === 'scalar') {
-                  const scaleValues = getScaleValues(config.parserPrefix, config.themeKey, tailwindConfig);
-                  if (scaleValues.length === 0) return null;
-                  const patch = stagedPatches.find(pt => pt.property === (config.parserPrefix ?? p.prefix));
-                  return (
-                    <ScaleScrubber
-                      key={`staged-${p.prefix}`}
-                      values={scaleValues}
-                      currentValue={patch?.newClass ?? scaleValues[Math.floor(scaleValues.length / 2)]}
-                      lockedValue={patch?.newClass ?? null}
-                      locked={false}
-                      onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
-                      onHover={(newClass) => handlePendingPreview(p.prefix, newClass)}
-                      onLeave={() => handlePendingRevert(p.prefix)}
-                      onClick={(newClass) => handlePendingStage(p.prefix, newClass)}
-                    />
-                  );
-                }
-                if (config.valueType === 'enum' && config.enumAlts) {
-                  const patch = stagedPatches.find(pt => pt.property === config.parserPrefix);
-                  return (
-                    <ScaleScrubber
-                      key={`staged-${p.prefix}`}
-                      values={config.enumAlts}
-                      currentValue={patch?.newClass ?? config.enumAlts[0]}
-                      lockedValue={patch?.newClass ?? null}
-                      locked={false}
-                      onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
-                      onHover={(newClass) => handlePendingPreview(p.prefix, newClass)}
-                      onLeave={() => handlePendingRevert(p.prefix)}
-                      onClick={(newClass) => handlePendingStage(p.prefix, newClass)}
-                    />
-                  );
-                }
-                return null;
-              })}
-
-            {/* Pending ghost scrubbers from + button (not yet staged) */}
-            {sectionPending.map(prefix => {
-              const config = PENDING_PREFIX_CONFIG[prefix];
+            {/* Staged pending values (from + button, user picked a value) */}
+            {sectionStagedPrefixes.map(prefix => {
+              const config = getPendingConfig(prefix);
               if (!config) return null;
               if (config.valueType === 'scalar') {
-                const scaleValues = getScaleValues(config.parserPrefix, config.themeKey, tailwindConfig);
+                const scaleValues = getScaleValues(prefix, config.themeKey, tailwindConfig);
+                if (scaleValues.length === 0) return null;
+                const patch = stagedPatches.find(pt => pt.property === config.stagingKey);
+                return (
+                  <ScaleScrubber
+                    key={`staged-${prefix}`}
+                    values={scaleValues}
+                    currentValue={patch?.newClass ?? scaleValues[Math.floor(scaleValues.length / 2)]}
+                    lockedValue={patch?.newClass ?? null}
+                    locked={false}
+                    onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                    onHover={(newClass) => handlePendingPreview(prefix, newClass)}
+                    onLeave={() => handlePendingRevert(prefix)}
+                    onClick={(newClass) => handlePendingStage(prefix, newClass)}
+                  />
+                );
+              }
+              if (config.valueType === 'enum' && config.enumAlts) {
+                const patch = stagedPatches.find(pt => pt.property === config.stagingKey);
+                return (
+                  <ScaleScrubber
+                    key={`staged-${prefix}`}
+                    values={config.enumAlts}
+                    currentValue={patch?.newClass ?? config.enumAlts[0]}
+                    lockedValue={patch?.newClass ?? null}
+                    locked={false}
+                    onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+                    onHover={(newClass) => handlePendingPreview(prefix, newClass)}
+                    onLeave={() => handlePendingRevert(prefix)}
+                    onClick={(newClass) => handlePendingStage(prefix, newClass)}
+                  />
+                );
+              }
+              return null;
+            })}
+
+            {/* Pending ghost scrubbers from + button (not yet staged) */}
+            {sectionPendingPrefixes.map(prefix => {
+              const config = getPendingConfig(prefix);
+              if (!config) return null;
+              if (config.valueType === 'scalar') {
+                const scaleValues = getScaleValues(prefix, config.themeKey, tailwindConfig);
                 if (scaleValues.length > 0) {
                   return (
                     <ScaleScrubber
@@ -628,9 +630,9 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                     className="px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border border-dashed border-bv-border text-bv-muted hover:border-bv-teal hover:text-bv-teal transition-colors"
                     onClick={(e) => {
                       const ghostCls: ParsedClass = {
-                        category: 'color',
+                        category: 'typography',
                         valueType: 'color',
-                        prefix: config.parserPrefix,
+                        prefix: 'text-',
                         value: '',
                         fullClass: '',
                         themeKey: 'colors',
@@ -639,89 +641,15 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
                       setSelectedClass(null);
                     }}
                   >
-                    {config.parserPrefix}color
+                    {prefix === 'text-color' ? 'text-' : prefix}color
                   </div>
                 );
               }
               return null;
             })}
-
           </PropertySection>
         );
       })}
-
-      {/* ── Remaining Categories ───────────────────────────── */}
-      {Array.from(groups)
-        .filter(([category]) => !(PRIORITY_SECTIONS as readonly string[]).includes(category) && category !== 'gradient')
-        .map(([category, rawClasses]) => {
-          const classes = rawClasses.filter(c => !BOX_MODEL_PREFIXES.has(c.prefix) && !BOX_MODEL_EXACT.has(c.fullClass));
-          if (classes.length === 0) return null;
-          return (
-            <div key={category}>
-              <div className="mt-3 mb-1 flex items-center gap-1.5">
-                <span className="w-[5px] h-[5px] rounded-full bg-bv-teal opacity-50 shrink-0" />
-                <span className="text-[9px] font-semibold uppercase tracking-[1px] text-bv-text-mid">
-                  {CATEGORY_LABELS[category] || category}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {classes.map((cls) => {
-                  if (cls.valueType === 'scalar') {
-                    const scaleValues = getScaleValues(cls.prefix, cls.themeKey, tailwindConfig);
-                    if (scaleValues.length > 0) {
-                      const stagedValue = stagedPatches.find(p => p.property === cls.prefix)?.newClass ?? null;
-                      return (
-                        <ScaleScrubber
-                          key={cls.fullClass}
-                          values={scaleValues}
-                          currentValue={cls.fullClass}
-                          lockedValue={stagedValue}
-                          locked={false}
-                          onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
-                          onHover={(newClass) => handleScrubberPreview(cls, newClass)}
-                          onLeave={() => handleScrubberRevert(cls)}
-                          onClick={(newClass) => handleStage(cls.prefix, cls.fullClass, newClass)}
-                        />
-                      );
-                    }
-                  }
-                  if (cls.valueType === 'enum') {
-                    const group = ENUM_GROUPS[cls.fullClass];
-                    if (group) {
-                      const stagedValue = stagedPatches.find(p => p.property === group.propertyKey)?.newClass ?? null;
-                      return (
-                        <ScaleScrubber
-                          key={cls.fullClass}
-                          values={group.alternatives}
-                          currentValue={cls.fullClass}
-                          lockedValue={stagedValue}
-                          locked={false}
-                          onStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
-                          onHover={(newClass) => handleScrubberPreview(cls, newClass)}
-                          onLeave={() => handleScrubberRevert(cls)}
-                          onClick={(newClass) => handleStage(group.propertyKey, cls.fullClass, newClass)}
-                        />
-                      );
-                    }
-                  }
-                  return (
-                    <div
-                      key={cls.fullClass}
-                      className={`px-2 py-0.5 rounded cursor-pointer text-[11px] font-mono border transition-colors ${
-                        (selectedClass?.fullClass === cls.fullClass || chipColorPicker?.cls.fullClass === cls.fullClass)
-                          ? 'border-bv-border bg-bv-surface-hi text-bv-text'
-                          : 'bg-bv-surface text-bv-text-mid border-transparent hover:border-bv-teal hover:text-bv-teal'
-                      }`}
-                      onClick={(e) => handleChipClick(cls, e.currentTarget)}
-                    >
-                      {cls.fullClass}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
     </div>
   );
 }

@@ -25,6 +25,7 @@ export class PopoverContainer implements IContainer {
 
     const iframe = document.createElement('iframe');
     iframe.src = panelUrl;
+    iframe.allow = 'microphone';
     iframe.style.cssText = 'width:100%; height:100%; border:none;';
     host.appendChild(iframe);
 

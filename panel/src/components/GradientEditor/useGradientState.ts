@@ -17,6 +17,7 @@ export function useGradientState(props: GradientEditorProps) {
     solidColorName: initialSolidName,
     solidColorHex: initialSolidHex,
     onPreview,
+    onPreviewBatch,
     onRevert,
     onStage,
   } = props;
@@ -34,8 +35,20 @@ export function useGradientState(props: GradientEditorProps) {
 
   // --- Direction ---
   const handleDirectionHover = useCallback((dir: GradientDirection) => {
-    onPreview(`bg-gradient-to-${direction}`, `bg-gradient-to-${dir}`);
-  }, [direction, onPreview]);
+    if (mode === 'gradient') {
+      // Already in gradient mode — just preview the direction change
+      onPreview(`bg-gradient-to-${direction}`, `bg-gradient-to-${dir}`);
+    } else {
+      // Previewing a transition from solid → gradient: atomically show direction + stops
+      const baseColor = solidColorName ?? 'slate-500';
+      const oldBg = solidColorName ? `bg-${solidColorName}` : '';
+      onPreviewBatch([
+        { oldClass: oldBg, newClass: `bg-gradient-to-${dir}` },
+        { oldClass: '', newClass: `from-${baseColor}` },
+        { oldClass: '', newClass: `to-${baseColor}` },
+      ]);
+    }
+  }, [direction, mode, solidColorName, onPreview, onPreviewBatch]);
 
   const handleDirectionLeave = useCallback(() => {
     onRevert();
@@ -52,10 +65,11 @@ export function useGradientState(props: GradientEditorProps) {
       onStage(oldClass, newClass);
     } else {
       // Transitioning from solid (or empty) — seed two stops from the solid color
+      // from- defaults to 0%, to- defaults to 100%
       const baseColor = solidColorName ?? 'slate-500';
       const baseHex = solidColorHex ?? resolveColorHex(baseColor, props.colors);
-      const fromStop: GradientStop = { id: '1', role: 'from', colorName: baseColor, hex: baseHex, position: null };
-      const toStop: GradientStop = { id: '2', role: 'to', colorName: baseColor, hex: baseHex, position: null };
+      const fromStop: GradientStop = { id: '1', role: 'from', colorName: baseColor, hex: baseHex, position: 0 };
+      const toStop: GradientStop = { id: '2', role: 'to', colorName: baseColor, hex: baseHex, position: 100 };
       nextIdRef.current = 3;
       setStops([fromStop, toStop]);
 

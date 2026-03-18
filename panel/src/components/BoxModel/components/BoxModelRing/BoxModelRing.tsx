@@ -49,6 +49,8 @@ export function BoxModelRing({
   onScrubEnd,
   onSlotOpen,
   onSlotClose,
+  onSlotRemove,
+  onSlotRemoveHover,
   children,
 }: BoxModelRingProps & { shorthandScaleValues?: string[] }) {
   const layerClass = `bm-layer bm-${layer}${isHovered ? ' bm-hovered' : ''}`;
@@ -78,6 +80,8 @@ export function BoxModelRing({
         onScrubEnd={onScrubEnd}
         onOpen={() => { setOpenGroup('__shorthand__'); onSlotOpen?.(); }}
         onClose={() => { setOpenGroup(null); onSlotClose?.(); }}
+        onRemove={onSlotRemove ? () => onSlotRemove('shorthand') : undefined}
+        onRemoveHover={onSlotRemoveHover ? () => onSlotRemoveHover('shorthand') : undefined}
       />
     </span>
   ) : showShorthandVal ? (
@@ -127,6 +131,8 @@ export function BoxModelRing({
             onScrubEnd={onScrubEnd}
             onOpen={() => { setOpenGroup(groupName); onSlotOpen?.(); }}
             onClose={() => { setOpenGroup(null); onSlotClose?.(); }}
+            onValueRemove={onSlotRemove ? () => onSlotRemove(slot.key) : undefined}
+            onValueRemoveHover={onSlotRemoveHover ? () => onSlotRemoveHover(slot.key) : undefined}
           />
         ))}
       </div>

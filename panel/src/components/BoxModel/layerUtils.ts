@@ -1,5 +1,6 @@
 import type { LayerName, LayerColors, LayerState, SlotData, ClassState, SlotKey } from './types';
 import type { ParsedClass } from '../../../../overlay/src/class-parser';
+import { spacingKeyOrder } from '../getScaleValues';
 
 /** Color palette per layer — matches box-model-hover-grow.html prototype */
 export const LAYER_COLORS: Record<LayerName, LayerColors> = {
@@ -136,8 +137,8 @@ export function deriveLayerState(
   return { layer, classState, shorthandValue, slots };
 }
 
-/** Spacing scale steps (Tailwind default) */
-const SPACING_STEPS = ['px', '0', '0.5', '1', '1.5', '2', '2.5', '3', '3.5', '4', '5', '6', '7', '8', '9', '10', '11', '12', '14', '16', '20', '24', '28', '32', '36', '40', '44', '48', '52', '56', '60', '64', '72', '80', '96'];
+/** Spacing scale steps (Tailwind default), ordered numerically with px between 0 and 0.5 */
+const SPACING_STEPS = ['0', 'px', '0.5', '1', '1.5', '2', '2.5', '3', '3.5', '4', '5', '6', '7', '8', '9', '10', '11', '12', '14', '16', '20', '24', '28', '32', '36', '40', '44', '48', '52', '56', '60', '64', '72', '80', '96'];
 const BORDER_WIDTH_STEPS = [ '0', '', '2', '3', '4', '5', '6', '8', '10', '12', '16', '20', '24', '32', '40', '48', '56', '64'];
 
 const BORDER_STYLE_STEPS = ['solid', 'dashed', 'dotted', 'double', 'hidden', 'none'];
@@ -155,7 +156,7 @@ function getSlotScaleValues(layer: LayerName, slotKey: SlotKey, tailwindConfig?:
   if (layer === 'border' || layer === 'outline') {
     if (slotKey === 'offset') {
       steps = tailwindConfig?.theme?.spacing
-        ? Object.keys(tailwindConfig.theme.spacing)
+        ? Object.keys(tailwindConfig.theme.spacing).sort((a, b) => spacingKeyOrder(a) - spacingKeyOrder(b))
         : SPACING_STEPS;
     } else {
       steps = tailwindConfig?.theme?.borderWidth
@@ -164,7 +165,7 @@ function getSlotScaleValues(layer: LayerName, slotKey: SlotKey, tailwindConfig?:
     }
   } else {
     steps = tailwindConfig?.theme?.spacing
-      ? Object.keys(tailwindConfig.theme.spacing)
+      ? Object.keys(tailwindConfig.theme.spacing).sort((a, b) => spacingKeyOrder(a) - spacingKeyOrder(b))
       : SPACING_STEPS;
   }
 

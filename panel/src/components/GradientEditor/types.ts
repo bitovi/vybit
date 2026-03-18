@@ -16,6 +16,8 @@ export interface GradientEditorProps {
   colors: Record<string, any>;
   /** Called to preview a class change (hover) */
   onPreview: (oldClass: string, newClass: string) => void;
+  /** Called to preview multiple class changes atomically (hover on mode transition) */
+  onPreviewBatch: (pairs: Array<{ oldClass: string; newClass: string }>) => void;
   /** Called to revert an active preview */
   onRevert: () => void;
   /** Called to stage (commit) a class change */

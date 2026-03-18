@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ScaleScrubberProps } from './types';
+import { FocusTrapContainer } from '../FocusTrapContainer';
 
 /** Pixels of horizontal drag required before scrub mode activates */
 const SCRUB_THRESHOLD = 4;
@@ -16,6 +17,8 @@ export function ScaleScrubber({
   onHover,
   onLeave,
   onClick,
+  onRemove,
+  onRemoveHover,
 }: ScaleScrubberProps) {
   const [open, setOpen] = useState(false);
   const [scrubIndex, setScrubIndex] = useState<number | null>(null);
@@ -28,19 +31,6 @@ export function ScaleScrubber({
 
   const displayValue =
     scrubIndex !== null ? values[scrubIndex] : isThisLocked ? lockedValue! : currentValue;
-
-  // Close on outside pointer-down
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        onLeave();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open, onLeave]);
 
   // Scroll active item into view when dropdown opens
   useEffect(() => {
@@ -130,10 +120,26 @@ export function ScaleScrubber({
       </div>
 
       {open && (
-        <div
+        <FocusTrapContainer
           className="absolute z-50 top-full left-0 mt-0.5 max-h-52 overflow-y-auto bg-bv-bg border border-bv-border rounded-md shadow-md min-w-[5rem]"
           onMouseLeave={onLeave}
+          onClose={() => { setOpen(false); onLeave(); }}
         >
+          {onRemove && (
+            <div
+              className={`flex items-center gap-1.5 px-2 py-[3px] text-[11px] font-mono cursor-pointer border-b border-bv-border text-bv-muted hover:bg-bv-surface hover:text-bv-text ${
+                currentValue === '' || lockedValue === '' ? 'text-bv-orange' : ''
+              }`}
+              onMouseEnter={onRemoveHover}
+              onClick={(e) => { e.stopPropagation(); onRemove(); setOpen(false); }}
+            >
+              <svg viewBox="0 0 10 10" width="10" height="10" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                <line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+                <line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              remove
+            </div>
+          )}
           {values.map((val) => {
             const isActive = val === (lockedValue ?? currentValue);
             const itemStyle = isActive
@@ -151,7 +157,7 @@ export function ScaleScrubber({
               </div>
             );
           })}
-        </div>
+        </FocusTrapContainer>
       )}
     </div>
   );

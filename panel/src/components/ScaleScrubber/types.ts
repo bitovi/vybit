@@ -13,4 +13,8 @@ export interface ScaleScrubberProps {
   onHover: (value: string) => void;
   onLeave: () => void;
   onClick: (value: string) => void;
+  /** When provided, renders a red-✕ row at the top of the dropdown */
+  onRemove?: () => void;
+  /** Called when the mouse enters the remove row — use to preview removal */
+  onRemoveHover?: () => void;
 }
