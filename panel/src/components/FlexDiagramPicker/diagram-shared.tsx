@@ -1,13 +1,13 @@
 import type { CSSProperties } from 'react';
 import { useState } from 'react';
 
-// ─── Design tokens (from HTML spec) ──────────────────────────────────────────
+// ─── Design tokens (dark theme) ──────────────────────────────────────────────
 export const TEAL      = '#00848B';
-export const TEAL_DIM  = 'rgba(0,132,139,0.09)';
+export const TEAL_DIM  = 'rgba(0,132,139,0.18)';
 export const ORANGE    = '#F5532D';
-export const BORDER    = '#DFE2E2';
-export const SURFACE   = '#F4F5F5';
-export const TEXT_MID  = '#687879';
+export const BORDER    = '#4a4a4a';
+export const SURFACE   = '#333333';
+export const TEXT_MID  = '#999999';
 export const FONT_MONO = "'Roboto Mono', 'Menlo', ui-monospace, monospace";
 
 // ─── Base CSS objects ─────────────────────────────────────────────────────────
@@ -26,40 +26,40 @@ export const BOX_BASE: CSSProperties = {
   boxSizing: 'border-box',
 };
 
-// Teal items — 50% opacity at rest, 80% when lit (hover/active)
+// Teal items — 65% opacity at rest, 90% when lit (hover/active)
 export const ITEM: CSSProperties = {
   background: TEAL,
-  opacity: 0.5,
+  opacity: 0.65,
   borderRadius: 2,
   flexShrink: 0,
   transition: 'opacity 150ms ease-in-out',
 };
-export const ITEM_LIT: CSSProperties = { ...ITEM, opacity: 0.8 };
+export const ITEM_LIT: CSSProperties = { ...ITEM, opacity: 0.9 };
 
-// Orange gap zones — 10% at rest, 22% when lit
+// Orange gap zones — 18% at rest, 35% when lit
 export const GAP: CSSProperties = {
   flexShrink: 0,
   background: ORANGE,
-  opacity: 0.1,
+  opacity: 0.18,
   borderRadius: 1,
   transition: 'opacity 150ms ease-in-out',
 };
-export const GAP_LIT: CSSProperties = { ...GAP, opacity: 0.22 };
+export const GAP_LIT: CSSProperties = { ...GAP, opacity: 0.38 };
 
 // Baseline items — same as ITEM but shows a 't' glyph
 export const ITEM_T: CSSProperties = {
   background: TEAL,
-  opacity: 0.5,
+  opacity: 0.65,
   borderRadius: 2,
   flexShrink: 0,
   fontSize: 5,
-  color: 'rgba(255,255,255,0.8)',
+  color: 'rgba(255,255,255,0.9)',
   lineHeight: 1,
   overflow: 'hidden',
   textAlign: 'center',
   transition: 'opacity 150ms ease-in-out',
 };
-export const ITEM_T_LIT: CSSProperties = { ...ITEM_T, opacity: 0.8 };
+export const ITEM_T_LIT: CSSProperties = { ...ITEM_T, opacity: 0.9 };
 
 // ─── DiagramCell ──────────────────────────────────────────────────────────────
 /**
@@ -82,7 +82,7 @@ export function DiagramCell({ label, isActive, containerStyle, onClick, onHover,
     ...BOX_BASE,
     borderColor: lit ? TEAL : BORDER,
     background: lit ? TEAL_DIM : SURFACE,
-    boxShadow: isActive ? '0 0 0 2px rgba(0,132,139,0.18)' : 'none',
+    boxShadow: isActive ? '0 0 0 2px rgba(0,132,139,0.35)' : 'none',
     ...containerStyle,
   };
 

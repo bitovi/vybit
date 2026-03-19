@@ -1014,12 +1014,6 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 		highlightElement(node);
 	}
 
-	console.log(
-		`[overlay] ${componentName} — ${result.exactMatch.length} exact matches highlighted`,
-	);
-	console.log('[overlay] clicked className:', targetEl.className);
-	console.log('[overlay] exact matches:', result.exactMatch.map((n, i) => `[${i}] ${n.tagName.toLowerCase()} "${n.innerText?.trim().slice(0, 20)}" className="${n.className}"`));
-
 	// Fetch tailwind config (cached after first fetch)
 	const config = await fetchTailwindConfig();
 
@@ -1510,7 +1504,6 @@ function init(): void {
 			msg.type === "PATCH_PREVIEW" &&
 			currentEquivalentNodes.length > 0
 		) {
-			console.log(`[overlay] PATCH_PREVIEW oldClass="${msg.oldClass}" newClass="${msg.newClass}" → applying to ${currentEquivalentNodes.length} nodes:`, currentEquivalentNodes.map((n, i) => `[${i}] "${n.innerText?.trim().slice(0, 20)}" className="${n.className}"`));
 			applyPreview(
 				currentEquivalentNodes,
 				msg.oldClass,

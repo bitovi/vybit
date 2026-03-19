@@ -18,6 +18,8 @@ export interface PropertySectionProps {
   onAddProperty?: (prefix: string) => void;
   /** When true, shows an empty-state message */
   isEmpty?: boolean;
+  /** Number of matched classes in this section — shown as a badge when collapsed */
+  classCount?: number;
   /** Chip content rendered inside the section */
   children?: ReactNode;
 }

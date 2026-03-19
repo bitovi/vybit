@@ -94,3 +94,22 @@ test('toggles dropdown closed on second + click', () => {
   fireEvent.click(btn);
   expect(screen.queryByText('Text color')).not.toBeInTheDocument();
 });
+
+test('auto-expands when isEmpty transitions from true to false', () => {
+  const { rerender, container } = render(
+    <PropertySection label="Sizing" isEmpty>
+      <span>w-full</span>
+    </PropertySection>
+  );
+  // Initially empty = collapsed, collapsible div should have max-h-0
+  const collapseDiv = container.querySelector('.overflow-hidden') as HTMLElement;
+  expect(collapseDiv.className).toContain('max-h-0');
+
+  // Simulate a property being added — isEmpty becomes false
+  rerender(
+    <PropertySection label="Sizing" isEmpty={false}>
+      <span>w-full</span>
+    </PropertySection>
+  );
+  expect(collapseDiv.className).not.toContain('max-h-0');
+});

@@ -27,6 +27,7 @@ const SECTION_LABELS: Record<string, string> = {
   sizing: 'Sizing',
   typography: 'Typography',
   color: 'Backgrounds',
+  borders: 'Borders & Radius',
   effects: 'Effects',
   layout: 'Layout',
   flexbox: 'Flexbox & Grid',
@@ -37,7 +38,7 @@ const SECTION_LABELS: Record<string, string> = {
  * Ordered list of sections to render (spacing handled by BoxModel; overflow not shown yet).
  * Sections always render, even when empty, so users can always add via [+].
  */
-const ALL_SECTIONS = ['sizing', 'typography', 'color', 'flexbox', 'effects', 'layout'];
+const ALL_SECTIONS = ['borders', 'sizing', 'typography', 'color', 'flexbox', 'effects', 'layout'];
 
 /** Derives the class prefix string for building new class names (e.g. 'py-2' → 'py-'). */
 function tokenClassPrefix(t: ParsedToken): string {
@@ -669,49 +670,7 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
 				</div>
 			</div>
 
-      {/* ── Corner Model (border radius) ──────────────────────── */}
-      <div className="mt-3 mb-1 flex items-center gap-1.5">
-        <span className="w-[5px] h-[5px] rounded-full bg-bv-teal opacity-50 shrink-0" />
-        <span className="text-[9px] font-semibold uppercase tracking-[1px] text-bv-text-mid">Radius</span>
-      </div>
-      <div className="mb-4">
-        <CornerModel
-          state={applyCornerOverrides(cornerModelStateFromClasses(parsedClasses))}
-          onSlotHover={(_key, value) => {
-            const state = cornerModelStateFromClasses(parsedClasses);
-            const slotValue = _key === 'all'
-              ? (cornerOverrides.get('all') ?? state.shorthandValue)
-              : (cornerOverrides.get(_key) ?? state.slots.find(s => s.key === _key)?.value ?? null);
-            const current = slotValue ?? '';
-            if (value === null) patchManager.revertPreview();
-            else patchManager.preview(current, value);
-          }}
-          onSlotChange={(_key, value) => {
-            const state = cornerModelStateFromClasses(parsedClasses);
-            const current = cornerOverrides.get(_key)
-              ?? (_key === 'all' ? state.shorthandValue : state.slots.find(s => s.key === _key)?.value)
-              ?? '';
-            handleStage(`rounded-${_key}`, current, value);
-            setCornerOverrides(prev => new Map(prev).set(_key, value));
-          }}
-          onSlotRemove={(_key) => {
-            const current = cornerOverrides.get(_key)
-              ?? cornerModelStateFromClasses(parsedClasses).slots.find(s => s.key === _key)?.value
-              ?? '';
-            if (current) {
-              handleStage(`rounded-${_key}`, current, '');
-              setCornerOverrides(prev => new Map(prev).set(_key, null));
-            }
-          }}
-          onSlotRemoveHover={(_key) => {
-            const current = cornerOverrides.get(_key)
-              ?? cornerModelStateFromClasses(parsedClasses).slots.find(s => s.key === _key)?.value
-              ?? '';
-            if (current) patchManager.preview(current, '');
-          }}
-          onEditStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
-        />
-      </div>
+
 
       {chipColorPicker && (
         <FloatingPortal>
@@ -765,7 +724,14 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
           ? false  // GradientEditor always renders
           : section === 'flexbox' && isFlexParent
           ? false  // flex parent controls always render when isFlexParent
+          : section === 'borders'
+          ? false  // CornerModel always renders
           : classes.length === 0 && sectionPendingPrefixes.length === 0 && sectionStagedPrefixes.length === 0;
+
+        const classCount = section === 'borders'
+          ? cornerModelStateFromClasses(parsedClasses).slots.filter(s => s.value != null).length
+            + (cornerModelStateFromClasses(parsedClasses).shorthandValue ? 1 : 0)
+          : classes.length + sectionPendingPrefixes.length + sectionStagedPrefixes.length;
 
         return (
           <PropertySection
@@ -774,7 +740,48 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
             availableProperties={available}
             onAddProperty={handleAddProperty}
             isEmpty={isEmpty}
+            classCount={classCount}
           >
+            {/* Composite: CornerModel handles radius in 'borders' section */}
+            {section === 'borders' && (
+              <CornerModel
+                state={applyCornerOverrides(cornerModelStateFromClasses(parsedClasses))}
+                onSlotHover={(_key, value) => {
+                  const state = cornerModelStateFromClasses(parsedClasses);
+                  const slotValue = _key === 'all'
+                    ? (cornerOverrides.get('all') ?? state.shorthandValue)
+                    : (cornerOverrides.get(_key) ?? state.slots.find(s => s.key === _key)?.value ?? null);
+                  const current = slotValue ?? '';
+                  if (value === null) patchManager.revertPreview();
+                  else patchManager.preview(current, value);
+                }}
+                onSlotChange={(_key, value) => {
+                  const state = cornerModelStateFromClasses(parsedClasses);
+                  const current = cornerOverrides.get(_key)
+                    ?? (_key === 'all' ? state.shorthandValue : state.slots.find(s => s.key === _key)?.value)
+                    ?? '';
+                  handleStage(`rounded-${_key}`, current, value);
+                  setCornerOverrides(prev => new Map(prev).set(_key, value));
+                }}
+                onSlotRemove={(_key) => {
+                  const current = cornerOverrides.get(_key)
+                    ?? cornerModelStateFromClasses(parsedClasses).slots.find(s => s.key === _key)?.value
+                    ?? '';
+                  if (current) {
+                    handleStage(`rounded-${_key}`, current, '');
+                    setCornerOverrides(prev => new Map(prev).set(_key, null));
+                  }
+                }}
+                onSlotRemoveHover={(_key) => {
+                  const current = cornerOverrides.get(_key)
+                    ?? cornerModelStateFromClasses(parsedClasses).slots.find(s => s.key === _key)?.value
+                    ?? '';
+                  if (current) patchManager.preview(current, '');
+                }}
+                onEditStart={() => sendTo('overlay', { type: 'CLEAR_HIGHLIGHTS' })}
+              />
+            )}
+
             {/* Composite: GradientEditor handles 'color' section */}
             {section === 'color' && (
               <GradientEditor
@@ -1042,3 +1049,4 @@ export function Picker({ componentName, instanceCount, parsedClasses, tailwindCo
       })}
     </div>
   );
+}

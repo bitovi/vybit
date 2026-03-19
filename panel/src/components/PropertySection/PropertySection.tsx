@@ -7,11 +7,21 @@ export function PropertySection({
 	availableProperties = [],
 	onAddProperty,
 	isEmpty = false,
+	classCount = 0,
 	children,
 }: PropertySectionProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [collapsed, setCollapsed] = useState(isEmpty);
+	const prevIsEmptyRef = useRef(isEmpty);
 	const dropdownContainerRef = useRef<HTMLDivElement>(null);
+
+	// Auto-expand when a property is added to a previously empty section
+	useEffect(() => {
+		if (prevIsEmptyRef.current && !isEmpty) {
+			setCollapsed(false);
+		}
+		prevIsEmptyRef.current = isEmpty;
+	}, [isEmpty]);
 
 	useEffect(() => {
 		if (!dropdownOpen) return;
@@ -45,6 +55,11 @@ export function PropertySection({
 					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
 				</svg>
 				<span className="text-[10px] font-semibold text-bv-text">{label}</span>
+				{collapsed && classCount > 0 && (
+					<span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold leading-none bg-bv-teal/20 text-bv-teal tabular-nums">
+						{classCount}
+					</span>
+				)}
 				{availableProperties.length > 0 && (
 					<div ref={dropdownContainerRef} className="relative ml-auto">
 						<button

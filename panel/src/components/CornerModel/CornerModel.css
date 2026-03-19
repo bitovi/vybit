@@ -16,19 +16,19 @@
   --cell-rest: 28px;
   --t-fast: 150ms ease-in-out;
 
-  /* Radius accent — a deep violet to distinguish from BoxModel */
-  --r-fill: rgba(139, 79, 240, 0.06);
-  --r-fill-hover: rgba(139, 79, 240, 0.10);
-  --r-accent: #6932C3;
-  --r-label: rgba(105, 50, 195, 0.40);
-  --r-label-hover: rgba(105, 50, 195, 0.70);
+  /* Radius accent — violet, tuned for dark background */
+  --r-fill: rgba(139, 79, 240, 0.16);
+  --r-fill-hover: rgba(139, 79, 240, 0.26);
+  --r-accent: #a57ef5;
+  --r-label: rgba(165, 126, 245, 0.55);
+  --r-label-hover: rgba(165, 126, 245, 0.90);
 
   /* Interactive */
-  --teal: #00848B;
-  --teal-dim: rgba(0, 132, 139, 0.09);
-  --text-mid: #687879;
-  --c-fill: #FFFFFF;
-  --c-bdr: #C8CECE;
+  --teal: var(--color-bv-teal, #00848B);
+  --teal-dim: rgba(0, 132, 139, 0.15);
+  --text-mid: var(--color-bv-text-mid, #b3b3b3);
+  --c-fill: var(--color-bv-bg, #2c2c2c);
+  --c-bdr: #555555;
 
   user-select: none;
   font-family: var(--font-mono, 'Roboto Mono', monospace);
