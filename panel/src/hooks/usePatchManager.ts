@@ -90,8 +90,18 @@ export function usePatchManager(): PatchManager {
   const stage = useCallback((elementKey: string, property: string, originalClass: string, newClass: string) => {
     // Self-removal: if reverting to original, remove the patch
     if (newClass === originalClass) {
-      setPatches(prev => prev.filter(p => !(p.kind === 'class-change' && p.elementKey === elementKey && p.property === property)));
-      sendTo('overlay', { type: 'PATCH_REVERT' });
+      // Find the existing staged patch so we know what's currently in the DOM
+      setPatches(prev => {
+        const existing = prev.find(p => p.kind === 'class-change' && p.elementKey === elementKey && p.property === property);
+        if (existing && existing.kind === 'class-change' && existing.newClass !== originalClass) {
+          // The overlay has committed existing.newClass into the DOM baseline.
+          // We need to explicitly reverse it and commit, without staging to the server.
+          sendTo('overlay', { type: 'PATCH_REVERT_STAGED', oldClass: existing.newClass, newClass: originalClass });
+        } else {
+          sendTo('overlay', { type: 'PATCH_REVERT' });
+        }
+        return prev.filter(p => !(p.kind === 'class-change' && p.elementKey === elementKey && p.property === property));
+      });
       return;
     }
 

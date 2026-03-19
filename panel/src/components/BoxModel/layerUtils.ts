@@ -1,5 +1,5 @@
 import type { LayerName, LayerColors, LayerState, SlotData, ClassState, SlotKey } from './types';
-import type { ParsedClass } from '../../../../overlay/src/class-parser';
+import type { ParsedToken } from '../../../../overlay/src/grammar';
 import { spacingKeyOrder } from '../getScaleValues';
 
 /** Color palette per layer — matches box-model-hover-grow.html prototype */
@@ -181,31 +181,33 @@ function getSlotScaleValues(layer: LayerName, slotKey: SlotKey, tailwindConfig?:
 }
 
 /**
- * Build LayerState[] for all 4 box-model layers from a ParsedClass array.
+ * Build LayerState[] for all 4 box-model layers from a ParsedToken array.
  * Each slot that supports scrubbing will have scaleValues attached.
  */
 export function boxModelLayersFromClasses(
-  parsedClasses: ParsedClass[],
+  parsedClasses: ParsedToken[],
   tailwindConfig?: any,
 ): LayerState[] {
-  // Build a classMap: prefix → value  (e.g. "pt" → "5")
+  // Build classMap: slot-key → raw value  (e.g. "px" → "4", "border-t" → "2")
   const classMap: Record<string, string> = {};
-  for (const cls of parsedClasses) {
-    // ParsedClass.prefix includes a trailing dash (e.g. "px-") — strip it so it
-    // matches the keys in LAYER_PREFIXES (e.g. "px").
-    let key = cls.prefix.replace(/-$/, '');
-
-    // border-{color} and border-{style} share the 'border-' prefix with border
-    // width, but deriveLayerState expects them under 'border-color' / 'border-style'.
-    if (key === 'border' && cls.themeKey === 'colors') {
-      key = 'border-color';
-    } else if (key === 'border' && cls.themeKey === null && cls.valueType === 'enum') {
-      key = 'border-style';
-    } else if (key === 'outline' && cls.themeKey === 'colors') {
-      key = 'outline-color';
+  for (const t of parsedClasses) {
+    // Determine the classMap key
+    let key: string;
+    if (t.color !== undefined) {
+      key = `${t.property}-color`;
+    } else if (t.style !== undefined) {
+      key = `${t.property}-style`;
+    } else if (t.side !== undefined) {
+      // Single-char properties (p, m): concatenate directly (px, py, mt, etc.)
+      // Multi-char properties (border, outline): use hyphen (border-t, border-x)
+      key = t.property.length <= 2 ? t.property + t.side : `${t.property}-${t.side}`;
+    } else {
+      key = t.property;
     }
 
-    classMap[key] = cls.value;
+    // Determine the raw value
+    const val = t.scale ?? t.color ?? t.style ?? t.align ?? t.size ?? t.value ?? '';
+    classMap[key] = val;
   }
 
   // Shorthand prefix and step source per layer

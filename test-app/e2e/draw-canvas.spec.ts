@@ -88,7 +88,7 @@ test.describe('Draw Canvas', () => {
 
     // Verify the drawing toolbar is visible
     await expect(designFrame.getByRole('button', { name: '✎' })).toBeVisible({ timeout: 5000 });
-    await expect(designFrame.getByRole('button', { name: '✓ Queue as Change' })).toBeVisible();
+    await expect(designFrame.getByRole('button', { name: '✓ Add to Drafts' })).toBeVisible();
 
     // The freehand tool should be active by default — draw a stroke
     // We need to find the drawable area inside the design iframe.
@@ -98,9 +98,9 @@ test.describe('Draw Canvas', () => {
     expect(iframeBox).toBeTruthy();
 
     // Inside the iframe, the canvas container sits between toolbar (top) and footer (bottom).
-    // Get the canvas container's position within the iframe via evaluate.
+    // Get the canvas element's position within the iframe via evaluate.
     const canvasBox = await designFrame.evaluate(() => {
-      const container = document.querySelector('[data-testid="design-canvas"] .flex-1');
+      const container = document.querySelector('[data-testid="design-canvas"] canvas');
       if (!container) return null;
       const rect = container.getBoundingClientRect();
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
@@ -135,12 +135,12 @@ test.describe('Draw Canvas', () => {
     // Verify undo button is now enabled (meaning a stroke was recorded)
     await expect(designFrame.getByRole('button', { name: '↶' })).toBeEnabled({ timeout: 3000 });
 
-    // Click "Queue as Change" to submit the drawing — use evaluate to bypass
+    // Click "Add to Drafts" to submit the drawing — use evaluate to bypass
     // pointer-event interception from the overlay's shadow DOM children
     await designFrame.evaluate(() => {
       const btn = Array.from(document.querySelectorAll('button'))
-        .find(b => b.textContent?.includes('Queue as Change')) as HTMLButtonElement | undefined;
-      if (!btn) throw new Error('"Queue as Change" button not found');
+        .find(b => b.textContent?.includes('Add to Drafts')) as HTMLButtonElement | undefined;
+      if (!btn) throw new Error('"Add to Drafts" button not found');
       btn.click();
     });
     await page.waitForTimeout(1000);
@@ -181,9 +181,16 @@ test.describe('Draw Canvas', () => {
     // Verify canvas appears
     await expect(page.locator('[data-tw-design-canvas]')).toBeVisible({ timeout: 5000 });
 
-    // Get the design frame and click close
+    // Get the design frame and click cancel/close
     const designFrame = await getDesignFrame(page);
-    await designFrame.getByRole('button', { name: '✕ Close' }).click();
+    // Wait for the Cancel button to appear before clicking (avoids timing issues)
+    await designFrame.getByRole('button', { name: '✕ Cancel' }).waitFor({ timeout: 5000 });
+    await designFrame.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll('button'))
+        .find(b => b.textContent?.includes('Cancel')) as HTMLButtonElement | undefined;
+      if (!btn) throw new Error('"Cancel" button not found');
+      btn.click();
+    });
 
     // Verify canvas is removed from the page
     await expect(page.locator('[data-tw-design-canvas]')).toHaveCount(0, { timeout: 5000 });

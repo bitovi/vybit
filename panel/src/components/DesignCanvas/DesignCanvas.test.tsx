@@ -64,14 +64,14 @@ describe('DesignCanvas', () => {
 
   it('renders the submit button', () => {
     render(<DesignCanvas onSubmit={vi.fn()} />);
-    expect(screen.getByText('✓ Queue as Change')).toBeInTheDocument();
+    expect(screen.getByText('✓ Add to Drafts')).toBeInTheDocument();
   });
 
   it('calls onSubmit when the submit button is clicked', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<DesignCanvas onSubmit={onSubmit} />);
-    await user.click(screen.getByText('✓ Queue as Change'));
+    await user.click(screen.getByText('✓ Add to Drafts'));
     expect(onSubmit).toHaveBeenCalledWith('data:image/png;base64,mockdata', 400, 300);
   });
 

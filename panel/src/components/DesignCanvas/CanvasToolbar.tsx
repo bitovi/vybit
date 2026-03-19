@@ -208,7 +208,7 @@ export function CanvasToolbar({
           onClick={onClose}
           className="ml-auto px-2.5 py-0.5 rounded border border-bv-border bg-bv-bg text-bv-muted text-[10px] font-medium cursor-pointer hover:bg-bv-orange/10 hover:border-bv-orange hover:text-bv-orange transition-all"
         >
-          ✕ Cancel
+          ✕ Close
         </button>
       )}
       {onSubmit && (

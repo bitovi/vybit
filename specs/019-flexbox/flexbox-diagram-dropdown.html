@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flexbox Diagram Dropdown — Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #FFFFFF;
+      --page-bg:      #EAECED;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-dark:    #005A5F;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 32px;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .section-tag.teal   { background: var(--teal); }
+    .section-tag.purple { background: #8B5CF6; }
+    .section-tag.amber  { background: #F59E0B; }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .note {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #445566;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+    .note strong { color: #3B82F6; }
+    .note ul { margin-top: 6px; padding-left: 16px; }
+    .note li { margin-bottom: 2px; }
+
+    /* ─── PANEL SIMULATION ──────────────────────────────────── */
+    .panel-sim {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: visible; /* needed so dropdowns aren't clipped */
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 8px 8px 0 0;
+      background: var(--bg);
+    }
+
+    .comp-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .panel-body {
+      padding: 10px 12px 14px;
+    }
+
+    /* ─── SECTION HEADER ────────────────────────────────────── */
+    .prop-section-header {
+      margin-top: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .prop-section-header .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      opacity: 0.5;
+    }
+    .prop-section-header .label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-mid);
+    }
+    .prop-section-header .add-btn {
+      margin-left: auto;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; font-size: 11px;
+      border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      cursor: pointer;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 8px 0 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       FLEX SCRUBBER PILL — the chip that opens the diagram dropdown
+    ═══════════════════════════════════════════════════════ */
+
+    .flex-scrubber {
+      position: relative;
+      display: inline-block;
+    }
+
+    .flex-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      cursor: pointer;
+      user-select: none;
+      transition: all var(--t-fast);
+      white-space: nowrap;
+    }
+
+    .flex-pill:hover,
+    .flex-pill.open {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    /* Axis arrow — shows main or cross axis direction */
+    .flex-pill .axis-arrow {
+      font-size: 10px;
+      opacity: 0.5;
+      transition: opacity var(--t-fast);
+      flex-shrink: 0;
+    }
+    .flex-pill:hover .axis-arrow,
+    .flex-pill.open .axis-arrow {
+      opacity: 1;
+    }
+
+    /* Caret chevron at the end */
+    .flex-pill .caret {
+      font-size: 8px;
+      opacity: 0.35;
+      margin-left: 1px;
+      transition: opacity var(--t-fast), transform var(--t-fast);
+    }
+    .flex-pill.open .caret {
+      opacity: 0.7;
+      transform: rotate(180deg);
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       DIAGRAM DROPDOWN
+    ═══════════════════════════════════════════════════════ */
+
+    .diagram-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 100;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      padding: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 280px;
+    }
+
+    .diagram-dropdown.open {
+      display: flex;
+    }
+
+    /* Optional remove row */
+    .dd-remove {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+      padding-bottom: 6px;
+      transition: all var(--t-fast);
+    }
+    .dd-remove:hover { color: var(--orange); }
+    .dd-remove svg { width: 10px; height: 10px; flex-shrink: 0; }
+
+    /* Grid of diagram options */
+    .dd-grid {
+      display: grid;
+      gap: 4px;
+    }
+
+    /* Individual diagram option cell */
+    .dd-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+
+    /* The mini diagram box */
+    .dd-diagram {
+      width: 60px;
+      height: 60px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      padding: 4px;
+      gap: 0;
+      position: relative;
+      transition: all var(--t-fast);
+      overflow: hidden;
+    }
+
+    .dd-cell:hover .dd-diagram {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .dd-diagram.active {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      box-shadow: 0 0 0 2px rgba(0,132,139,0.18);
+    }
+
+    .dd-diagram .item {
+      background: var(--teal);
+      opacity: 0.5;
+      border-radius: 2px;
+      flex-shrink: 0;
+      transition: opacity var(--t-fast);
+    }
+    .dd-diagram.active .item,
+    .dd-cell:hover .dd-diagram .item {
+      opacity: 0.8;
+    }
+
+    .dd-diagram .gap-zone {
+      flex-shrink: 0;
+      background: var(--orange);
+      opacity: 0.1;
+      border-radius: 1px;
+      transition: opacity var(--t-fast);
+    }
+    .dd-cell:hover .dd-diagram .gap-zone,
+    .dd-diagram.active .gap-zone {
+      opacity: 0.22;
+    }
+
+    /* Baseline "t" items */
+    .dd-diagram .item-t {
+      background: var(--teal);
+      opacity: 0.5;
+      border-radius: 2px;
+      flex-shrink: 0;
+      font-size: 5px;
+      color: rgba(255,255,255,0.8);
+      line-height: 1;
+      overflow: hidden;
+      text-align: center;
+      transition: opacity var(--t-fast);
+    }
+    .dd-diagram.active .item-t,
+    .dd-cell:hover .dd-diagram .item-t {
+      opacity: 0.8;
+    }
+
+    .dd-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      text-align: center;
+      transition: color var(--t-fast);
+    }
+    .dd-cell:hover .dd-label { color: var(--teal); }
+    .dd-diagram.active + .dd-label {
+      color: var(--teal);
+      font-weight: 600;
+    }
+
+    /* Axis label row inside dropdown */
+    .dd-axis-label {
+      font-size: 8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0 2px 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .dd-axis-label::before {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .dd-axis-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─── DIRECTION TOGGLE inside panel (mini) ──────────────── */
+    .dir-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .dir-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      min-width: 28px;
+    }
+    .dir-seg {
+      display: inline-flex;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .dir-btn {
+      width: 28px; height: 22px;
+      border: none;
+      background: transparent;
+      color: var(--text-mid);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      transition: all var(--t-fast);
+    }
+    .dir-btn:not(:last-child) { border-right: 1px solid var(--border); }
+    .dir-btn:hover { background: var(--teal-dim); color: var(--teal); }
+    .dir-btn.active { background: var(--teal); color: white; }
+  </style>
+</head>
+<body>
+
+<h1>Flexbox Diagram Dropdown — Prototype</h1>
+<p class="page-subtitle">
+  Mini flex diagrams in a dropdown triggered by clicking a pill chip — like ScaleScrubber but with
+  spatial diagrams instead of a list. The pill shows the current value plus an arrow indicating
+  which axis it controls. Arrow direction updates when flex-direction changes.
+</p>
+
+<div class="sections">
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 1 — INTERACTIVE PANEL MOCK
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag teal">1</span>
+      <span class="section-title">Interactive Panel Mock</span>
+    </div>
+    <p class="section-desc">
+      Click any pill to open its diagram dropdown. Change direction to see the axis arrows update on all pills.
+    </p>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">Toolbar</span>
+        </div>
+        <div class="panel-body" style="overflow: visible; position: relative;">
+
+          <!-- Direction row — driving the arrow states -->
+          <div class="dir-row">
+            <span class="dir-label">Dir</span>
+            <div class="dir-seg" id="dirSeg">
+              <button class="dir-btn active" data-dir="row" title="flex-row">→</button>
+              <button class="dir-btn" data-dir="col" title="flex-col">↓</button>
+              <button class="dir-btn" data-dir="row-rev" title="flex-row-reverse">←</button>
+              <button class="dir-btn" data-dir="col-rev" title="flex-col-reverse">↑</button>
+            </div>
+          </div>
+
+          <div class="prop-section-header">
+            <span class="dot"></span>
+            <span class="label">Flexbox &amp; Grid</span>
+            <button class="add-btn">+</button>
+          </div>
+
+          <!-- Chip row with diagram-dropdown pills -->
+          <div class="chip-row" style="position: relative;">
+
+            <!-- justify-content pill -->
+            <div class="flex-scrubber">
+              <div class="flex-pill" id="justifyPill" onclick="toggleDropdown('justifyDD', this)">
+                <span class="axis-arrow" id="justifyArrow">→</span>
+                <span id="justifyLabel">justify-start</span>
+                <span class="caret">▾</span>
+              </div>
+              <div class="diagram-dropdown" id="justifyDD">
+                <div class="dd-remove">
+                  <svg viewBox="0 0 10 10"><line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  remove
+                </div>
+                <div class="dd-grid" style="grid-template-columns: repeat(4, 60px);">
+
+                  <div class="dd-cell" onclick="selectValue('justify','start','justify-start','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram active" id="dd-justify-start" data-group="justify" style="justify-content: flex-start; gap: 2px;">
+                      <div class="item" data-main="10" style="width:10px; height:100%;"></div>
+                      <div class="item" data-main="14" style="width:14px; height:100%;"></div>
+                      <div class="item" data-main="8" style="width:8px; height:100%;"></div>
+                    </div>
+                    <span class="dd-label">start</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('justify','center','justify-center','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram" id="dd-justify-center" data-group="justify" style="justify-content: center; gap: 2px;">
+                      <div class="item" data-main="10" style="width:10px; height:100%;"></div>
+                      <div class="item" data-main="14" style="width:14px; height:100%;"></div>
+                      <div class="item" data-main="8" style="width:8px; height:100%;"></div>
+                    </div>
+                    <span class="dd-label">center</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('justify','stretch','justify-stretch','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram" id="dd-justify-stretch" data-group="justify" style="gap: 2px;">
+                      <div class="item" data-stretch="true" style="flex:1; height:100%;"></div>
+                      <div class="item" data-stretch="true" style="flex:1; height:100%;"></div>
+                      <div class="item" data-stretch="true" style="flex:1; height:100%;"></div>
+                    </div>
+                    <span class="dd-label">stretch</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('justify','between','justify-between','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram" id="dd-justify-between" data-group="justify">
+                      <div class="item" data-main="12" style="width:12px; height:100%;"></div>
+                      <div class="gap-zone" style="flex:1;"></div>
+                      <div class="item" data-main="12" style="width:12px; height:100%;"></div>
+                    </div>
+                    <span class="dd-label">between</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('justify','around','justify-around','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram" id="dd-justify-around" data-group="justify">
+                      <div class="gap-zone" style="flex:1;"></div>
+                      <div class="item" data-main="12" style="width:12px; height:100%;"></div>
+                      <div class="gap-zone" style="flex:2;"></div>
+                      <div class="item" data-main="12" style="width:12px; height:100%;"></div>
+                      <div class="gap-zone" style="flex:1;"></div>
+                    </div>
+                    <span class="dd-label">around</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('justify','evenly','justify-evenly','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram" id="dd-justify-evenly" data-group="justify">
+                      <div class="gap-zone" style="flex:1;"></div>
+                      <div class="item" data-main="12" style="width:12px; height:100%;"></div>
+                      <div class="gap-zone" style="flex:1;"></div>
+                      <div class="item" data-main="12" style="width:12px; height:100%;"></div>
+                      <div class="gap-zone" style="flex:1;"></div>
+                    </div>
+                    <span class="dd-label">evenly</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('justify','end','justify-end','justifyDD','justifyPill','justifyLabel')">
+                    <div class="dd-diagram" id="dd-justify-end" data-group="justify" style="justify-content: flex-end; gap: 2px;">
+                      <div class="item" data-main="10" style="width:10px; height:100%;"></div>
+                      <div class="item" data-main="14" style="width:14px; height:100%;"></div>
+                      <div class="item" data-main="8" style="width:8px; height:100%;"></div>
+                    </div>
+                    <span class="dd-label">end</span>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- align-items pill -->
+            <div class="flex-scrubber">
+              <div class="flex-pill" id="alignPill" onclick="toggleDropdown('alignDD', this)">
+                <span class="axis-arrow" id="alignArrow">↓</span>
+                <span id="alignLabel">items-stretch</span>
+                <span class="caret">▾</span>
+              </div>
+              <div class="diagram-dropdown" id="alignDD">
+                <div class="dd-remove">
+                  <svg viewBox="0 0 10 10"><line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  remove
+                </div>
+                <div class="dd-grid" style="grid-template-columns: repeat(5, 60px); gap:4px;">
+
+                  <div class="dd-cell" onclick="selectValue('align','start','items-start','alignDD','alignPill','alignLabel')">
+                    <div class="dd-diagram" id="dd-align-start" data-group="align" style="align-items: flex-start; gap: 3px;">
+                      <div class="item" data-dw="13" data-dh="22" style="width:13px; height:22px;"></div>
+                      <div class="item" data-dw="15" data-dh="42" style="width:15px; height:42px;"></div>
+                      <div class="item" data-dw="11" data-dh="14" style="width:11px; height:14px;"></div>
+                    </div>
+                    <span class="dd-label">start</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('align','center','items-center','alignDD','alignPill','alignLabel')">
+                    <div class="dd-diagram" id="dd-align-center" data-group="align" style="align-items: center; gap: 3px;">
+                      <div class="item" data-dw="13" data-dh="22" style="width:13px; height:22px;"></div>
+                      <div class="item" data-dw="15" data-dh="42" style="width:15px; height:42px;"></div>
+                      <div class="item" data-dw="11" data-dh="14" style="width:11px; height:14px;"></div>
+                    </div>
+                    <span class="dd-label">center</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('align','baseline','items-baseline','alignDD','alignPill','alignLabel')">
+                    <div class="dd-diagram" id="dd-align-baseline" data-group="align" style="align-items: baseline; gap: 3px;">
+                      <div class="item-t" data-dw="13" data-dh="38" style="width:13px; height:38px; padding-top:17px;">t</div>
+                      <div class="item-t" data-dw="15" data-dh="26" style="width:15px; height:26px; padding-top:3px;">t</div>
+                      <div class="item-t" data-dw="11" data-dh="32" style="width:11px; height:32px; padding-top:10px;">t</div>
+                    </div>
+                    <span class="dd-label">baseline</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('align','stretch','items-stretch','alignDD','alignPill','alignLabel')">
+                    <div class="dd-diagram active" id="dd-align-stretch" data-group="align" style="align-items: stretch; gap: 3px;">
+                      <div class="item" data-dw="13" data-stretch="true" style="width:13px; height:100%;"></div>
+                      <div class="item" data-dw="15" data-stretch="true" style="width:15px; height:100%;"></div>
+                      <div class="item" data-dw="11" data-stretch="true" style="width:11px; height:100%;"></div>
+                    </div>
+                    <span class="dd-label">stretch</span>
+                  </div>
+
+                  <div class="dd-cell" onclick="selectValue('align','end','items-end','alignDD','alignPill','alignLabel')">
+                    <div class="dd-diagram" id="dd-align-end" data-group="align" style="align-items: flex-end; gap: 3px;">
+                      <div class="item" data-dw="13" data-dh="22" style="width:13px; height:22px;"></div>
+                      <div class="item" data-dw="15" data-dh="42" style="width:15px; height:42px;"></div>
+                      <div class="item" data-dw="11" data-dh="14" style="width:11px; height:14px;"></div>
+                    </div>
+                    <span class="dd-label">end</span>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- gap pill (scalar scrubber, no diagram) -->
+            <div class="flex-pill" style="cursor: ew-resize;">
+              <span class="axis-arrow" style="opacity:0.3; font-size:8px;">↔</span>
+              <span>gap-4</span>
+              <span class="caret" style="opacity:0.5;">›</span>
+            </div>
+
+          </div>
+
+          <hr class="divider">
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Pill anatomy:</strong><br>
+        <code style="font-size:10px;">[axis-arrow] value-name [▾]</code>
+        <ul>
+          <li><strong>axis-arrow</strong> — shows which axis this property controls. Updates with direction.</li>
+          <li><strong>value-name</strong> — the current Tailwind class (short form)</li>
+          <li><strong>▾ caret</strong> — hints that this is a dropdown, rotates when open</li>
+        </ul>
+        <br>
+        <strong>Arrow logic by direction:</strong>
+        <ul>
+          <li><code>flex-row</code> → justify = →, align = ↓</li>
+          <li><code>flex-col</code> → justify = ↓, align = →</li>
+          <li><code>flex-row-reverse</code> → justify = ←, align = ↓</li>
+          <li><code>flex-col-reverse</code> → justify = ↑, align = →</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 2 — DROPDOWN ANATOMY (enlarged view)
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag purple">2</span>
+      <span class="section-title">Dropdown Anatomy (open state)</span>
+    </div>
+    <p class="section-desc">
+      How the dropdown looks when open — shown at resting size next to an enlarged annotation.
+    </p>
+
+    <div class="demo-row" style="align-items: flex-start; gap: 32px;">
+
+      <!-- Static open dropdown for justify-content -->
+      <div>
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--teal-dark); background:rgba(0,132,139,0.08); border-radius:3px; display:inline-block; padding:2px 6px; margin-bottom:8px;">justify-content dropdown</div>
+        <div style="display:inline-block;">
+          <!-- Pill -->
+          <div class="flex-pill open" style="margin-bottom: 4px; display:inline-flex;">
+            <span class="axis-arrow">→</span>
+            <span>justify-center</span>
+            <span class="caret" style="transform:rotate(180deg); opacity:0.7;">▾</span>
+          </div>
+          <!-- Dropdown always open -->
+          <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.12); padding:8px; display:flex; flex-direction:column; gap:2px; width: 280px;">
+            <div class="dd-remove">
+              <svg viewBox="0 0 10 10" width="10" height="10"><line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/></svg>
+              remove
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(4, 60px); gap:4px;">
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="justify-content: flex-start; gap: 2px;">
+                  <div class="item" style="width:10px; height:100%;"></div>
+                  <div class="item" style="width:14px; height:100%;"></div>
+                  <div class="item" style="width:8px; height:100%;"></div>
+                </div>
+                <span class="dd-label">start</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="justify-content: flex-end; gap: 2px;">
+                  <div class="item" style="width:10px; height:100%;"></div>
+                  <div class="item" style="width:14px; height:100%;"></div>
+                  <div class="item" style="width:8px; height:100%;"></div>
+                </div>
+                <span class="dd-label">end</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram active" style="justify-content: center; gap: 2px;">
+                  <div class="item" style="width:10px; height:100%;"></div>
+                  <div class="item" style="width:14px; height:100%;"></div>
+                  <div class="item" style="width:8px; height:100%;"></div>
+                </div>
+                <span class="dd-label" style="color:var(--teal); font-weight:600;">center</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram">
+                  <div class="item" style="width:12px; height:100%;"></div>
+                  <div class="gap-zone" style="flex:1;"></div>
+                  <div class="item" style="width:12px; height:100%;"></div>
+                </div>
+                <span class="dd-label">between</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram">
+                  <div class="gap-zone" style="flex:1;"></div>
+                  <div class="item" style="width:12px; height:100%;"></div>
+                  <div class="gap-zone" style="flex:2;"></div>
+                  <div class="item" style="width:12px; height:100%;"></div>
+                  <div class="gap-zone" style="flex:1;"></div>
+                </div>
+                <span class="dd-label">around</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram">
+                  <div class="gap-zone" style="flex:1;"></div>
+                  <div class="item" style="width:12px; height:100%;"></div>
+                  <div class="gap-zone" style="flex:1;"></div>
+                  <div class="item" style="width:12px; height:100%;"></div>
+                  <div class="gap-zone" style="flex:1;"></div>
+                </div>
+                <span class="dd-label">evenly</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="gap:2px;">
+                  <div class="item" style="flex:1; height:100%;"></div>
+                  <div class="item" style="flex:1; height:100%;"></div>
+                  <div class="item" style="flex:1; height:100%;"></div>
+                </div>
+                <span class="dd-label">stretch</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Static open dropdown for align-items -->
+      <div>
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--teal-dark); background:rgba(0,132,139,0.08); border-radius:3px; display:inline-block; padding:2px 6px; margin-bottom:8px;">align-items dropdown</div>
+        <div style="display:inline-block;">
+          <div class="flex-pill open" style="margin-bottom: 4px; display:inline-flex;">
+            <span class="axis-arrow">↓</span>
+            <span>items-stretch</span>
+            <span class="caret" style="transform:rotate(180deg); opacity:0.7;">▾</span>
+          </div>
+          <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.12); padding:8px; display:flex; flex-direction:column; gap:2px; width: 340px;">
+            <div class="dd-remove">
+              <svg viewBox="0 0 10 10" width="10" height="10"><line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/></svg>
+              remove
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(5, 60px); gap:4px;">
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="align-items:flex-start; gap:3px;">
+                  <div class="item" style="width:13px; height:22px;"></div>
+                  <div class="item" style="width:15px; height:42px;"></div>
+                  <div class="item" style="width:11px; height:14px;"></div>
+                </div>
+                <span class="dd-label">start</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="align-items:flex-end; gap:3px;">
+                  <div class="item" style="width:13px; height:22px;"></div>
+                  <div class="item" style="width:15px; height:42px;"></div>
+                  <div class="item" style="width:11px; height:14px;"></div>
+                </div>
+                <span class="dd-label">end</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="align-items:center; gap:3px;">
+                  <div class="item" style="width:13px; height:22px;"></div>
+                  <div class="item" style="width:15px; height:42px;"></div>
+                  <div class="item" style="width:11px; height:14px;"></div>
+                </div>
+                <span class="dd-label">center</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram active" style="align-items:stretch; gap:3px;">
+                  <div class="item" style="width:13px; height:100%;"></div>
+                  <div class="item" style="width:15px; height:100%;"></div>
+                  <div class="item" style="width:11px; height:100%;"></div>
+                </div>
+                <span class="dd-label" style="color:var(--teal); font-weight:600;">stretch</span>
+              </div>
+
+              <div class="dd-cell">
+                <div class="dd-diagram" style="align-items:baseline; gap:3px;">
+                  <div class="item-t" style="width:13px; height:38px; padding-top:17px;">t</div>
+                  <div class="item-t" style="width:15px; height:26px; padding-top:3px;">t</div>
+                  <div class="item-t" style="width:11px; height:32px; padding-top:10px;">t</div>
+                </div>
+                <span class="dd-label">baseline</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 3 — ARROW STATES BY DIRECTION
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag amber">3</span>
+      <span class="section-title">Axis Arrow States</span>
+    </div>
+    <p class="section-desc">
+      The axis arrow on each pill communicates which physical direction that property controls,
+      based on the current flex-direction.
+    </p>
+
+    <div style="display:flex; flex-wrap:wrap; gap: 24px;">
+
+      <!-- flex-row -->
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; min-width: 180px;">
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--teal); margin-bottom:8px; font-weight:600;">flex-row</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">→</span> justify-start <span class="caret">▾</span></div>
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">↓</span> items-stretch <span class="caret">▾</span></div>
+        </div>
+      </div>
+
+      <!-- flex-col -->
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; min-width: 180px;">
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--teal); margin-bottom:8px; font-weight:600;">flex-col</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">↓</span> justify-start <span class="caret">▾</span></div>
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">→</span> items-stretch <span class="caret">▾</span></div>
+        </div>
+      </div>
+
+      <!-- flex-row-reverse -->
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; min-width: 180px;">
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--teal); margin-bottom:8px; font-weight:600;">flex-row-reverse</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">←</span> justify-start <span class="caret">▾</span></div>
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">↓</span> items-stretch <span class="caret">▾</span></div>
+        </div>
+      </div>
+
+      <!-- flex-col-reverse -->
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; min-width: 180px;">
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--teal); margin-bottom:8px; font-weight:600;">flex-col-reverse</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">↑</span> justify-start <span class="caret">▾</span></div>
+          <div class="flex-pill" style="width:fit-content;"><span class="axis-arrow">→</span> items-stretch <span class="caret">▾</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Arrow mapping: direction → [justifyArrow, alignArrow]
+  const ARROWS = {
+    'row':     ['→', '↓'],
+    'col':     ['↓', '→'],
+    'row-rev': ['←', '↓'],
+    'col-rev': ['↑', '→'],
+  };
+
+  let currentDir = 'row';
+
+  // Update diagram orientations based on flex-direction
+  function updateDiagramDirections(dir) {
+    const isCol = dir === 'col' || dir === 'col-rev';
+    const flexDir = { row: 'row', col: 'column', 'row-rev': 'row-reverse', 'col-rev': 'column-reverse' }[dir];
+
+    // — Justify diagrams: change flex-direction and swap item main-axis dimension —
+    document.querySelectorAll('#justifyDD [data-group="justify"]').forEach(diag => {
+      diag.style.flexDirection = flexDir;
+
+      diag.querySelectorAll('.item[data-main]').forEach(item => {
+        const m = item.dataset.main + 'px';
+        item.style.width  = isCol ? '100%' : m;
+        item.style.height = isCol ? m      : '100%';
+        item.style.flex   = '';
+      });
+
+      diag.querySelectorAll('.item[data-stretch]').forEach(item => {
+        item.style.flex   = '1';
+        item.style.width  = isCol ? '100%' : '';
+        item.style.height = isCol ? ''     : '100%';
+      });
+    });
+
+    // — Align diagrams: change flex-direction and swap item width/height —
+    document.querySelectorAll('#alignDD [data-group="align"]').forEach(diag => {
+      diag.style.flexDirection = flexDir;
+
+      // Items with explicit dw + dh (start / end / center / baseline)
+      diag.querySelectorAll('[data-dw][data-dh]').forEach(item => {
+        item.style.width  = isCol ? item.dataset.dh + 'px' : item.dataset.dw + 'px';
+        item.style.height = isCol ? item.dataset.dw + 'px' : item.dataset.dh + 'px';
+      });
+
+      // Stretch items: cross-axis size stored in dw, other axis fills
+      diag.querySelectorAll('.item[data-stretch]').forEach(item => {
+        item.style.width  = isCol ? '100%'                 : item.dataset.dw + 'px';
+        item.style.height = isCol ? item.dataset.dw + 'px' : '100%';
+      });
+    });
+  }
+
+  // Direction toggle
+  document.querySelectorAll('#dirSeg .dir-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#dirSeg .dir-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDir = btn.dataset.dir;
+      const [ja, aa] = ARROWS[currentDir];
+      document.getElementById('justifyArrow').textContent = ja;
+      document.getElementById('alignArrow').textContent = aa;
+      updateDiagramDirections(currentDir);
+    });
+  });
+
+  // Toggle dropdown open/close
+  function toggleDropdown(ddId, pill) {
+    const dd = document.getElementById(ddId);
+    const isOpen = dd.classList.contains('open');
+
+    // Close all
+    document.querySelectorAll('.diagram-dropdown').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.flex-pill').forEach(p => p.classList.remove('open'));
+
+    if (!isOpen) {
+      dd.classList.add('open');
+      pill.classList.add('open');
+    }
+  }
+
+  // Close when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.flex-scrubber')) {
+      document.querySelectorAll('.diagram-dropdown').forEach(d => d.classList.remove('open'));
+      document.querySelectorAll('.flex-pill').forEach(p => p.classList.remove('open'));
+    }
+  });
+
+  // Select a value and update the pill label
+  function selectValue(group, value, className, ddId, pillId, labelId) {
+    // Update active diagram
+    document.querySelectorAll(`[id^="dd-${group}-"]`).forEach(d => d.classList.remove('active'));
+    const target = document.getElementById(`dd-${group}-${value}`);
+    if (target) target.classList.add('active');
+
+    // Update pill label
+    document.getElementById(labelId).textContent = className;
+
+    // Close dropdown
+    document.getElementById(ddId).classList.remove('open');
+    document.getElementById(pillId).classList.remove('open');
+  }
+</script>
+
+</body>
+</html>

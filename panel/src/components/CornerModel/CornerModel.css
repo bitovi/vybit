@@ -1,0 +1,139 @@
+/* ─── Corner Model ─────────────────────────────────────────
+   A 3×3 grid representing border-radius slots.
+
+   Layout:
+     TL | T  | TR
+     L  |ALL | R
+     BL | B  | BR
+
+   The center cell (ALL) is always visible as the shorthand.
+   Corner cells (TL/TR/BR/BL) appear on hover.
+   Side cells (T/R/B/L) appear on hover — each controls two adjacent corners.
+   ────────────────────────────────────────────────────────── */
+
+/* ─── Tokens ──────────────────────────────────────────────── */
+.cm-root {
+  --cell-rest: 28px;
+  --t-fast: 150ms ease-in-out;
+
+  /* Radius accent — a deep violet to distinguish from BoxModel */
+  --r-fill: rgba(139, 79, 240, 0.06);
+  --r-fill-hover: rgba(139, 79, 240, 0.10);
+  --r-accent: #6932C3;
+  --r-label: rgba(105, 50, 195, 0.40);
+  --r-label-hover: rgba(105, 50, 195, 0.70);
+
+  /* Interactive */
+  --teal: #00848B;
+  --teal-dim: rgba(0, 132, 139, 0.09);
+  --text-mid: #687879;
+  --c-fill: #FFFFFF;
+  --c-bdr: #C8CECE;
+
+  user-select: none;
+  font-family: var(--font-mono, 'Roboto Mono', monospace);
+}
+
+/* ─── Outer wrapper ───────────────────────────────────────── */
+.cm-root {
+  display: inline-block;
+  position: relative;
+}
+
+/* ─── The 3×3 grid shell ──────────────────────────────────── */
+.cm-grid {
+  display: grid;
+  grid-template-columns: var(--cell-rest) var(--cell-rest) var(--cell-rest);
+  grid-template-rows: var(--cell-rest) var(--cell-rest) var(--cell-rest);
+}
+
+
+
+/* ─── Individual cells ────────────────────────────────────── */
+/* All cells carry the fill; corner border-radii cut arcs into it,
+   revealing the page background and producing a rounded overall shape. */
+.cm-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: var(--r-fill);
+  transition: background var(--t-fast);
+}
+
+/* Center cell */
+.cm-cell-all {
+  z-index: 1;
+}
+
+.cm-root:hover .cm-cell-all,
+.cm-root.cm-active .cm-cell-all {
+  background: var(--r-fill-hover);
+}
+
+/* Corner cells — arc cutouts reveal the page background */
+.cm-cell-tl { border-radius: 999px 0 0 0; }
+.cm-cell-tr { border-radius: 0 999px 0 0; }
+.cm-cell-br { border-radius: 0 0 999px 0; }
+.cm-cell-bl { border-radius: 0 0 0 999px; }
+
+/* ─── Slots (labels / interactive chips) ─────────────────── */
+/* MiniScrubber uses bm-slot/bm-has-val; plain spans use cm-slot/cm-has-val.
+   Target both within .cm-root scope. */
+.cm-root .cm-slot,
+.cm-root .bm-slot {
+  font-size: 11px;
+  font-family: var(--font-mono, 'Roboto Mono', monospace);
+  color: var(--text-mid);
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  z-index: 2;
+  transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast), opacity var(--t-fast);
+}
+
+/* All slots hidden at rest */
+.cm-root .cm-slot,
+.cm-root .bm-slot {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Reveal all on component hover */
+.cm-root:hover .cm-slot,
+.cm-root:hover .bm-slot,
+.cm-root.cm-active .cm-slot,
+.cm-root.cm-active .bm-slot {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Always show slots with a value, regardless of hover */
+.cm-root .cm-slot.cm-has-val,
+.cm-root .bm-slot.bm-has-val {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  font-weight: 700;
+  color: var(--r-accent);
+  padding: 0;
+  border-color: transparent;
+  background: none;
+}
+
+/* Teal hover on any interactive slot */
+.cm-root:not(.cm-frozen) .cm-slot:hover,
+.cm-root:not(.cm-frozen) .bm-slot:hover {
+  color: var(--teal);
+  background: var(--teal-dim);
+  border-color: rgba(0, 132, 139, 0.30);
+}
+
+/* ─── Scrubbing state ─────────────────────────────────────── */
+.cm-root .bm-scrubbing {
+  color: var(--teal) !important;
+  background: var(--teal-dim) !important;
+  border-color: var(--teal) !important;
+}

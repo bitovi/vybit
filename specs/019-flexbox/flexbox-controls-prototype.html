@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flexbox Controls — Panel UX Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── DESIGN TOKENS (Bitovi) ──────────────────────────────── */
+    :root {
+      --bg:           #FFFFFF;
+      --page-bg:      #EAECED;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-dark:    #005A5F;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 32px;
+      max-width: 800px;
+      line-height: 1.6;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────── */
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 56px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .section-tag.blue   { background: #3B82F6; }
+    .section-tag.purple { background: #8B5CF6; }
+    .section-tag.green  { background: #10B981; }
+    .section-tag.amber  { background: #F59E0B; }
+    .section-tag.rose   { background: #F43F5E; }
+    .section-tag.teal   { background: var(--teal); }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .annotation {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--teal-dark);
+      letter-spacing: 0.3px;
+      padding: 2px 6px;
+      background: rgba(0, 132, 139, 0.08);
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .note {
+      background: rgba(59, 130, 246, 0.06);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #445566;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+    .note strong { color: #3B82F6; }
+    .note ul { margin-top: 6px; padding-left: 16px; }
+    .note li { margin-bottom: 2px; }
+
+    .rec-note {
+      background: rgba(16, 185, 129, 0.06);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #1a4a3a;
+      line-height: 1.6;
+      max-width: 360px;
+    }
+    .rec-note strong { color: #10B981; }
+
+    /* ─── PANEL SIMULATION ────────────────────────────────────── */
+    .panel-sim {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comp-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .panel-body {
+      padding: 12px;
+    }
+
+    /* ─── SECTION HEADER (matches PropertySection) ────────────── */
+    .prop-section {
+      margin-bottom: 8px;
+    }
+
+    .prop-section-header {
+      margin-top: 10px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .prop-section-header .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    .prop-section-header .label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-mid);
+    }
+
+    .prop-section-header .add-btn {
+      margin-left: auto;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
+      font-size: 11px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+    .prop-section-header .add-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .prop-section .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 8px 0 4px;
+    }
+
+    /* ─── CHIP (matches ScaleScrubber) ────────────────────────── */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all var(--t-fast);
+      user-select: none;
+    }
+    .chip:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+    .chip.active {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+      font-weight: 500;
+    }
+    .chip .arrow {
+      font-size: 9px;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+    .chip:hover .arrow { opacity: 0.5; }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION A — MINI FLEX DIAGRAM (Spatial Preview)
+    ═══════════════════════════════════════════════════════════ */
+
+    .flex-diagram {
+      width: 68px;
+      height: 48px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      padding: 4px;
+      gap: 0px;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      position: relative;
+    }
+    .flex-diagram:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+    .flex-diagram.selected {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      box-shadow: 0 0 0 2px rgba(0,132,139,0.15);
+    }
+
+    .flex-diagram .item {
+      background: var(--teal);
+      opacity: 0.5;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .flex-diagram.selected .item,
+    .flex-diagram:hover .item { opacity: 0.8; }
+
+    /* Gap indicators — colored fill zones showing space distribution */
+    .flex-diagram .gap-zone {
+      flex-shrink: 0;
+      position: relative;
+      background: var(--orange);
+      opacity: 0.15;
+      border-radius: 1px;
+      transition: opacity var(--t-fast);
+    }
+    .flex-diagram:hover .gap-zone,
+    .flex-diagram.selected .gap-zone {
+      opacity: 0.28;
+    }
+
+    .flex-diagram-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      text-align: center;
+      margin-top: 3px;
+    }
+    .flex-diagram.selected + .flex-diagram-label {
+      color: var(--teal);
+      font-weight: 500;
+    }
+
+    .diagram-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 80px);
+      gap: 8px;
+    }
+
+    .diagram-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION B — AXIS SELECTOR (Compact Segmented Control)
+    ═══════════════════════════════════════════════════════════ */
+
+    .axis-control {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .axis-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .segmented {
+      display: inline-flex;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .seg-btn {
+      padding: 4px 8px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: none;
+      background: transparent;
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all var(--t-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 28px;
+    }
+    .seg-btn:not(:last-child) { border-right: 1px solid var(--border); }
+    .seg-btn:hover { background: var(--teal-dim); color: var(--teal); }
+    .seg-btn.active {
+      background: var(--teal);
+      color: white;
+      font-weight: 500;
+    }
+
+    .seg-btn svg {
+      width: 12px; height: 12px;
+      flex-shrink: 0;
+    }
+
+    .seg-icon-btn {
+      padding: 4px 6px;
+      min-width: unset;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION C — COMBINED FLEX LAYOUT CONTROL
+    ═══════════════════════════════════════════════════════════ */
+
+    .flex-layout-control {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .flex-layout-row {
+      display: flex;
+      align-items: center;
+      padding: 4px 8px;
+      gap: 6px;
+      min-height: 32px;
+    }
+    .flex-layout-row:not(:last-child) {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .flex-layout-row .prop-name {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      min-width: 52px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .flex-layout-row .controls {
+      flex: 1;
+      display: flex;
+      gap: 2px;
+    }
+
+    .mini-btn {
+      width: 22px; height: 22px;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-mid);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--t-fast);
+    }
+    .mini-btn svg { width: 14px; height: 14px; }
+    .mini-btn:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+    .mini-btn.active {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: white;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION D — LIVE PREVIEW BOX
+    ═══════════════════════════════════════════════════════════ */
+
+    .live-preview {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      padding: 8px;
+      display: flex;
+      gap: 6px;
+      min-height: 56px;
+      transition: all 0.3s ease;
+    }
+
+    .live-preview .child {
+      width: 24px;
+      height: 18px;
+      border-radius: 3px;
+      background: var(--teal);
+      opacity: 0.4;
+      flex-shrink: 0;
+    }
+    .live-preview .child:nth-child(2) { width: 32px; }
+    .live-preview .child:nth-child(3) { width: 20px; }
+
+    .preview-controls-bar {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    /* ─── DIRECTION MINI DIAGRAM ─────────────────────────────── */
+    .dir-mini {
+      width: 36px; height: 36px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      padding: 3px;
+      gap: 2px;
+      position: relative;
+    }
+    .dir-mini:hover { border-color: var(--teal); background: var(--teal-dim); }
+    .dir-mini.active {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+      box-shadow: 0 0 0 2px rgba(0,132,139,0.15);
+    }
+
+    .dir-mini .bar {
+      border-radius: 1.5px;
+      background: var(--teal);
+      opacity: 0.35;
+    }
+    .dir-mini.active .bar,
+    .dir-mini:hover .bar { opacity: 0.7; }
+
+    /* row: items side-by-side horizontally */
+    .dir-mini.row  { flex-direction: row; align-items: stretch; }
+    .dir-mini.row .bar  { flex: 1; }
+
+    /* column: items stacked vertically */
+    .dir-mini.col  { flex-direction: column; align-items: stretch; }
+    .dir-mini.col .bar  { flex: 1; }
+
+    /* row-reverse: arrow left */
+    .dir-mini.row-rev  { flex-direction: row-reverse; align-items: stretch; }
+    .dir-mini.row-rev .bar  { flex: 1; }
+
+    /* col-reverse: arrow up */
+    .dir-mini.col-rev  { flex-direction: column-reverse; align-items: stretch; }
+    .dir-mini.col-rev .bar  { flex: 1; }
+
+    .dir-arrow {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 11px;
+      color: var(--teal);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--t-fast);
+    }
+    .dir-mini:hover .dir-arrow,
+    .dir-mini.active .dir-arrow { opacity: 0.8; }
+
+    /* ─── WRAP TOGGLE ──────────────────────────────────────── */
+    .wrap-toggle {
+      display: inline-flex;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .wrap-opt {
+      padding: 3px 7px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: none;
+      background: transparent;
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+    .wrap-opt:not(:last-child) { border-right: 1px solid var(--border); }
+    .wrap-opt:hover { background: var(--teal-dim); color: var(--teal); }
+    .wrap-opt.active { background: var(--teal); color: white; }
+
+    /* ─── GAP SCRUBBER ──────────────────────────────────────── */
+    .gap-scrub {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .gap-scrub .gap-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      min-width: 24px;
+    }
+
+    .gap-scrub .gap-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      cursor: ew-resize;
+      user-select: none;
+      transition: all var(--t-fast);
+    }
+    .gap-scrub .gap-value:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION E — COMBINED VISUAL CONTROL STRIP
+    ═══════════════════════════════════════════════════════════ */
+
+    .visual-strip {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .strip-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .strip-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      min-width: 56px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .strip-right {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Flexbox Controls — Panel UX Explorations</h1>
+<p class="page-subtitle">
+  Design prototypes for parent flex property controls in the Tailwind Inspector panel.
+  These explore different interaction models for <strong>direction</strong>, <strong>justify-content</strong>,
+  <strong>align-items</strong>, <strong>align-content</strong>, <strong>wrap</strong>, and <strong>gap</strong> —
+  the most commonly used parent flex utilities.
+</p>
+
+<div class="sections">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION A — MINI FLEX DIAGRAMS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag teal">A</span>
+      <span class="section-title">Mini Flex Diagrams</span>
+    </div>
+    <p class="section-desc">
+      Tiny spatial diagrams that show the actual layout effect. Inspired by the CSS-Tricks flexbox illustrations.
+      Each option is a clickable mini-box that visually represents the result. Hover to preview, click to apply.
+    </p>
+
+    <div class="demo-row">
+      <!-- justify-content diagrams -->
+      <div>
+        <span class="annotation">justify-content</span>
+        <div class="diagram-grid" style="grid-template-columns: repeat(4, 80px);">
+          <!-- start: items packed to the left -->
+          <div class="diagram-cell">
+            <div class="flex-diagram selected" style="justify-content: flex-start; gap: 2px;">
+              <div class="item" style="width:10px; height:100%;"></div>
+              <div class="item" style="width:14px; height:100%;"></div>
+              <div class="item" style="width:8px; height:100%;"></div>
+            </div>
+            <span class="flex-diagram-label">start</span>
+          </div>
+          <!-- end: items packed to the right -->
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="justify-content: flex-end; gap: 2px;">
+              <div class="item" style="width:10px; height:100%;"></div>
+              <div class="item" style="width:14px; height:100%;"></div>
+              <div class="item" style="width:8px; height:100%;"></div>
+            </div>
+            <span class="flex-diagram-label">end</span>
+          </div>
+          <!-- center: items packed in the middle -->
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="justify-content: center; gap: 2px;">
+              <div class="item" style="width:10px; height:100%;"></div>
+              <div class="item" style="width:14px; height:100%;"></div>
+              <div class="item" style="width:8px; height:100%;"></div>
+            </div>
+            <span class="flex-diagram-label">center</span>
+          </div>
+          <!-- between: items flush to edges, one gap in middle -->
+          <div class="diagram-cell">
+            <div class="flex-diagram">
+              <div class="item" style="width:12px; height:100%;"></div>
+              <div class="gap-zone" style="flex:1;"></div>
+              <div class="item" style="width:12px; height:100%;"></div>
+            </div>
+            <span class="flex-diagram-label">between</span>
+          </div>
+          <!-- around: edge gap = ½ inner gap -->
+          <div class="diagram-cell">
+            <div class="flex-diagram">
+              <div class="gap-zone" style="flex:1;"></div>
+              <div class="item" style="width:12px; height:100%;"></div>
+              <div class="gap-zone" style="flex:2;"></div>
+              <div class="item" style="width:12px; height:100%;"></div>
+              <div class="gap-zone" style="flex:1;"></div>
+            </div>
+            <span class="flex-diagram-label">around</span>
+          </div>
+          <!-- evenly: 3 equal gaps (edge = inner) -->
+          <div class="diagram-cell">
+            <div class="flex-diagram">
+              <div class="gap-zone" style="flex:1;"></div>
+              <div class="item" style="width:12px; height:100%;"></div>
+              <div class="gap-zone" style="flex:1;"></div>
+              <div class="item" style="width:12px; height:100%;"></div>
+              <div class="gap-zone" style="flex:1;"></div>
+            </div>
+            <span class="flex-diagram-label">evenly</span>
+          </div>
+          <!-- stretch: items fill all available space -->
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="gap: 2px;">
+              <div class="item" style="flex:1; height:100%;"></div>
+              <div class="item" style="flex:1; height:100%;"></div>
+              <div class="item" style="flex:1; height:100%;"></div>
+            </div>
+            <span class="flex-diagram-label">stretch</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Interaction:</strong> Each mini-diagram uses real CSS flex to show layout.
+        <ul>
+          <li>Hover → preview on the actual element</li>
+          <li>Click → stage the class change</li>
+          <li>Active state has teal border + shadow ring</li>
+        </ul>
+        <br>
+        <strong>Between / Around / Evenly — how they differ:</strong>
+        <ul>
+          <li><strong>between</strong> — no gap at edges, equal gaps between items only</li>
+          <li><strong>around</strong> — half-size gap at edges (edge = ½ × inner gap)</li>
+          <li><strong>evenly</strong> — identical gap everywhere (edges = inner gaps)</li>
+        </ul>
+        <span style="color:var(--orange); font-size:10px;">Orange fills</span> highlight the gap zones — compare how the edge vs inner ratios differ.
+      </div>
+    </div>
+
+    <!-- align-items diagrams -->
+    <div class="demo-row" style="margin-top: 12px;">
+      <div>
+        <span class="annotation">align-items</span>
+        <div class="diagram-grid" style="grid-template-columns: repeat(5, 80px);">
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="align-items: flex-start; gap: 3px;">
+              <div class="item" style="width:14px; height:16px;"></div>
+              <div class="item" style="width:18px; height:34px;"></div>
+              <div class="item" style="width:12px; height:10px;"></div>
+            </div>
+            <span class="flex-diagram-label">start</span>
+          </div>
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="align-items: flex-end; gap: 3px;">
+              <div class="item" style="width:14px; height:16px;"></div>
+              <div class="item" style="width:18px; height:34px;"></div>
+              <div class="item" style="width:12px; height:10px;"></div>
+            </div>
+            <span class="flex-diagram-label">end</span>
+          </div>
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="align-items: center; gap: 3px;">
+              <div class="item" style="width:14px; height:16px;"></div>
+              <div class="item" style="width:18px; height:34px;"></div>
+              <div class="item" style="width:12px; height:10px;"></div>
+            </div>
+            <span class="flex-diagram-label">center</span>
+          </div>
+          <div class="diagram-cell">
+            <div class="flex-diagram selected" style="align-items: stretch; gap: 3px;">
+              <div class="item" style="width:14px; height:100%;"></div>
+              <div class="item" style="width:18px; height:100%;"></div>
+              <div class="item" style="width:12px; height:100%;"></div>
+            </div>
+            <span class="flex-diagram-label">stretch</span>
+          </div>
+          <!-- baseline: t's align, but bottoms vary because space below t differs per item -->
+          <div class="diagram-cell">
+            <div class="flex-diagram" style="align-items: baseline; gap: 3px;">
+              <div class="item" style="width:14px; height:30px; padding-top:14px; font-size:6px; color:rgba(255,255,255,0.8); line-height:1; overflow:hidden; text-align:center;">t</div>
+              <div class="item" style="width:18px; height:26px; padding-top:2px;  font-size:6px; color:rgba(255,255,255,0.8); line-height:1; overflow:hidden; text-align:center;">t</div>
+              <div class="item" style="width:14px; height:18px; padding-top:8px;  font-size:6px; color:rgba(255,255,255,0.8); line-height:1; overflow:hidden; text-align:center;">t</div>
+            </div>
+            <span class="flex-diagram-label">baseline</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION B — ICON SEGMENTED CONTROLS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag purple">B</span>
+      <span class="section-title">Icon Segmented Controls</span>
+    </div>
+    <p class="section-desc">
+      Compact segmented bars with tiny alignment icons — similar to Figma's approach.
+      Each property gets a row with a label and a segmented control. Icons are small SVG bar diagrams.
+    </p>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">NavBar</span>
+        </div>
+        <div class="panel-body">
+          <div class="prop-section">
+            <div class="prop-section-header">
+              <span class="dot"></span>
+              <span class="label">Flexbox & Grid</span>
+              <button class="add-btn">+</button>
+            </div>
+
+            <!-- Direction -->
+            <div class="axis-control" style="margin-bottom: 8px;">
+              <span class="axis-label">Direction</span>
+              <div class="segmented">
+                <button class="seg-btn active seg-icon-btn" title="Row →">
+                  <svg viewBox="0 0 14 14"><path d="M2 7h10M9 4l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Column ↓">
+                  <svg viewBox="0 0 14 14"><path d="M7 2v10M4 9l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Row Reverse ←">
+                  <svg viewBox="0 0 14 14"><path d="M12 7H2M5 4L2 7l3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Column Reverse ↑">
+                  <svg viewBox="0 0 14 14"><path d="M7 12V2M4 5l3-3 3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Justify Content -->
+            <div class="axis-control" style="margin-bottom: 8px;">
+              <span class="axis-label">Justify</span>
+              <div class="segmented">
+                <button class="seg-btn seg-icon-btn active" title="Start">
+                  <svg viewBox="0 0 14 14"><rect x="1" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5" y="4" width="4" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="2" height="6" rx=".5" fill="currentColor" opacity=".35"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Center">
+                  <svg viewBox="0 0 14 14"><rect x="2" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="9" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="End">
+                  <svg viewBox="0 0 14 14"><rect x="2" y="4" width="2" height="6" rx=".5" fill="currentColor" opacity=".35"/><rect x="5" y="4" width="4" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Between">
+                  <svg viewBox="0 0 14 14"><rect x="1" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Around">
+                  <svg viewBox="0 0 14 14"><rect x="1.5" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Evenly">
+                  <svg viewBox="0 0 14 14"><rect x="2" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="6" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="2" height="6" rx=".5" fill="currentColor"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Align Items -->
+            <div class="axis-control" style="margin-bottom: 8px;">
+              <span class="axis-label">Align</span>
+              <div class="segmented">
+                <button class="seg-btn seg-icon-btn" title="Start">
+                  <svg viewBox="0 0 14 14"><rect x="3" y="1" width="3" height="6" rx=".5" fill="currentColor"/><rect x="7" y="1" width="3" height="9" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn active" title="Center">
+                  <svg viewBox="0 0 14 14"><rect x="3" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="7" y="2.5" width="3" height="9" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="End">
+                  <svg viewBox="0 0 14 14"><rect x="3" y="7" width="3" height="6" rx=".5" fill="currentColor"/><rect x="7" y="4" width="3" height="9" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Stretch">
+                  <svg viewBox="0 0 14 14"><rect x="3" y="1" width="3" height="12" rx=".5" fill="currentColor"/><rect x="7" y="1" width="3" height="12" rx=".5" fill="currentColor"/></svg>
+                </button>
+                <button class="seg-btn seg-icon-btn" title="Baseline">
+                  <svg viewBox="0 0 14 14"><line x1="1" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1" opacity=".4"/><rect x="3" y="3" width="3" height="8" rx=".5" fill="currentColor"/><rect x="7" y="5" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Wrap -->
+            <div class="axis-control" style="margin-bottom: 8px;">
+              <span class="axis-label">Wrap</span>
+              <div class="segmented">
+                <button class="seg-btn active" style="font-size:10px;">nowrap</button>
+                <button class="seg-btn" style="font-size:10px;">wrap</button>
+                <button class="seg-btn" style="font-size:10px;">reverse</button>
+              </div>
+            </div>
+
+            <!-- Gap -->
+            <div class="axis-control" style="margin-bottom: 8px;">
+              <span class="axis-label">Gap</span>
+              <div class="gap-scrub">
+                <span class="gap-value"><span class="arrow" style="opacity:0.5">‹</span> 4 <span class="arrow" style="opacity:0.5">›</span></span>
+              </div>
+            </div>
+
+            <hr class="divider">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="note" style="margin-bottom: 12px;">
+          <strong>Figma-style approach.</strong> Compact, icon-heavy. Each property gets its own row with a small label and segmented icons.
+          <ul>
+            <li>Direction: arrow icons showing flow</li>
+            <li>Justify: bar-diagram icons</li>
+            <li>Align: vertical bar-diagram icons</li>
+            <li>Wrap: text labels (too few options for icons)</li>
+            <li>Gap: ScaleScrubber chip (reuse existing component)</li>
+          </ul>
+        </div>
+        <div class="rec-note">
+          <strong>Pros:</strong> Very compact, familiar from design tools, icons are self-documenting.
+          <br><br>
+          <strong>Cons:</strong> Icons may be too small at panel scale, requires custom SVGs, doesn't reuse existing ScaleScrubber pattern.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION C — COMBINED LAYOUT TABLE
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag amber">C</span>
+      <span class="section-title">Structured Property Table</span>
+    </div>
+    <p class="section-desc">
+      A compact table-like layout — each row is a flex property with a mono label on the left and icon buttons on the right.
+      Think browser DevTools layout panel. Good information density.
+    </p>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">CardGrid</span>
+        </div>
+        <div class="panel-body">
+          <div class="prop-section">
+            <div class="prop-section-header">
+              <span class="dot"></span>
+              <span class="label">Flexbox & Grid</span>
+              <button class="add-btn">+</button>
+            </div>
+
+            <div class="flex-layout-control">
+              <!-- Direction row -->
+              <div class="flex-layout-row">
+                <span class="prop-name">dir</span>
+                <div class="controls">
+                  <button class="mini-btn active" title="flex-row">
+                    <svg viewBox="0 0 14 14"><path d="M2 7h10M9 4l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="mini-btn" title="flex-col">
+                    <svg viewBox="0 0 14 14"><path d="M7 2v10M4 9l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="mini-btn" title="flex-row-reverse">
+                    <svg viewBox="0 0 14 14"><path d="M12 7H2M5 4L2 7l3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="mini-btn" title="flex-col-reverse">
+                    <svg viewBox="0 0 14 14"><path d="M7 12V2M4 5l3-3 3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </div>
+              <!-- Justify Content row -->
+              <div class="flex-layout-row">
+                <span class="prop-name">justify</span>
+                <div class="controls">
+                  <button class="mini-btn" title="justify-start">
+                    <svg viewBox="0 0 14 14"><line x1="1" y1="1" x2="1" y2="13" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="2.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="6" y="4" width="4" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn active" title="justify-center">
+                    <svg viewBox="0 0 14 14"><rect x="2" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="9" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="justify-end">
+                    <svg viewBox="0 0 14 14"><line x1="13" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="4" y="4" width="4" height="6" rx=".5" fill="currentColor"/><rect x="8.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="justify-between">
+                    <svg viewBox="0 0 14 14"><rect x="1" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="justify-around">
+                    <svg viewBox="0 0 14 14"><rect x="1.5" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="justify-evenly">
+                    <svg viewBox="0 0 14 14"><rect x="2" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="6" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="2" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+              <!-- Align Items row -->
+              <div class="flex-layout-row">
+                <span class="prop-name">align</span>
+                <div class="controls">
+                  <button class="mini-btn" title="items-start">
+                    <svg viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="1" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="3" y="2" width="3" height="5" rx=".5" fill="currentColor"/><rect x="7" y="2" width="3" height="8" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn active" title="items-center">
+                    <svg viewBox="0 0 14 14"><rect x="3" y="4.5" width="3" height="5" rx=".5" fill="currentColor"/><rect x="7" y="3" width="3" height="8" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="items-end">
+                    <svg viewBox="0 0 14 14"><line x1="1" y1="13" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="3" y="7" width="3" height="5" rx=".5" fill="currentColor"/><rect x="7" y="4" width="3" height="8" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="items-stretch">
+                    <svg viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="1" stroke="currentColor" stroke-width="1.2" opacity=".3"/><line x1="1" y1="13" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="3" y="2" width="3" height="10" rx=".5" fill="currentColor"/><rect x="7" y="2" width="3" height="10" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                  <button class="mini-btn" title="items-baseline">
+                    <svg viewBox="0 0 14 14"><line x1="1" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1" stroke-dasharray="2 1" opacity=".3"/><rect x="3" y="3" width="3" height="8" rx=".5" fill="currentColor"/><rect x="7" y="5" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+              <!-- Wrap row -->
+              <div class="flex-layout-row">
+                <span class="prop-name">wrap</span>
+                <div class="controls">
+                  <button class="mini-btn active" title="flex-nowrap" style="font-size:9px; font-family:var(--font-mono); width:auto; padding: 0 6px;">no</button>
+                  <button class="mini-btn" title="flex-wrap">
+                    <svg viewBox="0 0 14 14"><path d="M2 4h8a2 2 0 0 1 0 4H4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6 6l-2 2 2 2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="mini-btn" title="flex-wrap-reverse">
+                    <svg viewBox="0 0 14 14"><path d="M2 10h8a2 2 0 0 0 0-4H4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6 8l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </div>
+              <!-- Gap row -->
+              <div class="flex-layout-row">
+                <span class="prop-name">gap</span>
+                <div class="controls">
+                  <div class="gap-scrub">
+                    <span class="gap-value"><span class="arrow" style="opacity:0.4">‹</span> 4 <span class="arrow" style="opacity:0.4">›</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="divider">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="note" style="margin-bottom: 12px;">
+          <strong>Browser DevTools style.</strong> A structured table with rows per property. Icons are small and tight.
+          <ul>
+            <li>Compact: all 5 properties in ~160px height</li>
+            <li>Label column gives context</li>
+            <li>Icons show alignment visually</li>
+            <li>Gap reuses existing ScaleScrubber pattern</li>
+          </ul>
+        </div>
+        <div class="rec-note">
+          <strong>Pros:</strong> Highest information density, scannable, all properties visible at once.
+          Each row is independent — only render rows for properties that exist on the element.
+          <br><br>
+          <strong>Cons:</strong> Feels utilitarian, less playful than Option A.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION D — LIVE PREVIEW + CONTROLS BELOW
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag green">D</span>
+      <span class="section-title">Live Preview Box</span>
+    </div>
+    <p class="section-desc">
+      An interactive mini-layout preview that updates as you toggle properties.
+      The preview box shows child items arranged with the current flex settings.
+      Controls below use chips (reusing ScaleScrubber) for each property.
+    </p>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">HeroSection</span>
+        </div>
+        <div class="panel-body">
+          <div class="prop-section">
+            <div class="prop-section-header">
+              <span class="dot"></span>
+              <span class="label">Flexbox & Grid</span>
+              <button class="add-btn">+</button>
+            </div>
+
+            <!-- Live preview -->
+            <div class="live-preview" id="livePreview" style="justify-content: center; align-items: center; flex-wrap: nowrap;">
+              <div class="child"></div>
+              <div class="child"></div>
+              <div class="child"></div>
+            </div>
+
+            <!-- Chips below -->
+            <div style="margin-top: 8px;">
+              <div class="chip-group">
+                <div class="chip active">flex-row</div>
+                <div class="chip">justify-center</div>
+                <div class="chip">items-center</div>
+              </div>
+              <div class="chip-group">
+                <div class="chip">flex-nowrap</div>
+                <div class="chip">gap-4</div>
+              </div>
+            </div>
+
+            <hr class="divider">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="note" style="margin-bottom: 12px;">
+          <strong>Preview-first approach.</strong> The mini layout box at the top gives instant visual feedback.
+          <ul>
+            <li>Preview updates live as you hover chips</li>
+            <li>Reuses existing ScaleScrubber chips for values</li>
+            <li>Familiar interaction model from the rest of the panel</li>
+            <li>Preview box mirrors actual child count + approximate sizes</li>
+          </ul>
+        </div>
+        <div class="rec-note">
+          <strong>Pros:</strong> Keeps the existing chip-based interaction model. Preview makes the effect tangible before applying.
+          <br><br>
+          <strong>Cons:</strong> Takes more vertical space. Preview is a simulation, not the real layout.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION E — DIRECTION MINI-DIAGRAMS + VISUAL STRIP
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag rose">E</span>
+      <span class="section-title">Direction Picker + Visual Strip (Hybrid)</span>
+    </div>
+    <p class="section-desc">
+      Combines the DirectionPicker pattern (already exists for gradients) with segmented controls.
+      Direction gets its own 2×2 mini-grid (like a compass), other properties use icon segments.
+    </p>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">Sidebar</span>
+        </div>
+        <div class="panel-body">
+          <div class="prop-section">
+            <div class="prop-section-header">
+              <span class="dot"></span>
+              <span class="label">Flexbox & Grid</span>
+              <button class="add-btn">+</button>
+            </div>
+
+            <div class="visual-strip">
+              <!-- Direction: 2x2 grid -->
+              <div class="strip-row">
+                <span class="strip-label">Dir</span>
+                <div class="strip-right" style="gap: 4px;">
+                  <div class="dir-mini row active">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <span class="dir-arrow">→</span>
+                  </div>
+                  <div class="dir-mini col">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <span class="dir-arrow">↓</span>
+                  </div>
+                  <div class="dir-mini row-rev">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <span class="dir-arrow">←</span>
+                  </div>
+                  <div class="dir-mini col-rev">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <span class="dir-arrow">↑</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Justify -->
+              <div class="strip-row">
+                <span class="strip-label">Justify</span>
+                <div class="strip-right">
+                  <div class="segmented" style="flex:1;">
+                    <button class="seg-btn seg-icon-btn" title="start" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="1" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5" y="4" width="4" height="6" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn active" title="center" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="2" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="9" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="end" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="5" y="4" width="4" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="3" height="6" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="between" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="1" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx=".5" fill="currentColor"/><rect x="10.5" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="around" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="2" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="6" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="10" y="4" width="2" height="6" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="evenly" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="2.5" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="6" y="4" width="2" height="6" rx=".5" fill="currentColor"/><rect x="9.5" y="4" width="2" height="6" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Align -->
+              <div class="strip-row">
+                <span class="strip-label">Align</span>
+                <div class="strip-right">
+                  <div class="segmented" style="flex:1;">
+                    <button class="seg-btn seg-icon-btn" title="start" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="4" y="1.5" width="2.5" height="5" rx=".5" fill="currentColor"/><rect x="7.5" y="1.5" width="2.5" height="8" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn active" title="center" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="4" y="4" width="2.5" height="6" rx=".5" fill="currentColor"/><rect x="7.5" y="2.5" width="2.5" height="9" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="end" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="4" y="7.5" width="2.5" height="5" rx=".5" fill="currentColor"/><rect x="7.5" y="4.5" width="2.5" height="8" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="stretch" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><rect x="4" y="1.5" width="2.5" height="11" rx=".5" fill="currentColor"/><rect x="7.5" y="1.5" width="2.5" height="11" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                    <button class="seg-btn seg-icon-btn" title="baseline" style="flex:1;">
+                      <svg viewBox="0 0 14 14"><line x1="1" y1="7.5" x2="13" y2="7.5" stroke="currentColor" stroke-width=".8" stroke-dasharray="2 1" opacity=".4"/><rect x="4" y="3" width="2.5" height="7" rx=".5" fill="currentColor"/><rect x="7.5" y="5" width="2.5" height="5" rx=".5" fill="currentColor"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Wrap & Gap on one row -->
+              <div class="strip-row">
+                <span class="strip-label">Wrap</span>
+                <div class="strip-right" style="gap: 8px;">
+                  <div class="wrap-toggle">
+                    <button class="wrap-opt active">no</button>
+                    <button class="wrap-opt">wrap</button>
+                    <button class="wrap-opt">rev</button>
+                  </div>
+                  <div class="gap-scrub" style="margin-left: auto;">
+                    <span class="gap-label">gap</span>
+                    <span class="gap-value"><span class="arrow" style="opacity:0.4">‹</span> 6 <span class="arrow" style="opacity:0.4">›</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="divider">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="note" style="margin-bottom: 12px;">
+          <strong>Hybrid approach — our recommendation.</strong> Combines the best of each:
+          <ul>
+            <li>Direction: spatial mini-diagrams (like DirectionPicker)</li>
+            <li>Justify/Align: icon segmented controls (Figma-style)</li>
+            <li>Wrap: tiny text toggle</li>
+            <li>Gap: familiar ScaleScrubber chip</li>
+          </ul>
+        </div>
+        <div class="rec-note">
+          <strong>Why this works:</strong>
+          <ul>
+            <li>Direction mini-diagrams reuse the DirectionPicker visual pattern</li>
+            <li>Segmented icons are compact + self-documenting</li>
+            <li>All controls fit in a single bordered card (~120px)</li>
+            <li>Consistent with the panel's existing visual language</li>
+            <li>Hover → preview, click → stage (same lifecycle)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION F — PROPERTY MAP: WHICH TAILWIND CLASSES
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag blue">REF</span>
+      <span class="section-title">Parent Flex Properties → Tailwind Classes</span>
+    </div>
+    <p class="section-desc">
+      Reference: the Tailwind classes for the most common parent flex properties. These are what the controls should toggle.
+    </p>
+
+    <div style="display:flex; gap: 16px; flex-wrap:wrap;">
+
+      <table style="border-collapse:collapse; font-size:11px; font-family:var(--font-mono); background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+        <thead>
+          <tr style="background:var(--surface);">
+            <th style="padding:6px 10px; text-align:left; font-size:10px; color:var(--text-mid); border-bottom:1px solid var(--border);">CSS Property</th>
+            <th style="padding:6px 10px; text-align:left; font-size:10px; color:var(--text-mid); border-bottom:1px solid var(--border);">Tailwind Class</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:4px 10px; color:var(--muted); border-bottom:1px solid var(--border);">flex-direction</td><td style="padding:4px 10px; border-bottom:1px solid var(--border);"><span style="color:var(--teal)">flex-row</span> · flex-col · flex-row-reverse · flex-col-reverse</td></tr>
+          <tr><td style="padding:4px 10px; color:var(--muted); border-bottom:1px solid var(--border);">justify-content</td><td style="padding:4px 10px; border-bottom:1px solid var(--border);"><span style="color:var(--teal)">justify-start</span> · justify-end · justify-center · justify-between · justify-around · justify-evenly · justify-stretch</td></tr>
+          <tr><td style="padding:4px 10px; color:var(--muted); border-bottom:1px solid var(--border);">align-items</td><td style="padding:4px 10px; border-bottom:1px solid var(--border);"><span style="color:var(--teal)">items-start</span> · items-end · items-center · items-stretch · items-baseline</td></tr>
+          <tr><td style="padding:4px 10px; color:var(--muted); border-bottom:1px solid var(--border);">align-content</td><td style="padding:4px 10px; border-bottom:1px solid var(--border);">content-normal · content-start · content-end · content-center · content-between · content-around · content-evenly · content-baseline · content-stretch</td></tr>
+          <tr><td style="padding:4px 10px; color:var(--muted); border-bottom:1px solid var(--border);">flex-wrap</td><td style="padding:4px 10px; border-bottom:1px solid var(--border);"><span style="color:var(--teal)">flex-nowrap</span> · flex-wrap · flex-wrap-reverse</td></tr>
+          <tr><td style="padding:4px 10px; color:var(--muted); border-bottom:1px solid var(--border);">gap</td><td style="padding:4px 10px; border-bottom:1px solid var(--border);">gap-{n} (scalar, 0–96 scale)</td></tr>
+          <tr><td style="padding:4px 10px; color:var(--muted);">justify-items</td><td style="padding:4px 10px;">justify-items-start · justify-items-end · justify-items-center · justify-items-stretch</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>Priority order:</strong>
+        <ul>
+          <li><strong>P0: </strong>flex-direction, justify-content, align-items, gap — nearly every flex container sets these</li>
+          <li><strong>P1: </strong>flex-wrap — needed when content overflows</li>
+          <li><strong>P2: </strong>align-content — only matters when wrap is on</li>
+          <li><strong>P3: </strong>justify-items — rare for flexbox (more common in grid)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Simple interactive demo for the segmented controls
+  document.querySelectorAll('.segmented, .wrap-toggle').forEach(group => {
+    group.querySelectorAll('.seg-btn, .wrap-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        group.querySelectorAll('.seg-btn, .wrap-opt').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  // Simple interactive demo for mini-btn groups
+  document.querySelectorAll('.flex-layout-row .controls').forEach(group => {
+    group.querySelectorAll('.mini-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        group.querySelectorAll('.mini-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  // Direction picker interaction
+  document.querySelectorAll('.dir-mini').forEach(d => {
+    d.addEventListener('click', () => {
+      d.closest('.strip-right').querySelectorAll('.dir-mini').forEach(x => x.classList.remove('active'));
+      d.classList.add('active');
+    });
+  });
+
+  // Diagram selection
+  document.querySelectorAll('.diagram-grid').forEach(grid => {
+    grid.querySelectorAll('.flex-diagram').forEach(d => {
+      d.addEventListener('click', () => {
+        grid.querySelectorAll('.flex-diagram').forEach(x => x.classList.remove('selected'));
+        d.classList.add('selected');
+      });
+    });
+  });
+
+  // Live preview demo: update preview when chips are clicked
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('active');
+    });
+  });
+</script>
+
+</body>
+</html>

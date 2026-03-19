@@ -70,11 +70,10 @@ test.describe('PatchPopover footer menus', () => {
   test('commit all sends patches to server and increments committed count', async ({ page }) => {
     const panel = await openPanelForPrimaryButton(page);
 
-    // Capture the current committed count before staging
-    const committedBtnBefore = panel.locator('button', { hasText: /\d+ committed/ });
-    await expect(committedBtnBefore).toBeVisible({ timeout: 5000 });
-    const beforeText = await committedBtnBefore.textContent();
-    const beforeCount = parseInt(beforeText?.match(/(\d+)/)?.[1] ?? '0', 10);
+    // Capture the current counts before staging
+    const committedBefore = await getFooterCount(panel, 'committed');
+    const implementedBefore = await getFooterCount(panel, 'implemented');
+    const implementingBefore = await getFooterCount(panel, 'implementing');
 
     await stagePaddingXChange(panel, page);
 
@@ -84,11 +83,14 @@ test.describe('PatchPopover footer menus', () => {
     await page.waitForTimeout(1000);
 
     await expect(panel.locator('button', { hasText: '0 draft' })).toBeVisible({ timeout: 3000 });
+    // The Mock MCP Client (if running) may immediately transition committed → implementing → implemented.
+    // Accept any increase in committed, implementing, or implemented counts.
     await expect.poll(async () => {
-      const afterText = await panel.locator('button', { hasText: /\d+ committed/ }).first().textContent();
-      const afterCount = parseInt(afterText?.match(/(\d+)/)?.[1] ?? '0', 10);
-      return afterCount > beforeCount;
-    }).toBe(true);
+      const committed = parseInt(((await panel.locator('button', { hasText: /\d+ committed/ }).first().textContent()) ?? '').match(/(\d+)/)?.[1] ?? '0', 10);
+      const implementing = parseInt(((await panel.locator('button', { hasText: /\d+ implementing/ }).first().textContent()) ?? '').match(/(\d+)/)?.[1] ?? '0', 10);
+      const implemented = parseInt(((await panel.locator('button', { hasText: /\d+ implemented/ }).first().textContent()) ?? '').match(/(\d+)/)?.[1] ?? '0', 10);
+      return committed > committedBefore || implementing > implementingBefore || implemented > implementedBefore;
+    }, { timeout: 10000 }).toBe(true);
   });
 
   test('popover closes on Escape key', async ({ page }) => {

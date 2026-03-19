@@ -8,6 +8,15 @@ async function getFooterCount(frame: Frame, label: string): Promise<number> {
   return parseInt(text.match(/(\d+)/)?.[1] ?? '0', 10);
 }
 
+/**
+ * Returns committed + implementing count. When the Mock MCP Client is running
+ * it immediately transitions committed → implementing, so both states count as
+ * "a commit is in-flight".
+ */
+async function getInFlightCount(frame: Frame): Promise<number> {
+  return (await getFooterCount(frame, 'committed')) + (await getFooterCount(frame, 'implementing'));
+}
+
 async function stageBoxModelChange(frame: Frame, slotValue: string, newValue: string) {
   const slot = frame.locator('[data-layer="padding"] .bm-slot', { hasText: slotValue }).first();
   await slot.waitFor({ timeout: 5000 });
@@ -41,13 +50,19 @@ test.describe('committed changes counter', () => {
     );
     await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 8000 });
 
-    const committedBefore = await getFooterCount(frame, 'committed');
+    const implementedBefore = await getFooterCount(frame, 'implemented');
 
     await stageBoxModelChange(frame, 'x-4', 'px-6');
     await commitAllStaged(frame);
 
+    // The Mock MCP Client (if running) immediately transitions committed → implementing.
+    // Accept either committed > 0, implementing > 0, or implemented grew.
     await expect
-      .poll(async () => (await getFooterCount(frame, 'committed')) > committedBefore)
+      .poll(async () => {
+        const inFlight = await getInFlightCount(frame);
+        const implemented = await getFooterCount(frame, 'implemented');
+        return inFlight > 0 || implemented > implementedBefore;
+      }, { timeout: 10000 })
       .toBe(true);
   });
 
@@ -61,7 +76,7 @@ test.describe('committed changes counter', () => {
     );
     await frame.locator('[data-layer="padding"] .bm-slot').first().waitFor({ timeout: 8000 });
 
-    const committedBefore = await getFooterCount(frame, 'committed');
+    const implementedBefore = await getFooterCount(frame, 'implemented');
 
     await stageBoxModelChange(frame, 'x-4', 'px-6');
     await commitAllStaged(frame);
@@ -73,8 +88,9 @@ test.describe('committed changes counter', () => {
     await stageBoxModelChange(frame, 'y-2', 'py-3');
     await commitAllStaged(frame);
 
+    // Both commits should result in implemented count growing by at least 2
     await expect
-      .poll(async () => (await getFooterCount(frame, 'committed')) >= committedBefore + 2)
+      .poll(async () => (await getFooterCount(frame, 'implemented')) >= implementedBefore + 2, { timeout: 15000 })
       .toBe(true);
   });
 });

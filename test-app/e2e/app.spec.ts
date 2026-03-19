@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Test App', () => {
   test('loads the page with header', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1')).toContainText('Tailwind Visual Editor');
+    await expect(page.locator('h1').first()).toContainText('Tailwind Visual Editor');
   });
 
   test('renders all Card instances', async ({ page }) => {

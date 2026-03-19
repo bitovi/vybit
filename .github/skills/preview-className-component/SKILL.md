@@ -167,6 +167,55 @@ Accessed via `usePatchManager()` in `Picker.tsx` and passed down as callbacks:
 
 ---
 
+## `resolvePropertyState` — Wiring Controls That Render Unconditionally
+
+Some controls always render regardless of whether the element already has a class for that property (e.g., `FlexJustify`, `FlexAlign`). This means the `token` from `parsedClasses` may be `undefined` even though a staged patch for that property already exists.
+
+**Always use `resolvePropertyState` when a control renders unconditionally.** It merges `parsedClasses` with `stagedPatches` to give you a single stable set of values to wire to `onHover`, `onClick`, and `onRemove`:
+
+```ts
+// In Picker.tsx, after stagedPatches is computed:
+function resolvePropertyState(property: string, token: ParsedToken | undefined) {
+  const staged = stagedPatches.find(p => p.property === property);
+  const originalClass = token?.fullClass ?? staged?.originalClass ?? '';
+  const effectiveClass = staged?.newClass ?? token?.fullClass ?? '';
+  const hasValue = effectiveClass !== '';
+  return { originalClass, effectiveClass, hasValue };
+}
+```
+
+| Field | Meaning | Use for |
+|-------|---------|---------|
+| `originalClass` | Class on the element **before** any staging — the stable anchor for the server's find-replace | `stage(property, originalClass, newValue)` and `onRemove` |
+| `effectiveClass` | What is currently "showing" in the live DOM (staged value if present, else original) | `preview(effectiveClass, newValue)` — must match what's in the DOM, not the source |
+| `hasValue` | Whether there is currently any value to show or remove | Conditionally providing `onRemove` |
+
+> **Key rule:** `onHover`/`onRemoveHover` use `effectiveClass` (DOM truth). `onClick`/`onRemove` use `originalClass` (source truth).
+>
+> After staging a change the DOM has the new class committed. If `onHover` still uses `originalClass`, `remove(originalClass)` becomes a no-op and the next hovered class stacks on top instead of replacing — producing duplicate conflicting classes on the element.
+
+**Wire-up pattern:**
+
+```tsx
+const justify = resolvePropertyState('justify-content', justifyToken);
+
+<FlexJustify
+  currentValue={justifyToken?.fullClass ?? null}
+  lockedValue={justify.effectiveClass !== justify.originalClass ? justify.effectiveClass : null}
+  onHover={(v) => patchManager.preview(justify.effectiveClass, v)}   // effectiveClass = DOM truth
+  onLeave={handleRevert}
+  onClick={(v) => handleStage('justify-content', justify.originalClass, v)}   // originalClass = source truth
+  onRemove={justify.hasValue ? () => handleStage('justify-content', justify.originalClass, '') : undefined}
+  onRemoveHover={justify.hasValue ? () => patchManager.preview(justify.effectiveClass, '') : undefined}
+/>
+```
+
+**Controls that need this:** Any control that renders even when the property is not yet set on the element — so the user can *add* the property by clicking. `FlexJustify`, `FlexAlign`, `FlexWrap`, `FlexDirection` all follow this pattern.
+
+**Controls that don't need this:** Controls inside `classes.map(cls => ...)` — they only render *because* `cls` exists, so `cls.fullClass` is always the correct stable anchor.
+
+---
+
 ## Checklist for New Preview Controls
 
 - [ ] Accept `onHover: (fullClass: string) => void` and `onLeave: () => void` props

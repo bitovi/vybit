@@ -28,13 +28,23 @@ export const PROPERTY_RULES: Record<string, PropertyRule> = {
   // SPACING
   // ─────────────────────────────────────────────────────────────
   'm-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar', renderMode: 'boxmodel', isComposite: true,
-    compositeRelatedPrefixes: ['m-', 'mx-', 'my-', 'mt-', 'mr-', 'mb-', 'ml-', 'ms-', 'me-',
-                               'p-', 'px-', 'py-', 'pt-', 'pr-', 'pb-', 'pl-', 'ps-', 'pe-',
-                               'gap-', 'gap-x-', 'gap-y-', 'space-x-', 'space-y-',
-                               'border-', 'border-t-', 'border-r-', 'border-b-', 'border-l-',
-                               'rounded-', 'rounded-t-', 'rounded-r-', 'rounded-b-', 'rounded-l-',
-                               'rounded-tl-', 'rounded-tr-', 'rounded-br-', 'rounded-bl-'],
-    compositeExactMatches: ['border', 'rounded'] },
+    compositeRelatedPrefixes: [
+      // BoxModel: margin layer
+      'm-', 'mx-', 'my-', 'mt-', 'mr-', 'mb-', 'ml-', 'ms-', 'me-',
+      // BoxModel: padding layer
+      'p-', 'px-', 'py-', 'pt-', 'pr-', 'pb-', 'pl-', 'ps-', 'pe-',
+      // BoxModel: padding layer (gap/space render inside padding area)
+      'gap-', 'gap-x-', 'gap-y-', 'space-x-', 'space-y-',
+      // BoxModel: border layer (width slots — style/color slots derived from class keywords)
+      'border-', 'border-t-', 'border-r-', 'border-b-', 'border-l-',
+      // TODO: no BoxModel layer yet — rounded-* are consumed here but never displayed anywhere
+      'rounded-', 'rounded-t-', 'rounded-r-', 'rounded-b-', 'rounded-l-',
+      'rounded-tl-', 'rounded-tr-', 'rounded-br-', 'rounded-bl-',
+    ],
+    compositeExactMatches: [
+      'border',   // BoxModel: border layer shorthand
+      'rounded',  // TODO: no BoxModel layer yet — consumed here but never displayed
+    ] },
   'mx-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
   'my-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
   'mt-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
@@ -61,13 +71,13 @@ export const PROPERTY_RULES: Record<string, PropertyRule> = {
   // ─────────────────────────────────────────────────────────────
   // SIZING
   // ─────────────────────────────────────────────────────────────
-  'w-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
-  'h-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
-  'min-w-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
-  'max-w-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
-  'min-h-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
-  'max-h-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
-  'size-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true },
+  'w-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'width' },
+  'h-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'height' },
+  'min-w-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'min-width' },
+  'max-w-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'max-width' },
+  'min-h-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'min-height' },
+  'max-h-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'max-height' },
+  'size-': { category: 'sizing', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'size' },
 
   // ─────────────────────────────────────────────────────────────
   // TYPOGRAPHY
@@ -288,7 +298,9 @@ export function buildAddablePropertiesFromRules(): Record<Category, Array<{ name
       ? rule.enumAlts.slice(0, 2).join('/') + (rule.enumAlts.length > 2 ? '/…' : '')
       : `${key}*`;
 
-    map[rule.category].push({ name: humanName, prefixHint, prefix: propKey });
+    // Use the original key (WITH trailing dash) as prefix so getScaleValues builds correct class names.
+    // e.g. 'w-' → getScaleValues('w-', 'spacing', ...) → ['w-0', 'w-4', ...] (correct)
+    map[rule.category].push({ name: humanName, prefixHint, prefix: key });
   }
 
   return map;

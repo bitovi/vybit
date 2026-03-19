@@ -127,6 +127,19 @@ export interface PatchRevertMessage {
   to: 'overlay';
 }
 
+/**
+ * Panel → Overlay: undo a previously staged class change.
+ * Applies oldClass → newClass to the DOM and commits it as the new baseline,
+ * WITHOUT sending anything to the server.
+ * Use when the user stages back to the original value, removing a draft patch.
+ */
+export interface PatchRevertStagedMessage {
+  type: 'PATCH_REVERT_STAGED';
+  to: 'overlay';
+  oldClass: string; // currently in the DOM (the staged newClass)
+  newClass: string; // what to restore to (the original class)
+}
+
 /** Panel → Overlay: stage a change (overlay fills context, sends PATCH_STAGED to server) */
 export interface PatchStageMessage {
   type: 'PATCH_STAGE';

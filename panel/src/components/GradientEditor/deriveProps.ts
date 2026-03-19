@@ -1,7 +1,7 @@
 import type { GradientDirection, BackgroundMode } from '../DirectionPicker';
 import type { GradientStop } from '../GradientBar';
 import type { GradientEditorProps } from './types';
-import type { ParsedClass } from '../../../../overlay/src/class-parser';
+import type { ParsedToken } from '../../../../overlay/src/grammar';
 import type { Patch } from '../../../../shared/types';
 import { resolveColorHex } from './useGradientState';
 
@@ -12,7 +12,7 @@ type DerivedProps = Pick<GradientEditorProps, 'direction' | 'stops' | 'mode' | '
  * Staged patches take precedence over DOM classes for determining gradient state.
  */
 export function parsedClassesToGradientEditorProps(
-  parsedClasses: ParsedClass[],
+  parsedClasses: ParsedToken[],
   colors: Record<string, any>,
   stagedClassChanges?: Patch[]
 ): DerivedProps {
@@ -41,9 +41,9 @@ export function parsedClassesToGradientEditorProps(
   }
 
   // Direction: bg-gradient-to-{dir} → value is the dir letter(s)
-  const dirClass = parsedClasses.find(c => c.prefix === 'bg-gradient-to-');
+  const dirClass = parsedClasses.find(c => c.property === 'bg-gradient-to');
   const stagedDirClass = Array.from(effectiveClasses.keys()).find(c => c.startsWith('bg-gradient-to-'));
-  const directionValue = stagedDirClass?.replace('bg-gradient-to-', '') || dirClass?.value;
+  const directionValue = stagedDirClass?.replace('bg-gradient-to-', '') || dirClass?.fullClass.slice('bg-gradient-to-'.length);
   const direction: GradientDirection = (directionValue as GradientDirection) || 'r';
 
   // Solid bg color: bg-{color} in 'color' category (not gradient)

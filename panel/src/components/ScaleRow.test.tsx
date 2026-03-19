@@ -13,7 +13,7 @@ function setup() {
   const { container } = render(
     <ScaleRow
       prefix="px-"
-      themeKey="spacing"
+      scaleName="spacing"
       currentClass="px-4"
       tailwindConfig={tailwindConfig}
       locked={false}
@@ -53,7 +53,7 @@ test('onHover is not called when locked', () => {
   render(
     <ScaleRow
       prefix="px-"
-      themeKey="spacing"
+      scaleName="spacing"
       currentClass="px-4"
       tailwindConfig={tailwindConfig}
       locked={true}

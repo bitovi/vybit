@@ -80,16 +80,62 @@ describe('usePatchManager', () => {
       expect(result.current.counts.draft).toBe(1);
     });
 
-    it('self-removes when newClass === originalClass', () => {
+    it('sends plain PATCH_REVERT when there is no prior staged patch for that property', () => {
+      // No stage() call before — nothing was committed to the DOM, so plain revert is correct.
       const { result } = renderHook(() => usePatchManager());
-
-      act(() => result.current.stage('Card::div/0', 'py-', 'py-2', 'py-4'));
-      expect(result.current.patches).toHaveLength(1);
 
       act(() => result.current.stage('Card::div/0', 'py-', 'py-2', 'py-2'));
       expect(result.current.patches).toHaveLength(0);
       expect(result.current.counts.draft).toBe(0);
       expect(sendTo).toHaveBeenLastCalledWith('overlay', { type: 'PATCH_REVERT' });
+    });
+
+    it('sends PATCH_REVERT_STAGED when restoring to original after a staged change (generic)', () => {
+      const { result } = renderHook(() => usePatchManager());
+
+      act(() => result.current.stage('Card::div/0', 'py-', 'py-2', 'py-4'));
+      expect(result.current.patches).toHaveLength(1);
+
+      vi.clearAllMocks();
+      act(() => result.current.stage('Card::div/0', 'py-', 'py-2', 'py-2'));
+      expect(result.current.patches).toHaveLength(0);
+      expect(result.current.counts.draft).toBe(0);
+      expect(sendTo).toHaveBeenCalledWith('overlay', {
+        type: 'PATCH_REVERT_STAGED',
+        oldClass: 'py-4',
+        newClass: 'py-2',
+      });
+    });
+
+    it('sends plain PATCH_REVERT when no prior staged patch exists for that property', () => {
+      // If nothing was previously staged for this property, there is no committed DOM
+      // change to undo — a plain revert is correct.
+      const { result } = renderHook(() => usePatchManager());
+
+      vi.clearAllMocks();
+      act(() => result.current.stage('div/0', 'flex-wrap', 'flex-wrap', 'flex-wrap'));
+
+      expect(result.current.patches).toHaveLength(0);
+      expect(sendTo).toHaveBeenCalledWith('overlay', { type: 'PATCH_REVERT' });
+    });
+
+    it('sends PATCH_REVERT_STAGED only when the staged newClass differs from originalClass', () => {
+      // Edge case: staged patch exists but newClass already equals originalClass (shouldn't
+      // happen in practice, but make sure we degrade gracefully to PATCH_REVERT).
+      const { result } = renderHook(() => usePatchManager());
+
+      // Force a patch with identical original/new (shouldn't happen normally, but test the guard)
+      act(() => result.current.stage('div/0', 'flex-wrap', 'flex-wrap', 'flex-nowrap'));
+      // Manually simulate: what if we now undo but staged had newClass === originalClass?
+      // Re-stage back to original — the existing staged patch has newClass='flex-nowrap' ≠ 'flex-wrap',
+      // so PATCH_REVERT_STAGED should fire.
+      vi.clearAllMocks();
+      act(() => result.current.stage('div/0', 'flex-wrap', 'flex-wrap', 'flex-wrap'));
+      expect(sendTo).toHaveBeenCalledWith('overlay', {
+        type: 'PATCH_REVERT_STAGED',
+        oldClass: 'flex-nowrap',
+        newClass: 'flex-wrap',
+      });
     });
 
     it('allows multiple patches for different properties', () => {

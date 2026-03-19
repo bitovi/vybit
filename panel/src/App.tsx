@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { parseClasses } from "../../overlay/src/class-parser";
+import { parseTokens, TAILWIND_PARSERS } from '../../overlay/src/grammar';
+import type { ParsedToken } from '../../overlay/src/grammar';
 import { ContainerSwitcher } from "./components/ContainerSwitcher";
 import { MessageTab } from "./components/MessageTab";
 import { PatchPopover } from "./components/PatchPopover";
@@ -33,6 +34,7 @@ interface ElementData {
 	componentName: string;
 	instanceCount: number;
 	classes: string;
+	parsedClasses: ParsedToken[];
 	tailwindConfig: any;
 }
 
@@ -79,6 +81,7 @@ function InspectorApp() {
 					componentName: msg.componentName,
 					instanceCount: msg.instanceCount,
 					classes: msg.classes,
+					parsedClasses: parseTokens(msg.classes, TAILWIND_PARSERS),
 					tailwindConfig: msg.tailwindConfig,
 				});
 				setSelectionId((prev) => prev + 1);
@@ -400,7 +403,7 @@ function InspectorApp() {
 		);
 	}
 
-	const parsedClasses = parseClasses(elementData.classes);
+	const parsedClasses = elementData.parsedClasses;
 
 	return (
 		<div className="h-full flex flex-col">

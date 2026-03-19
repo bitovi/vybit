@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gap Control — Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #FFFFFF;
+      --page-bg:      #EAECED;
+      --surface:      #F4F5F5;
+      --surface-hi:   #E6E9E9;
+      --border:       #DFE2E2;
+      --text:         #334041;
+      --text-mid:     #687879;
+      --muted:        #A3ADAD;
+      --orange:       #F5532D;
+      --orange-dim:   rgba(245, 83, 45, 0.09);
+      --orange-fill:  rgba(245, 83, 45, 0.12);
+      --orange-fill-hi: rgba(245, 83, 45, 0.22);
+      --teal:         #00848B;
+      --teal-dim:     rgba(0, 132, 139, 0.09);
+      --teal-fill:    rgba(0, 132, 139, 0.12);
+      --teal-fill-hi: rgba(0, 132, 139, 0.22);
+      --teal-dark:    #005A5F;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       150ms ease-in-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 32px;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 56px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .section-tag.teal   { background: var(--teal); }
+    .section-tag.purple { background: #8B5CF6; }
+    .section-tag.amber  { background: #F59E0B; }
+    .section-tag.orange { background: var(--orange); }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .note {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #445566;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+    .note strong { color: #3B82F6; }
+    .note ul { margin-top: 6px; padding-left: 16px; }
+    .note li { margin-bottom: 2px; }
+    .note code { font-family: var(--font-mono); font-size: 10px; background: rgba(0,0,0,0.06); padding: 1px 3px; border-radius: 2px; }
+
+    /* ─── STATE LABEL ──────────────────────────────── */
+    .state-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--teal-dark);
+      background: rgba(0,132,139,0.08);
+      border-radius: 3px;
+      display: inline-block;
+      padding: 2px 6px;
+      margin-bottom: 8px;
+    }
+
+    /* ─── PANEL SIMULATION ──────────────────────────────────── */
+    .panel-sim {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow: visible;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 8px 8px 0 0;
+      background: var(--bg);
+    }
+
+    .comp-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .panel-body {
+      padding: 10px 12px 14px;
+    }
+
+    /* ─── SECTION HEADER ──────────────────────────────────── */
+    .prop-section-header {
+      margin-top: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .prop-section-header .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      opacity: 0.5;
+    }
+    .prop-section-header .label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-mid);
+    }
+    .prop-section-header .add-btn {
+      margin-left: auto;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; font-size: 11px;
+      border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      cursor: pointer;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 8px 0 4px;
+    }
+
+    /* ─── FLEX PILLS (reused from other spec) ─────────────── */
+    .flex-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      cursor: pointer;
+      user-select: none;
+      transition: all var(--t-fast);
+      white-space: nowrap;
+    }
+    .flex-pill:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .flex-pill .axis-arrow { font-size: 10px; opacity: 0.45; }
+    .flex-pill .caret { font-size: 8px; opacity: 0.35; margin-left: 1px; }
+
+    /* ═══════════════════════════════════════════════════
+       GAP DIAGRAM — the 3×3 visual grid
+       Items occupy corners. Gap-x zones = middle column.
+       Gap-y zones = middle row. Center = gap shorthand hint.
+    ═══════════════════════════════════════════════════ */
+
+    .gap-diagram {
+      display: grid;
+      /* column widths: item | gap-x | item */
+      grid-template-columns: 22px var(--gx-size, 14px) 22px;
+      /* row heights:   item | gap-y | item */
+      grid-template-rows:    22px var(--gy-size, 14px) 22px;
+      width: fit-content;
+      transition: --gx-size var(--t-fast), --gy-size var(--t-fast);
+    }
+
+    /* Item squares */
+    .gd-item {
+      background: rgba(0, 132, 139, 0.35);
+      border-radius: 3px;
+      transition: background var(--t-fast);
+    }
+    .gap-diagram:hover .gd-item,
+    .gap-diagram.gd-active .gd-item { background: rgba(0, 132, 139, 0.5); }
+
+    /* ─── Gap-X zone (vertical strip, middle column) ── */
+    .gd-gap-x {
+      background: var(--orange-fill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: ew-resize;
+      position: relative;
+      transition: background var(--t-fast);
+      min-width: 4px;
+    }
+    .gd-gap-x:hover,
+    .gd-gap-x.gd-active { background: var(--orange-fill-hi); }
+    .gd-gap-x .gd-zone-label {
+      font-size: 7px;
+      font-family: var(--font-mono);
+      color: var(--orange);
+      font-weight: 700;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+      pointer-events: none;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+    .gd-gap-x:hover .gd-zone-label,
+    .gd-gap-x.gd-active .gd-zone-label { opacity: 1; }
+
+    /* ─── Gap-Y zone (horizontal strip, middle row) ─── */
+    .gd-gap-y {
+      background: var(--teal-fill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: ns-resize;
+      position: relative;
+      transition: background var(--t-fast);
+      min-height: 4px;
+    }
+    .gd-gap-y:hover,
+    .gd-gap-y.gd-active { background: var(--teal-fill-hi); }
+    .gd-gap-y .gd-zone-label {
+      font-size: 7px;
+      font-family: var(--font-mono);
+      color: var(--teal);
+      font-weight: 700;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+      pointer-events: none;
+    }
+    .gd-gap-y:hover .gd-zone-label,
+    .gd-gap-y.gd-active .gd-zone-label { opacity: 1; }
+
+    /* Center intersection (gap-x meets gap-y) */
+    .gd-center {
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ─── No-gap / ghost state ─── */
+    .gap-diagram.gd-no-gap .gd-item { background: rgba(0,132,139,0.15); }
+    .gap-diagram.gd-no-gap .gd-gap-x { background: rgba(245, 83, 45, 0.05); }
+    .gap-diagram.gd-no-gap .gd-gap-y { background: rgba(0,132,139,0.05); }
+
+    /* ═══════════════════════════════════════════════════
+       GAP SCRUBBER — the full inline control
+       = diagram + scrubber chips side-by-side
+    ═══════════════════════════════════════════════════ */
+
+    .gap-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* The chips block (right of diagram) */
+    .gap-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    /* Individual gap chip */
+    .gap-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-mid);
+      cursor: ew-resize;
+      user-select: none;
+      transition: all var(--t-fast);
+      white-space: nowrap;
+    }
+    .gap-chip:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .gap-chip.gap-chip-x:hover { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
+    .gap-chip.gap-chip-x.active { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
+    .gap-chip.gap-chip-y:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .gap-chip.gap-chip-y.active { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .gap-chip.gap-chip-all:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .gap-chip.gap-chip-all.active { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .gap-chip.ghost {
+      border-style: dashed;
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .gap-chip .chip-axis {
+      font-size: 9px;
+      opacity: 0.5;
+    }
+    .gap-chip .chip-caret {
+      font-size: 8px;
+      opacity: 0.35;
+    }
+
+    /* Mode toggle: unified ↔↕ vs split ↔ / ↕ */
+    .gap-mode-toggle {
+      display: flex;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .gap-mode-btn {
+      padding: 2px 6px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      transition: all var(--t-fast);
+      line-height: 1.4;
+    }
+    .gap-mode-btn:not(:last-child) { border-right: 1px solid var(--border); }
+    .gap-mode-btn:hover { background: var(--teal-dim); color: var(--teal); }
+    .gap-mode-btn.active { background: var(--teal); color: #fff; }
+
+    /* ═══════════════════════════════════════════════════
+       DROPDOWN — gap value list (like ScaleScrubber dropdown)
+    ═══════════════════════════════════════════════════ */
+
+    .gap-scrubber-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .gap-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 100;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      min-width: 90px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    .gap-dropdown.open { display: block; }
+
+    .gap-dd-remove {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px 5px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: color var(--t-fast);
+    }
+    .gap-dd-remove:hover { color: var(--orange); }
+    .gap-dd-remove svg { width: 9px; height: 9px; flex-shrink: 0; }
+
+    .gap-dd-item {
+      display: block;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: background var(--t-fast), color var(--t-fast);
+    }
+    .gap-dd-item:hover { background: var(--teal-dim); color: var(--teal); }
+    .gap-dd-item.active {
+      background: rgba(0,132,139,0.12);
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    /* ─── State-specific coloring for dropdown when x or y variant ── */
+    .gap-dropdown.x-mode .gap-dd-item:hover { background: var(--orange-dim); color: var(--orange); }
+    .gap-dropdown.x-mode .gap-dd-item.active { background: rgba(245,83,45,0.12); color: var(--orange); font-weight:700; }
+
+    /* ═══════════════════════════════════════════════════
+       ANATOMY / ANNOTATED DIAGRAM
+    ═══════════════════════════════════════════════════ */
+
+    .anatomy-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .annotation-line {
+      position: absolute;
+      border: 1px dashed rgba(0,0,0,0.18);
+    }
+    .annotation-label {
+      position: absolute;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--text-mid);
+      white-space: nowrap;
+    }
+
+    /* ─── Larger anatomy diagram ──────────────────── */
+    .gap-diagram.large {
+      grid-template-columns: 44px 32px 44px;
+      grid-template-rows: 44px 32px 44px;
+    }
+    .gap-diagram.large .gd-zone-label { font-size: 9px; opacity: 1; }
+
+    /* ═══════════════════════════════
+       STATES GRID
+    ═══════════════════════════════ */
+    .states-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .state-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .state-name {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── "No gap" diagram overlay text ─── */
+    .gd-no-gap-hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    /* ─── Scrubber range indicator bar ─── */
+    .scrub-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+    .scrub-bar-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      background: var(--teal);
+      border-radius: 2px;
+      transition: width var(--t-fast);
+    }
+    .scrub-bar-fill.x { background: var(--orange); }
+
+    /* ─── Collapsible annotation note ─── */
+    .design-note {
+      background: rgba(245,83,45,0.05);
+      border: 1px solid rgba(245,83,45,0.2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #553322;
+      line-height: 1.7;
+      max-width: 320px;
+    }
+    .design-note strong { color: var(--orange); }
+  </style>
+</head>
+<body>
+
+<h1>Gap Control — Prototype</h1>
+<p class="page-subtitle">
+  A visual gap editor for flex containers. Supports <code style="font-family:var(--font-mono);font-size:11px">gap</code> (unified),
+  <code style="font-family:var(--font-mono);font-size:11px">gap-x</code> (columns), and
+  <code style="font-family:var(--font-mono);font-size:11px">gap-y</code> (rows) independently.
+  The diagram makes the axis relationship explicit — orange = column gap, teal = row gap.
+  Inspired by BoxModel ring layers and CornerModel slot pattern.
+</p>
+
+<div class="sections">
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 1 — INTERACTIVE PANEL MOCK
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag teal">1</span>
+      <span class="section-title">Interactive Panel Mock</span>
+    </div>
+    <p class="section-desc">
+      The gap control sits below the justify/align chips in the Flexbox section.
+      Click a gap chip to open the value scrubber. Toggle between unified
+      (gap shorthand) and split (gap-x / gap-y) with the mode buttons.
+      Hover the diagram zones to see axis highlighting.
+    </p>
+
+    <div class="demo-row">
+      <div class="panel-sim">
+        <div class="panel-header">
+          <span class="comp-name">Toolbar</span>
+        </div>
+        <div class="panel-body" style="position:relative; overflow:visible;">
+
+          <div class="prop-section-header">
+            <span class="dot"></span>
+            <span class="label">Flexbox &amp; Grid</span>
+            <button class="add-btn">+</button>
+          </div>
+
+          <!-- Static flex chips above (for context) -->
+          <div class="chip-row" style="margin-bottom:6px;">
+            <div class="flex-pill">
+              <span class="axis-arrow">→</span>flex-row<span class="caret">▾</span>
+            </div>
+            <div class="flex-pill">
+              <span class="axis-arrow">↩</span>wrap<span class="caret">▾</span>
+            </div>
+            <div class="flex-pill">
+              <span class="axis-arrow">→</span>justify-start<span class="caret">▾</span>
+            </div>
+            <div class="flex-pill">
+              <span class="axis-arrow">↓</span>items-stretch<span class="caret">▾</span>
+            </div>
+          </div>
+
+          <!-- ─── GAP CONTROL ─────────────────────────────────────── -->
+          <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+
+            <!-- Mode toggle -->
+            <div class="gap-mode-toggle" id="modeToggle">
+              <button class="gap-mode-btn active" data-mode="unified" title="gap — unified shorthand" onclick="setMode('unified', this)">↔↕</button>
+              <button class="gap-mode-btn" data-mode="split" title="gap-x / gap-y — split" onclick="setMode('split', this)">↔/↕</button>
+            </div>
+
+            <!-- --- UNIFIED MODE: one gap chip --- -->
+            <div id="unifiedMode" class="gap-control">
+              <div class="gap-diagram" id="mainDiagram"
+                   style="--gx-size:14px; --gy-size:14px;"
+                   onmouseleave="clearDiagramHover()">
+                <!-- row 1 -->
+                <div class="gd-item" style="grid-area:1/1"></div>
+                <div class="gd-gap-x" style="grid-area:1/2" id="gx1"
+                     onmouseenter="hoverGapX()" onmouseleave="clearDiagramHover()">
+                  <span class="gd-zone-label">↔</span>
+                </div>
+                <div class="gd-item" style="grid-area:1/3"></div>
+                <!-- row 2 -->
+                <div class="gd-gap-y" style="grid-area:2/1" id="gy1"
+                     onmouseenter="hoverGapY()" onmouseleave="clearDiagramHover()">
+                  <span class="gd-zone-label">↕</span>
+                </div>
+                <div class="gd-center"  style="grid-area:2/2"></div>
+                <div class="gd-gap-y" style="grid-area:2/3" id="gy2"
+                     onmouseenter="hoverGapY()" onmouseleave="clearDiagramHover()">
+                  <span class="gd-zone-label">↕</span>
+                </div>
+                <!-- row 3 -->
+                <div class="gd-item" style="grid-area:3/1"></div>
+                <div class="gd-gap-x" style="grid-area:3/2" id="gx2"
+                     onmouseenter="hoverGapX()" onmouseleave="clearDiagramHover()">
+                  <span class="gd-zone-label">↔</span>
+                </div>
+                <div class="gd-item" style="grid-area:3/3"></div>
+              </div>
+
+              <!-- Unified chip -->
+              <div class="gap-chips">
+                <div class="gap-scrubber-wrap">
+                  <div class="gap-chip gap-chip-all" id="unifiedChip" onclick="toggleGapDropdown('unifiedDD', this)">
+                    <span class="chip-axis">↔↕</span>
+                    <span id="unifiedLabel">gap-4</span>
+                    <span class="chip-caret">›</span>
+                  </div>
+                  <div class="gap-dropdown" id="unifiedDD"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- --- SPLIT MODE: gap-x and gap-y chips --- -->
+            <div id="splitMode" class="gap-control" style="display:none;">
+              <div class="gap-diagram" id="splitDiagram"
+                   style="--gx-size:14px; --gy-size:10px;"
+                   onmouseleave="clearDiagramHover()">
+                <div class="gd-item" style="grid-area:1/1"></div>
+                <div class="gd-gap-x" style="grid-area:1/2"
+                     onmouseenter="hoverSplitGapX()" onmouseleave="clearSplitHover()">
+                  <span class="gd-zone-label">↔</span>
+                </div>
+                <div class="gd-item" style="grid-area:1/3"></div>
+                <div class="gd-gap-y" style="grid-area:2/1"
+                     onmouseenter="hoverSplitGapY()" onmouseleave="clearSplitHover()">
+                  <span class="gd-zone-label">↕</span>
+                </div>
+                <div class="gd-center" style="grid-area:2/2"></div>
+                <div class="gd-gap-y" style="grid-area:2/3"
+                     onmouseenter="hoverSplitGapY()" onmouseleave="clearSplitHover()">
+                  <span class="gd-zone-label">↕</span>
+                </div>
+                <div class="gd-item" style="grid-area:3/1"></div>
+                <div class="gd-gap-x" style="grid-area:3/2"
+                     onmouseenter="hoverSplitGapX()" onmouseleave="clearSplitHover()">
+                  <span class="gd-zone-label">↔</span>
+                </div>
+                <div class="gd-item" style="grid-area:3/3"></div>
+              </div>
+
+              <!-- Split chips -->
+              <div class="gap-chips">
+                <div class="gap-scrubber-wrap">
+                  <div class="gap-chip gap-chip-x" id="gapXChip" onclick="toggleGapDropdown('gapXDD', this, 'x')">
+                    <span class="chip-axis">↔</span>
+                    <span id="gapXLabel">gap-x-4</span>
+                    <span class="chip-caret">›</span>
+                  </div>
+                  <div class="gap-dropdown x-mode" id="gapXDD"></div>
+                </div>
+                <div class="gap-scrubber-wrap">
+                  <div class="gap-chip gap-chip-y" id="gapYChip" onclick="toggleGapDropdown('gapYDD', this, 'y')">
+                    <span class="chip-axis">↕</span>
+                    <span id="gapYLabel">gap-y-2</span>
+                    <span class="chip-caret">›</span>
+                  </div>
+                  <div class="gap-dropdown" id="gapYDD"></div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /gap control -->
+
+          <hr class="divider">
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Interaction model:</strong>
+        <ul>
+          <li><strong>↔↕ mode toggle</strong> — unified <code>gap</code> vs separate <code>gap-x</code> / <code>gap-y</code></li>
+          <li><strong>diagram hover</strong> — highlights the relevant zone(s), previews axis</li>
+          <li><strong>chip click</strong> → opens the scrubber value list dropdown</li>
+          <li><strong>chip drag ↔</strong> → scrubs value directly (not shown in prototype)</li>
+          <li>Switching to "split" copies the current unified value to both axes</li>
+          <li>Switching to "unified" uses the gap-x value as the new gap</li>
+        </ul>
+        <br>
+        <strong>Axis coloring:</strong>
+        <ul>
+          <li>Orange = gap-x (column spacing ↔)</li>
+          <li>Teal = gap-y (row spacing ↕)</li>
+          <li>Unified mode uses teal for the combined value</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 2 — VISUAL STATES
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag purple">2</span>
+      <span class="section-title">Visual States</span>
+    </div>
+    <p class="section-desc">
+      All the states the gap control can be in. The diagram zone sizes visually
+      scale with the gap value — wider orange strip = larger column gap,
+      taller teal strip = larger row gap.
+    </p>
+
+    <div class="states-grid">
+
+      <!-- State: No gap -->
+      <div class="state-card">
+        <span class="state-name">No gap set</span>
+        <div class="gap-control">
+          <div class="gap-diagram gd-no-gap" style="--gx-size:6px; --gy-size:6px; position:relative;">
+            <div class="gd-item" style="grid-area:1/1; opacity:0.4;"></div>
+            <div class="gd-gap-x" style="grid-area:1/2;"></div>
+            <div class="gd-item" style="grid-area:1/3; opacity:0.4;"></div>
+            <div class="gd-gap-y" style="grid-area:2/1;"></div>
+            <div class="gd-center" style="grid-area:2/2;"></div>
+            <div class="gd-gap-y" style="grid-area:2/3;"></div>
+            <div class="gd-item" style="grid-area:3/1; opacity:0.4;"></div>
+            <div class="gd-gap-x" style="grid-area:3/2;"></div>
+            <div class="gd-item" style="grid-area:3/3; opacity:0.4;"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-all ghost">
+              <span class="chip-axis">↔↕</span>
+              gap
+              <span class="chip-caret">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: Uniform gap-2 (small) -->
+      <div class="state-card">
+        <span class="state-name">gap-2 (small)</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:6px; --gy-size:6px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x" style="grid-area:1/2"></div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y" style="grid-area:2/1"></div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y" style="grid-area:2/3"></div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x" style="grid-area:3/2"></div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-all"><span class="chip-axis">↔↕</span>gap-2<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: gap-4 (medium) -->
+      <div class="state-card">
+        <span class="state-name">gap-4 (medium)</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:14px; --gy-size:14px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x" style="grid-area:1/2"></div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y" style="grid-area:2/1"></div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y" style="grid-area:2/3"></div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x" style="grid-area:3/2"></div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-all"><span class="chip-axis">↔↕</span>gap-4<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: gap-8 (large) -->
+      <div class="state-card">
+        <span class="state-name">gap-8 (large)</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:22px; --gy-size:22px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x" style="grid-area:1/2"></div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y" style="grid-area:2/1"></div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y" style="grid-area:2/3"></div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x" style="grid-area:3/2"></div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-all"><span class="chip-axis">↔↕</span>gap-8<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: Split gap-x-6, gap-y-2 -->
+      <div class="state-card">
+        <span class="state-name">gap-x-6 / gap-y-2 (split)</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:18px; --gy-size:6px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x" style="grid-area:1/2"></div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y" style="grid-area:2/1"></div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y" style="grid-area:2/3"></div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x" style="grid-area:3/2"></div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-x"><span class="chip-axis">↔</span>gap-x-6<span class="chip-caret">›</span></div>
+            <div class="gap-chip gap-chip-y"><span class="chip-axis">↕</span>gap-y-2<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: gap-x hovered -->
+      <div class="state-card">
+        <span class="state-name">gap-x zone hovered</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:14px; --gy-size:14px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x gd-active" style="grid-area:1/2">
+              <span class="gd-zone-label" style="opacity:1;">↔</span>
+            </div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y" style="grid-area:2/1"></div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y" style="grid-area:2/3"></div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x gd-active" style="grid-area:3/2">
+              <span class="gd-zone-label" style="opacity:1;">↔</span>
+            </div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-x active"><span class="chip-axis">↔</span>gap-x-4<span class="chip-caret">›</span></div>
+            <div class="gap-chip gap-chip-y"><span class="chip-axis">↕</span>gap-y-4<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: gap-y hovered -->
+      <div class="state-card">
+        <span class="state-name">gap-y zone hovered</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:14px; --gy-size:14px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x" style="grid-area:1/2"></div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y gd-active" style="grid-area:2/1">
+              <span class="gd-zone-label" style="opacity:1;">↕</span>
+            </div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y gd-active" style="grid-area:2/3">
+              <span class="gd-zone-label" style="opacity:1;">↕</span>
+            </div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x" style="grid-area:3/2"></div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-x"><span class="chip-axis">↔</span>gap-x-4<span class="chip-caret">›</span></div>
+            <div class="gap-chip gap-chip-y active"><span class="chip-axis">↕</span>gap-y-4<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State: gap-x-4 only (no gap-y) -->
+      <div class="state-card">
+        <span class="state-name">gap-x-4 only (no row gap)</span>
+        <div class="gap-control">
+          <div class="gap-diagram" style="--gx-size:14px; --gy-size:4px;">
+            <div class="gd-item" style="grid-area:1/1"></div>
+            <div class="gd-gap-x" style="grid-area:1/2"></div>
+            <div class="gd-item" style="grid-area:1/3"></div>
+            <div class="gd-gap-y gd-no-gap" style="grid-area:2/1; background:rgba(0,132,139,0.04);"></div>
+            <div class="gd-center" style="grid-area:2/2"></div>
+            <div class="gd-gap-y gd-no-gap" style="grid-area:2/3; background:rgba(0,132,139,0.04);"></div>
+            <div class="gd-item" style="grid-area:3/1"></div>
+            <div class="gd-gap-x" style="grid-area:3/2"></div>
+            <div class="gd-item" style="grid-area:3/3"></div>
+          </div>
+          <div class="gap-chips">
+            <div class="gap-chip gap-chip-x"><span class="chip-axis">↔</span>gap-x-4<span class="chip-caret">›</span></div>
+            <div class="gap-chip gap-chip-y ghost"><span class="chip-axis">↕</span>gap-y<span class="chip-caret">›</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 3 — DIAGRAM ANATOMY (enlarged)
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag amber">3</span>
+      <span class="section-title">Diagram Anatomy</span>
+    </div>
+    <p class="section-desc">
+      The 3×3 CSS grid that forms the diagram. Items occupy the four corners.
+      Gap zones fill the middle column (↔ gap-x) and middle row (↕ gap-y).
+      The center intersection cell is decorative — hovering the whole diagram can later
+      be used to set a unified gap shorthand.
+    </p>
+
+    <div class="demo-row" style="align-items:center; gap:40px;">
+
+      <!-- Large annotated diagram -->
+      <div style="position:relative; padding: 20px 60px 40px 20px;">
+
+        <div class="gap-diagram large" style="--gx-size:32px; --gy-size:32px;">
+          <!-- row 1 -->
+          <div class="gd-item" style="grid-area:1/1"></div>
+          <div class="gd-gap-x" style="grid-area:1/2">
+            <span class="gd-zone-label" style="opacity:1; font-size:10px;">↔</span>
+          </div>
+          <div class="gd-item" style="grid-area:1/3"></div>
+          <!-- row 2 -->
+          <div class="gd-gap-y" style="grid-area:2/1">
+            <span class="gd-zone-label" style="opacity:1; font-size:10px;">↕</span>
+          </div>
+          <div class="gd-center" style="grid-area:2/2; background: rgba(0,0,0,0.025); border-radius:2px;"></div>
+          <div class="gd-gap-y" style="grid-area:2/3">
+            <span class="gd-zone-label" style="opacity:1; font-size:10px;">↕</span>
+          </div>
+          <!-- row 3 -->
+          <div class="gd-item" style="grid-area:3/1"></div>
+          <div class="gd-gap-x" style="grid-area:3/2">
+            <span class="gd-zone-label" style="opacity:1; font-size:10px;">↔</span>
+          </div>
+          <div class="gd-item" style="grid-area:3/3"></div>
+        </div>
+
+        <!-- Annotations -->
+        <div style="position:absolute; top:20px; right:0; font-size:9px; font-family:var(--font-mono); color:var(--orange); line-height:2.4;">
+          <div>← gap-x zone</div>
+          <div style="color:var(--text-mid); margin-top:33px;">← gap-y zone</div>
+          <div style="color:rgba(0,132,139,0.5); margin-top:27px;">← gap-x zone</div>
+        </div>
+        <div style="position:absolute; top:96px; left:20px; font-size:9px; font-family:var(--font-mono); color:var(--teal);">↑ gap-y zones</div>
+        <div style="position:absolute; top:4px; left:20px; font-size:9px; font-family:var(--font-mono); color:rgba(0,132,139,0.6);">item · · ·</div>
+      </div>
+
+      <!-- Annotation table -->
+      <div style="display:flex; flex-direction:column; gap:8px;">
+
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+          <table style="border-collapse:collapse; font-size:11px; font-family:var(--font-mono);">
+            <thead>
+              <tr style="background:var(--surface); color:var(--text-mid);">
+                <th style="padding:5px 10px; text-align:left; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600;">Zone</th>
+                <th style="padding:5px 10px; text-align:left; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600;">Grid position</th>
+                <th style="padding:5px 10px; text-align:left; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600;">Controls</th>
+                <th style="padding:5px 10px; text-align:left; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600;">Cursor</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-top:1px solid var(--border);">
+                <td style="padding:5px 10px; color:rgba(0,132,139,0.7);">item ×4</td>
+                <td style="padding:5px 10px; color:var(--text-mid);">corners (1/1, 1/3, 3/1, 3/3)</td>
+                <td style="padding:5px 10px; color:var(--muted);">visual only</td>
+                <td style="padding:5px 10px; color:var(--muted);">default</td>
+              </tr>
+              <tr style="border-top:1px solid var(--border);">
+                <td style="padding:5px 10px; color:var(--orange);">gap-x ×2</td>
+                <td style="padding:5px 10px; color:var(--text-mid);">middle column (1/2, 3/2)</td>
+                <td style="padding:5px 10px; color:var(--orange);">column-gap</td>
+                <td style="padding:5px 10px; color:var(--text-mid);">ew-resize</td>
+              </tr>
+              <tr style="border-top:1px solid var(--border);">
+                <td style="padding:5px 10px; color:var(--teal);">gap-y ×2</td>
+                <td style="padding:5px 10px; color:var(--text-mid);">middle row (2/1, 2/3)</td>
+                <td style="padding:5px 10px; color:var(--teal);">row-gap</td>
+                <td style="padding:5px 10px; color:var(--text-mid);">ns-resize</td>
+              </tr>
+              <tr style="border-top:1px solid var(--border);">
+                <td style="padding:5px 10px; color:var(--muted);">center</td>
+                <td style="padding:5px 10px; color:var(--text-mid);">2/2</td>
+                <td style="padding:5px 10px; color:var(--muted);">decorative</td>
+                <td style="padding:5px 10px; color:var(--muted);">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="design-note">
+          <strong>Zone sizing:</strong> The grid column/row sizes for the gap zones
+          scale with the current gap value, giving a proportional hint. For example:</br>
+          <code style="font-family:var(--font-mono);font-size:10px;">gap-2 → 6px zone, gap-4 → 14px, gap-8 → 22px</code><br>
+          This makes it easy to see at a glance whether the gap is tight or loose
+          before reading the label.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 4 — CHIP VARIANTS & SIZE SCALE
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag orange">4</span>
+      <span class="section-title">Chip Variants &amp; Value Scale</span>
+    </div>
+    <p class="section-desc">
+      All chip forms and a reference of how gap values map to visual diagram zone sizes.
+    </p>
+
+    <div class="demo-row" style="gap: 32px;">
+
+      <!-- Chip variants -->
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Chip variants</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-chip gap-chip-all"><span class="chip-axis">↔↕</span>gap-4<span class="chip-caret">›</span></div>
+            <span style="font-size:9px; font-family:var(--font-mono); color:var(--muted);">unified — gap shorthand</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-chip gap-chip-x"><span class="chip-axis">↔</span>gap-x-4<span class="chip-caret">›</span></div>
+            <span style="font-size:9px; font-family:var(--font-mono); color:var(--muted);">split — column gap</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-chip gap-chip-y"><span class="chip-axis">↕</span>gap-y-8<span class="chip-caret">›</span></div>
+            <span style="font-size:9px; font-family:var(--font-mono); color:var(--muted);">split — row gap</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-chip gap-chip-all ghost"><span class="chip-axis">↔↕</span>gap<span class="chip-caret">›</span></div>
+            <span style="font-size:9px; font-family:var(--font-mono); color:var(--muted);">ghost — not set yet</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-chip gap-chip-x active"><span class="chip-axis">↔</span>gap-x-4<span class="chip-caret">›</span></div>
+            <span style="font-size:9px; font-family:var(--font-mono); color:var(--muted);">active / hovered state</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Size scale reference -->
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; min-width:240px;">
+        <div style="font-size:9px; font-family:var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Diagram zone size scale</div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+
+          <!-- scale items: show miniature diagram + label -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-diagram" style="--gx-size:2px;--gy-size:2px;transform:scale(0.75);transform-origin:left center;margin-right:-10px;">
+              <div class="gd-item" style="grid-area:1/1"></div><div class="gd-gap-x" style="grid-area:1/2"></div><div class="gd-item" style="grid-area:1/3"></div>
+              <div class="gd-gap-y" style="grid-area:2/1"></div><div class="gd-center" style="grid-area:2/2"></div><div class="gd-gap-y" style="grid-area:2/3"></div>
+              <div class="gd-item" style="grid-area:3/1"></div><div class="gd-gap-x" style="grid-area:3/2"></div><div class="gd-item" style="grid-area:3/3"></div>
+            </div>
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-mid);">gap-0 → 2px zone</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-diagram" style="--gx-size:6px;--gy-size:6px;transform:scale(0.75);transform-origin:left center;margin-right:-4px;">
+              <div class="gd-item" style="grid-area:1/1"></div><div class="gd-gap-x" style="grid-area:1/2"></div><div class="gd-item" style="grid-area:1/3"></div>
+              <div class="gd-gap-y" style="grid-area:2/1"></div><div class="gd-center" style="grid-area:2/2"></div><div class="gd-gap-y" style="grid-area:2/3"></div>
+              <div class="gd-item" style="grid-area:3/1"></div><div class="gd-gap-x" style="grid-area:3/2"></div><div class="gd-item" style="grid-area:3/3"></div>
+            </div>
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-mid);">gap-2 → 6px zone</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-diagram" style="--gx-size:14px;--gy-size:14px;transform:scale(0.75);transform-origin:left center;margin-right:4px;">
+              <div class="gd-item" style="grid-area:1/1"></div><div class="gd-gap-x" style="grid-area:1/2"></div><div class="gd-item" style="grid-area:1/3"></div>
+              <div class="gd-gap-y" style="grid-area:2/1"></div><div class="gd-center" style="grid-area:2/2"></div><div class="gd-gap-y" style="grid-area:2/3"></div>
+              <div class="gd-item" style="grid-area:3/1"></div><div class="gd-gap-x" style="grid-area:3/2"></div><div class="gd-item" style="grid-area:3/3"></div>
+            </div>
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-mid);">gap-4 → 14px zone</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-diagram" style="--gx-size:22px;--gy-size:22px;transform:scale(0.75);transform-origin:left center;margin-right:10px;">
+              <div class="gd-item" style="grid-area:1/1"></div><div class="gd-gap-x" style="grid-area:1/2"></div><div class="gd-item" style="grid-area:1/3"></div>
+              <div class="gd-gap-y" style="grid-area:2/1"></div><div class="gd-center" style="grid-area:2/2"></div><div class="gd-gap-y" style="grid-area:2/3"></div>
+              <div class="gd-item" style="grid-area:3/1"></div><div class="gd-gap-x" style="grid-area:3/2"></div><div class="gd-item" style="grid-area:3/3"></div>
+            </div>
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-mid);">gap-8 → 22px zone</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="gap-diagram" style="--gx-size:30px;--gy-size:30px;transform:scale(0.75);transform-origin:left center;margin-right:16px;">
+              <div class="gd-item" style="grid-area:1/1"></div><div class="gd-gap-x" style="grid-area:1/2"></div><div class="gd-item" style="grid-area:1/3"></div>
+              <div class="gd-gap-y" style="grid-area:2/1"></div><div class="gd-center" style="grid-area:2/2"></div><div class="gd-gap-y" style="grid-area:2/3"></div>
+              <div class="gd-item" style="grid-area:3/1"></div><div class="gd-gap-x" style="grid-area:3/2"></div><div class="gd-item" style="grid-area:3/3"></div>
+            </div>
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-mid);">gap-12 → 30px zone (max)</span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /sections -->
+
+<script>
+  /* ─────────────────────────────────────────────
+     GAP SCALE: Tailwind value → visual zone size (px)
+  ───────────────────────────────────────────── */
+  const GAP_SCALE_VALUES = [
+    'gap-0', 'gap-px', 'gap-0.5', 'gap-1', 'gap-1.5', 'gap-2', 'gap-2.5',
+    'gap-3', 'gap-3.5', 'gap-4', 'gap-5', 'gap-6', 'gap-8', 'gap-10',
+    'gap-12', 'gap-16', 'gap-20', 'gap-24', 'gap-32',
+  ];
+
+  const GAP_VISUAL_PX = {
+    'gap-0': 2, 'gap-px': 2, 'gap-0.5': 3, 'gap-1': 4,
+    'gap-1.5': 5, 'gap-2': 6, 'gap-2.5': 7, 'gap-3': 8,
+    'gap-3.5': 9, 'gap-4': 14, 'gap-5': 16, 'gap-6': 18,
+    'gap-8': 22, 'gap-10': 25, 'gap-12': 28, 'gap-16': 30,
+    'gap-20': 30, 'gap-24': 30, 'gap-32': 30,
+  };
+
+  /* Derive gap-x-* and gap-y-* scales */
+  const GAP_X_VALUES = GAP_SCALE_VALUES.map(v => v.replace('gap-', 'gap-x-'));
+  const GAP_Y_VALUES = GAP_SCALE_VALUES.map(v => v.replace('gap-', 'gap-y-'));
+
+  function gapVisualPx(cls) {
+    const bare = cls.replace('gap-x-', 'gap-').replace('gap-y-', 'gap-');
+    return GAP_VISUAL_PX[bare] ?? 14;
+  }
+
+  /* ─── State ─────────────────────────────────────── */
+  let state = {
+    mode: 'unified',   // 'unified' | 'split'
+    gap: 'gap-4',
+    gapX: 'gap-x-4',
+    gapY: 'gap-y-2',
+  };
+
+  /* ─── Populate all dropdowns ─────────────────────── */
+  function buildDropdown(el, values, current, onSelect) {
+    el.innerHTML = '';
+
+    // Remove row
+    const removeRow = document.createElement('div');
+    removeRow.className = 'gap-dd-remove';
+    removeRow.innerHTML = `<svg viewBox="0 0 10 10"><line x1="1" y1="1" x2="9" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="#F5532D" stroke-width="1.8" stroke-linecap="round"/></svg> remove`;
+    removeRow.addEventListener('click', () => onSelect(null));
+    el.appendChild(removeRow);
+
+    values.forEach(v => {
+      const item = document.createElement('div');
+      item.className = 'gap-dd-item' + (v === current ? ' active' : '');
+      item.textContent = v;
+      item.addEventListener('click', () => onSelect(v));
+      el.appendChild(item);
+    });
+  }
+
+  function initDropdowns() {
+    buildDropdown(
+      document.getElementById('unifiedDD'),
+      GAP_SCALE_VALUES, state.gap,
+      (v) => { state.gap = v || 'gap-4'; applyUnified(state.gap); closeAllDropdowns(); }
+    );
+    buildDropdown(
+      document.getElementById('gapXDD'),
+      GAP_X_VALUES, state.gapX,
+      (v) => { state.gapX = v || 'gap-x-4'; applySplit(); closeAllDropdowns(); }
+    );
+    buildDropdown(
+      document.getElementById('gapYDD'),
+      GAP_Y_VALUES, state.gapY,
+      (v) => { state.gapY = v || 'gap-y-2'; applySplit(); closeAllDropdowns(); }
+    );
+  }
+
+  function updateMainDiagram(gxPx, gyPx) {
+    const d = document.getElementById('mainDiagram');
+    d.style.setProperty('--gx-size', gxPx + 'px');
+    d.style.setProperty('--gy-size', gyPx + 'px');
+  }
+
+  function updateSplitDiagram(gxPx, gyPx) {
+    const d = document.getElementById('splitDiagram');
+    d.style.setProperty('--gx-size', gxPx + 'px');
+    d.style.setProperty('--gy-size', gyPx + 'px');
+  }
+
+  function applyUnified(cls) {
+    document.getElementById('unifiedLabel').textContent = cls;
+    const px = gapVisualPx(cls);
+    updateMainDiagram(px, px);
+    buildDropdown(
+      document.getElementById('unifiedDD'),
+      GAP_SCALE_VALUES, cls,
+      (v) => { state.gap = v || 'gap-4'; applyUnified(state.gap); closeAllDropdowns(); }
+    );
+  }
+
+  function applySplit() {
+    document.getElementById('gapXLabel').textContent = state.gapX;
+    document.getElementById('gapYLabel').textContent = state.gapY;
+    updateSplitDiagram(gapVisualPx(state.gapX), gapVisualPx(state.gapY));
+    buildDropdown(
+      document.getElementById('gapXDD'),
+      GAP_X_VALUES, state.gapX,
+      (v) => { state.gapX = v || 'gap-x-4'; applySplit(); closeAllDropdowns(); }
+    );
+    buildDropdown(
+      document.getElementById('gapYDD'),
+      GAP_Y_VALUES, state.gapY,
+      (v) => { state.gapY = v || 'gap-y-2'; applySplit(); closeAllDropdowns(); }
+    );
+  }
+
+  /* ─── Mode toggle ─────────────────────────────────── */
+  function setMode(mode, btn) {
+    state.mode = mode;
+    document.querySelectorAll('.gap-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (mode === 'unified') {
+      document.getElementById('unifiedMode').style.display = 'flex';
+      document.getElementById('splitMode').style.display = 'none';
+      // Copy gap-y value as the new unified gap
+      applyUnified(state.gap);
+    } else {
+      document.getElementById('unifiedMode').style.display = 'none';
+      document.getElementById('splitMode').style.display = 'flex';
+      // Split: seed gap-x and gap-y from current unified
+      if (!state.gapX) state.gapX = state.gap.replace('gap-', 'gap-x-');
+      if (!state.gapY) state.gapY = state.gap.replace('gap-', 'gap-y-');
+      applySplit();
+    }
+    closeAllDropdowns();
+  }
+
+  /* ─── Dropdown toggle ─────────────────────────────── */
+  function toggleGapDropdown(ddId, chip, axis) {
+    const dd = document.getElementById(ddId);
+    const isOpen = dd.classList.contains('open');
+    closeAllDropdowns();
+    if (!isOpen) {
+      dd.classList.add('open');
+      chip.classList.add('active');
+    }
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.gap-dropdown').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.gap-chip').forEach(c => c.classList.remove('active'));
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.gap-scrubber-wrap') && !e.target.closest('.gap-chip')) {
+      closeAllDropdowns();
+    }
+  });
+
+  /* ─── Diagram hover effects ─────────────────────────── */
+  function hoverGapX() {
+    document.querySelectorAll('#mainDiagram .gd-gap-x').forEach(el => el.classList.add('gd-active'));
+    document.querySelectorAll('#mainDiagram .gd-gap-y').forEach(el => el.classList.remove('gd-active'));
+  }
+  function hoverGapY() {
+    document.querySelectorAll('#mainDiagram .gd-gap-y').forEach(el => el.classList.add('gd-active'));
+    document.querySelectorAll('#mainDiagram .gd-gap-x').forEach(el => el.classList.remove('gd-active'));
+  }
+  function clearDiagramHover() {
+    document.querySelectorAll('#mainDiagram .gd-gap-x, #mainDiagram .gd-gap-y').forEach(el => el.classList.remove('gd-active'));
+  }
+
+  function hoverSplitGapX() {
+    document.querySelectorAll('#splitDiagram .gd-gap-x').forEach(el => el.classList.add('gd-active'));
+    document.querySelectorAll('#splitDiagram .gd-gap-y').forEach(el => el.classList.remove('gd-active'));
+    document.getElementById('gapXChip').classList.add('active');
+    document.getElementById('gapYChip').classList.remove('active');
+  }
+  function hoverSplitGapY() {
+    document.querySelectorAll('#splitDiagram .gd-gap-y').forEach(el => el.classList.add('gd-active'));
+    document.querySelectorAll('#splitDiagram .gd-gap-x').forEach(el => el.classList.remove('gd-active'));
+    document.getElementById('gapYChip').classList.add('active');
+    document.getElementById('gapXChip').classList.remove('active');
+  }
+  function clearSplitHover() {
+    document.querySelectorAll('#splitDiagram .gd-gap-x, #splitDiagram .gd-gap-y').forEach(el => el.classList.remove('gd-active'));
+    document.getElementById('gapXChip').classList.remove('active');
+    document.getElementById('gapYChip').classList.remove('active');
+  }
+
+  /* ─── Init ─────────────────────────────────────────── */
+  initDropdowns();
+  applyUnified(state.gap);
+</script>
+
+</body>
+</html>

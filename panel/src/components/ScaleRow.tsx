@@ -3,7 +3,7 @@ import { getScaleValues } from './getScaleValues';
 
 interface ScaleRowProps {
   prefix: string;
-  themeKey: string | null;
+  scaleName: string | null;
   currentClass: string;
   tailwindConfig: any;
   locked: boolean;
@@ -13,8 +13,8 @@ interface ScaleRowProps {
   onClick: (fullClass: string) => void;
 }
 
-export function ScaleRow({ prefix, themeKey, currentClass, tailwindConfig, locked, lockedValue, onHover, onLeave, onClick }: ScaleRowProps) {
-  const scaleValues = getScaleValues(prefix, themeKey, tailwindConfig);
+export function ScaleRow({ prefix, scaleName, currentClass, tailwindConfig, locked, lockedValue, onHover, onLeave, onClick }: ScaleRowProps) {
+  const scaleValues = getScaleValues(prefix, scaleName, tailwindConfig);
   if (scaleValues.length === 0) return null;
 
   return (
