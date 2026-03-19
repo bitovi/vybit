@@ -1,5 +1,5 @@
 /* ─── Box Model Editor Styles ──────────────────────────────
-   Mirrors specs/005-box-model/box-model-hover-grow.html
+   Dark theme — simpler dashed-border nested divs.
    ────────────────────────────────────────────────────────── */
 
 /* ─── Tokens ──────────────────────────────────────────────── */
@@ -9,36 +9,54 @@
   --t-fast: 150ms ease-in-out;
   --t-grow: 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
-  /* Layer fills */
-  --m-fill: rgba(245, 83, 45, 0.10);
-  --o-fill: rgba(139, 79, 240, 0.10);
-  --b-fill: rgba(56, 120, 245, 0.10);
-  --p-fill: rgba(0, 132, 139, 0.12);
+  /* Layer fills — subtle semi-transparent overlays */
+  --m-fill: rgba(255, 255, 255, 0.02);
+  --o-fill: rgba(255, 255, 255, 0.025);
+  --b-fill: rgba(255, 255, 255, 0.03);
+  --p-fill: rgba(255, 255, 255, 0.04);
 
-  /* Layer accents */
-  --m-accent: #C73D1A;
-  --o-accent: #6932C3;
-  --b-accent: #1950D2;
-  --p-accent: #005A5F;
+  /* Layer hover fills — subtle colored tints per ring */
+  --m-fill-hover: rgba(249, 171, 100, 0.08);
+  --o-fill-hover: rgba(180, 150, 220, 0.08);
+  --b-fill-hover: rgba(120, 180, 240, 0.08);
+  --p-fill-hover: rgba(120, 210, 160, 0.08);
 
-  /* Layer labels */
-  --m-label: rgba(185, 55, 20, 0.35);
-  --o-label: rgba(105, 50, 195, 0.35);
-  --b-label: rgba(25, 80, 210, 0.35);
-  --p-label: rgba(0, 90, 95, 0.35);
-  --m-label-hover: rgba(185, 55, 20, 0.60);
-  --o-label-hover: rgba(105, 50, 195, 0.60);
-  --b-label-hover: rgba(25, 80, 210, 0.60);
-  --p-label-hover: rgba(0, 90, 95, 0.60);
+  /* Layer borders — dashed lines with subtle white */
+  --m-bdr: rgba(255, 255, 255, 0.10);
+  --o-bdr: rgba(255, 255, 255, 0.11);
+  --b-bdr: rgba(255, 255, 255, 0.12);
+  --p-bdr: rgba(255, 255, 255, 0.14);
+
+  /* Layer hover borders — colored */
+  --m-bdr-hover: rgba(249, 171, 100, 0.30);
+  --o-bdr-hover: rgba(180, 150, 220, 0.30);
+  --b-bdr-hover: rgba(120, 180, 240, 0.30);
+  --p-bdr-hover: rgba(120, 210, 160, 0.30);
+
+  /* Layer accents — all use the same muted white for values */
+  --m-accent: rgba(255, 255, 255, 0.40);
+  --o-accent: rgba(255, 255, 255, 0.40);
+  --b-accent: rgba(255, 255, 255, 0.40);
+  --p-accent: rgba(255, 255, 255, 0.40);
+
+  /* Layer labels — very dim */
+  --m-label: rgba(255, 255, 255, 0.25);
+  --o-label: rgba(255, 255, 255, 0.25);
+  --b-label: rgba(255, 255, 255, 0.25);
+  --p-label: rgba(255, 255, 255, 0.25);
+  --m-label-hover: rgba(249, 171, 100, 0.70);
+  --o-label-hover: rgba(180, 150, 220, 0.70);
+  --b-label-hover: rgba(120, 180, 240, 0.70);
+  --p-label-hover: rgba(120, 210, 160, 0.70);
 
   /* Content box */
-  --c-fill: #FFFFFF;
-  --c-bdr: #C8CECE;
+  --c-fill: rgba(255, 255, 255, 0.06);
+  --c-bdr: rgba(255, 255, 255, 0.15);
 
   /* Interactive */
   --teal: #00848B;
   --teal-dim: rgba(0, 132, 139, 0.09);
-  --text-mid: #687879;
+  --text-mid: rgba(255, 255, 255, 0.40);
 
   user-select: none;
 }
@@ -46,14 +64,20 @@
 /* ─── Ring layers ─────────────────────────────────────────── */
 .bm-layer {
   position: relative;
-  border-radius: 2px;
+  border-radius: 6px;
   transition: padding var(--t-grow);
 }
 
-.bm-margin  { background: var(--m-fill); padding: var(--ring-rest); }
-.bm-outline { background: var(--o-fill); padding: var(--ring-rest); }
-.bm-border  { background: var(--b-fill); padding: var(--ring-rest); }
-.bm-padding { background: var(--p-fill); padding: var(--ring-rest); }
+.bm-margin  { background: var(--m-fill); border: 1px dashed var(--m-bdr); padding: var(--ring-rest); transition: padding var(--t-grow), background var(--t-fast), border-color var(--t-fast); }
+.bm-outline { background: var(--o-fill); border: 1px dashed var(--o-bdr); padding: var(--ring-rest); transition: padding var(--t-grow), background var(--t-fast), border-color var(--t-fast); }
+.bm-border  { background: var(--b-fill); border: 1px dashed var(--b-bdr); padding: var(--ring-rest); transition: padding var(--t-grow), background var(--t-fast), border-color var(--t-fast); }
+.bm-padding { background: var(--p-fill); border: 1px dashed var(--p-bdr); padding: var(--ring-rest); transition: padding var(--t-grow), background var(--t-fast), border-color var(--t-fast); }
+
+/* Hovered ring color tints */
+.bm-margin.bm-hovered  { background: var(--m-fill-hover); border-color: var(--m-bdr-hover); }
+.bm-outline.bm-hovered { background: var(--o-fill-hover); border-color: var(--o-bdr-hover); }
+.bm-border.bm-hovered  { background: var(--b-fill-hover); border-color: var(--b-bdr-hover); }
+.bm-padding.bm-hovered { background: var(--p-fill-hover); border-color: var(--p-bdr-hover); }
 
 .bm-content {
   background: var(--c-fill);
@@ -75,8 +99,9 @@
   height: var(--ring-rest);
   display: flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 9px;
   font-family: var(--font-mono, 'Roboto Mono', monospace);
+  font-weight: 500;
   line-height: 1;
   pointer-events: none;
   white-space: nowrap;
@@ -130,7 +155,7 @@
 /* Value label (shorthand) styling */
 .bm-name .bm-val {
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: -0.2px;
   pointer-events: auto;
   cursor: pointer;
@@ -266,7 +291,7 @@
 
 /* ─── Slot items ──────────────────────────────────────────── */
 .bm-slot {
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-mono, 'Roboto Mono', monospace);
   color: var(--text-mid);
   padding: 2px 5px;
@@ -325,20 +350,20 @@
   margin-top: 0;
   max-height: 200px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #E2E5E5;
+  background: #383838;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.30);
   min-width: 5rem;
   padding: 2px 0;
 }
 
 .bm-mini-dropdown-item {
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-mono, 'Roboto Mono', monospace);
   cursor: pointer;
-  color: var(--text-mid, #687879);
+  color: rgba(255, 255, 255, 0.50);
   white-space: nowrap;
   line-height: 1.4;
 }
@@ -358,8 +383,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  border-bottom: 1px solid var(--border, #2a3a3b);
-  color: var(--text-muted, #4a5a5b);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .bm-mini-dropdown-remove:hover {

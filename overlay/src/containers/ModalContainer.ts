@@ -58,7 +58,7 @@ export class ModalContainer implements IContainer {
       flex-shrink: 0;
       user-select: none;
     `;
-    handle.innerHTML = '<span style="color:#585b70;font-size:11px;letter-spacing:2px;">⋯⋯⋯</span>';
+    handle.innerHTML = `<svg width="32" height="6" viewBox="0 0 32 6" fill="none"><rect x="0" y="0" width="32" height="2" rx="1" fill="#585b70"/><rect x="0" y="4" width="32" height="2" rx="1" fill="#585b70"/></svg>`;
     this.setupDrag(handle, host);
     host.appendChild(handle);
 

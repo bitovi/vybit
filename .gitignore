@@ -35,3 +35,10 @@ panel/storybook-static/
 # Lock conflict artifacts
 *.yarn-integrity
 yarn-error.log
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
+.github/instructions/codacy.instructions.md
+.codacy/codacy.yaml
+idea-default.html

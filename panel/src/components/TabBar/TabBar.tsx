@@ -19,7 +19,7 @@ export function TabBar({ tabs, activeTab, onTabChange }: TabBarProps) {
           >
             <button
               type="button"
-              className={`relative px-3 py-2 text-[12px] font-medium font-[family-name:var(--font-ui)] border-none bg-transparent cursor-pointer transition-colors ${
+              className={`relative px-3 py-2 text-[11px] font-medium font-[family-name:var(--font-ui)] border-none bg-transparent cursor-pointer transition-colors ${
                 isDisabled
                   ? 'text-bv-muted cursor-not-allowed'
                   : isActive

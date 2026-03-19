@@ -1,211 +1,250 @@
-import { useState, useRef, useEffect } from 'react';
-import type { Patch, PatchSummary } from '../../../../shared/types';
+import { useEffect, useRef, useState } from "react";
+import type { Patch, PatchSummary } from "../../../../shared/types";
 
 type PatchItem = Patch | PatchSummary;
 
 interface PatchPopoverProps {
-  label: string;
-  count: number;
-  items: PatchItem[];
-  activeColor: string;
-  /** Action buttons per item (e.g. commit, discard) */
-  onCommit?: (id: string) => void;
-  onDiscard?: (id: string) => void;
-  /** Bulk actions shown at the bottom */
-  onCommitAll?: () => void;
-  onDiscardAll?: () => void;
+	label: string;
+	count: number;
+	items: PatchItem[];
+	activeColor: string;
+	/** Tailwind bg class for the status dot indicator */
+	dotColor?: string;
+	/** Action buttons per item (e.g. commit, discard) */
+	onCommit?: (id: string) => void;
+	onDiscard?: (id: string) => void;
+	/** Bulk actions shown at the bottom */
+	onCommitAll?: () => void;
+	onDiscardAll?: () => void;
 }
 
 export function PatchPopover({
-  label,
-  count,
-  items,
-  activeColor,
-  onCommit,
-  onDiscard,
-  onCommitAll,
-  onDiscardAll,
+	label,
+	count,
+	items,
+	activeColor,
+	dotColor,
+	onCommit,
+	onDiscard,
+	onCommitAll,
+	onDiscardAll,
 }: PatchPopoverProps) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [popoverLeft, setPopoverLeft] = useState<number | undefined>(undefined);
+	const [open, setOpen] = useState(false);
+	const wrapperRef = useRef<HTMLDivElement>(null);
+	const buttonRef = useRef<HTMLButtonElement>(null);
+	const [popoverLeft, setPopoverLeft] = useState<number | undefined>(undefined);
 
-  // Compute clamped horizontal position when popover opens
-  useEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const btn = buttonRef.current;
-    const btnRect = btn.getBoundingClientRect();
-    const popoverWidth = 220;
-    const viewportWidth = window.innerWidth;
-    const pad = 4;
+	// Compute clamped horizontal position when popover opens
+	useEffect(() => {
+		if (!open || !buttonRef.current) return;
+		const btn = buttonRef.current;
+		const btnRect = btn.getBoundingClientRect();
+		const popoverWidth = 220;
+		const viewportWidth = window.innerWidth;
+		const pad = 4;
 
-    // Ideal: center the popover over the button
-    let idealLeft = btnRect.left + btnRect.width / 2 - popoverWidth / 2;
-    // Clamp within the iframe viewport
-    idealLeft = Math.max(pad, Math.min(idealLeft, viewportWidth - popoverWidth - pad));
-    // Convert to offset relative to the wrapper (which wraps the button)
-    setPopoverLeft(idealLeft - btnRect.left);
-  }, [open]);
+		// Ideal: center the popover over the button
+		let idealLeft = btnRect.left + btnRect.width / 2 - popoverWidth / 2;
+		// Clamp within the iframe viewport
+		idealLeft = Math.max(
+			pad,
+			Math.min(idealLeft, viewportWidth - popoverWidth - pad),
+		);
+		// Convert to offset relative to the wrapper (which wraps the button)
+		setPopoverLeft(idealLeft - btnRect.left);
+	}, [open]);
 
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+	// Close on outside click
+	useEffect(() => {
+		if (!open) return;
+		function handleClick(e: MouseEvent) {
+			if (
+				wrapperRef.current &&
+				!wrapperRef.current.contains(e.target as Node)
+			) {
+				setOpen(false);
+			}
+		}
+		document.addEventListener("mousedown", handleClick);
+		return () => document.removeEventListener("mousedown", handleClick);
+	}, [open]);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open]);
+	// Close on Escape
+	useEffect(() => {
+		if (!open) return;
+		function handleKey(e: KeyboardEvent) {
+			if (e.key === "Escape") setOpen(false);
+		}
+		document.addEventListener("keydown", handleKey);
+		return () => document.removeEventListener("keydown", handleKey);
+	}, [open]);
 
-  const isActive = count > 0;
-  const hasActions = onCommit || onDiscard || onCommitAll || onDiscardAll;
+	const isActive = count > 0;
+	const hasActions = onCommit || onDiscard || onCommitAll || onDiscardAll;
 
-  return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        ref={buttonRef}
-        className={`text-[11px] tabular-nums border-none bg-transparent cursor-pointer px-0 py-0 ${
-          isActive ? `${activeColor} font-medium` : 'text-bv-muted'
-        } ${isActive ? 'hover:underline' : ''}`}
-        onClick={() => isActive && setOpen(!open)}
-        disabled={!isActive}
-        type="button"
-      >
-        {count} {label}
-      </button>
+	return (
+		<div ref={wrapperRef} className="relative">
+			<button
+				ref={buttonRef}
+				className={`flex items-center gap-1 text-[9px] tabular-nums border-none bg-transparent cursor-pointer px-0 py-0 ${
+					isActive ? `${activeColor} font-medium` : "text-bv-muted"
+				} ${isActive ? "hover:underline" : ""}`}
+				onClick={() => isActive && setOpen(!open)}
+				disabled={!isActive}
+				type="button"
+			>
+				{dotColor && (
+					<span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+				)}
+				{count} {label}
+			</button>
 
-      {open && (
-        <div
-          className="absolute bottom-full mb-1 min-w-[220px] bg-bv-surface border border-bv-border rounded-lg shadow-lg overflow-hidden flex flex-col z-[9999]"
-          style={popoverLeft !== undefined ? { left: `${popoverLeft}px` } : undefined}
-        >
-          {/* Header */}
-          <div className="px-3 py-1.5 border-b border-bv-border text-[11px] font-semibold text-bv-text-mid uppercase tracking-wide">
-            {label} ({count})
-          </div>
+			{open && (
+				<div
+					className="absolute bottom-full mb-1 min-w-[220px] bg-bv-surface border border-bv-border rounded-lg shadow-lg overflow-hidden flex flex-col z-[9999]"
+					style={
+						popoverLeft !== undefined ? { left: `${popoverLeft}px` } : undefined
+					}
+				>
+					{/* Header */}
+					<div className="px-3 py-1.5 border-b border-bv-border text-[11px] font-semibold text-bv-text-mid uppercase tracking-wide">
+						{label} ({count})
+					</div>
 
-          {/* Patch list */}
-          <div className="flex-1 overflow-auto">
-            {items.length === 0 ? (
-              <div className="px-3 py-2 text-[11px] text-bv-muted italic">No patches</div>
-            ) : (
-              items.map((item) => {
-                const isMessage = 'kind' in item && item.kind === 'message';
-                const isDesign = 'kind' in item && item.kind === 'design';
-                return (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border-b border-bv-border last:border-b-0 group"
-                >
-                  <div className="flex-1 min-w-0">
-                    {!isMessage && !isDesign && item.component?.name && (
-                      <div className="text-[10px] text-bv-muted truncate">
-                        {item.component.name}
-                      </div>
-                    )}
-                    {isDesign ? (
-                      <div className="text-[11px] text-bv-text">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span>✏️</span>
-                          <span className="truncate">Drawing{item.component?.name ? ` in ${item.component.name}` : ''}</span>
-                        </div>
-                        {'image' in item && item.image && (
-                          <img
-                            src={item.image as string}
-                            alt="Design drawing"
-                            className="w-full max-h-16 object-contain rounded border border-bv-border bg-white"
-                          />
-                        )}
-                      </div>
-                    ) : isMessage ? (
-                      <div className="text-[11px] text-bv-text truncate">
-                        <span className="mr-1">💬</span>
-                        "{('message' in item && item.message) || ''}"
-                      </div>
-                    ) : (
-                    <div className="text-[11px] font-mono text-bv-text truncate">
-                      {item.originalClass ? (
-                        <>
-                          <span className="line-through text-bv-muted">{item.originalClass}</span>
-                          {' → '}
-                          <span className="text-bv-teal">{item.newClass}</span>
-                        </>
-                      ) : (
-                        <span className="text-bv-teal">+{item.newClass}</span>
-                      )}
-                    </div>
-                    )}
-                  </div>
+					{/* Patch list */}
+					<div className="flex-1 overflow-auto">
+						{items.length === 0 ? (
+							<div className="px-3 py-2 text-[11px] text-bv-muted italic">
+								No patches
+							</div>
+						) : (
+							items.map((item) => {
+								const isMessage = "kind" in item && item.kind === "message";
+								const isDesign = "kind" in item && item.kind === "design";
+								return (
+									<div
+										key={item.id}
+										className="flex items-center gap-1.5 px-3 py-1.5 border-b border-bv-border last:border-b-0 group"
+									>
+										<div className="flex-1 min-w-0">
+											{!isMessage && !isDesign && item.component?.name && (
+												<div className="text-[10px] text-bv-muted truncate">
+													{item.component.name}
+												</div>
+											)}
+											{isDesign ? (
+												<div className="text-[11px] text-bv-text">
+													<div className="flex items-center gap-1.5 mb-1">
+														<span>✏️</span>
+														<span className="truncate">
+															Drawing
+															{item.component?.name
+																? ` in ${item.component.name}`
+																: ""}
+														</span>
+													</div>
+													{"image" in item && item.image && (
+														<img
+															src={item.image as string}
+															alt="Design drawing"
+															className="w-full max-h-16 object-contain rounded border border-bv-border bg-white"
+														/>
+													)}
+												</div>
+											) : isMessage ? (
+												<div className="text-[11px] text-bv-text truncate">
+													<span className="mr-1">💬</span>"
+													{("message" in item && item.message) || ""}"
+												</div>
+											) : (
+												<div className="text-[11px] font-mono text-bv-text truncate">
+													{item.originalClass ? (
+														<>
+															<span className="line-through text-bv-muted">
+																{item.originalClass}
+															</span>
+															{" → "}
+															<span className="text-bv-teal">
+																{item.newClass}
+															</span>
+														</>
+													) : (
+														<span className="text-bv-teal">
+															+{item.newClass}
+														</span>
+													)}
+												</div>
+											)}
+										</div>
 
-                  {/* Per-item actions (only for staged) */}
-                  {(onCommit || onDiscard) && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      {onCommit && (
-                        <button
-                          className="text-[10px] px-1.5 py-0.5 rounded border-none cursor-pointer bg-bv-teal text-white hover:bg-bv-teal-dark transition-colors"
-                          onClick={(e) => { e.stopPropagation(); onCommit(item.id); }}
-                          title="Commit to Agent"
-                          type="button"
-                        >
-                          ✓
-                        </button>
-                      )}
-                      {onDiscard && (
-                        <button
-                          className="text-[10px] px-1.5 py-0.5 rounded border-none cursor-pointer bg-transparent text-bv-muted hover:text-bv-orange hover:bg-bv-surface-hi transition-colors"
-                          onClick={(e) => { e.stopPropagation(); onDiscard(item.id); }}
-                          title="Discard"
-                          type="button"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                );
-              })
-            )}
-          </div>
+										{/* Per-item actions (only for staged) */}
+										{(onCommit || onDiscard) && (
+											<div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+												{onCommit && (
+													<button
+														className="text-[10px] px-1.5 py-0.5 rounded border-none cursor-pointer bg-bv-teal text-white hover:bg-bv-teal-dark transition-colors"
+														onClick={(e) => {
+															e.stopPropagation();
+															onCommit(item.id);
+														}}
+														title="Commit to Agent"
+														type="button"
+													>
+														✓
+													</button>
+												)}
+												{onDiscard && (
+													<button
+														className="text-[10px] px-1.5 py-0.5 rounded border-none cursor-pointer bg-transparent text-bv-muted hover:text-bv-orange hover:bg-bv-surface-hi transition-colors"
+														onClick={(e) => {
+															e.stopPropagation();
+															onDiscard(item.id);
+														}}
+														title="Discard"
+														type="button"
+													>
+														✕
+													</button>
+												)}
+											</div>
+										)}
+									</div>
+								);
+							})
+						)}
+					</div>
 
-          {/* Bulk actions footer */}
-          {hasActions && items.length > 0 && (onCommitAll || onDiscardAll) && (
-            <div className="flex gap-2 px-3 py-1.5 border-t border-bv-border">
-              {onCommitAll && (
-                <button
-                  className="text-[10px] px-2 py-1 rounded border-none cursor-pointer font-semibold bg-bv-teal text-white hover:bg-bv-teal-dark transition-colors"
-                  onClick={() => { onCommitAll(); setOpen(false); }}
-                  type="button"
-                >
-                  Commit All
-                </button>
-              )}
-              {onDiscardAll && (
-                <button
-                  className="text-[10px] px-2 py-1 rounded cursor-pointer font-semibold bg-transparent border border-bv-border text-bv-text-mid hover:text-bv-orange hover:border-bv-orange transition-colors"
-                  onClick={() => { onDiscardAll(); setOpen(false); }}
-                  type="button"
-                >
-                  Discard All
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+					{/* Bulk actions footer */}
+					{hasActions && items.length > 0 && (onCommitAll || onDiscardAll) && (
+						<div className="flex gap-2 px-3 py-1.5 border-t border-bv-border">
+							{onCommitAll && (
+								<button
+									className="text-[10px] px-2 py-1 rounded border-none cursor-pointer font-semibold bg-bv-teal text-white hover:bg-bv-teal-dark transition-colors"
+									onClick={() => {
+										onCommitAll();
+										setOpen(false);
+									}}
+									type="button"
+								>
+									Commit All
+								</button>
+							)}
+							{onDiscardAll && (
+								<button
+									className="text-[10px] px-2 py-1 rounded cursor-pointer font-semibold bg-transparent border border-bv-border text-bv-text-mid hover:text-bv-orange hover:border-bv-orange transition-colors"
+									onClick={() => {
+										onDiscardAll();
+										setOpen(false);
+									}}
+									type="button"
+								>
+									Discard All
+								</button>
+							)}
+						</div>
+					)}
+				</div>
+			)}
+		</div>
+	);
 }

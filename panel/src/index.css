@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  /* Bitovi design tokens */
-  --color-bv-bg: #FFFFFF;
-  --color-bv-surface: #F4F5F5;
-  --color-bv-surface-hi: #E6E9E9;
-  --color-bv-border: #DFE2E2;
-  --color-bv-text: #334041;
-  --color-bv-text-mid: #687879;
-  --color-bv-muted: #A3ADAD;
+  /* Bitovi design tokens — dark theme */
+  --color-bv-bg: #2c2c2c;
+  --color-bv-surface: #383838;
+  --color-bv-surface-hi: #404040;
+  --color-bv-border: #3a3a3a;
+  --color-bv-text: #e5e5e5;
+  --color-bv-text-mid: #b3b3b3;
+  --color-bv-muted: #999999;
   --color-bv-orange: #F5532D;
   --color-bv-orange-hover: #C73D26;
   --color-bv-teal: #00848B;
@@ -18,3 +18,8 @@
   --font-ui: 'Inter', sans-serif;
   --font-mono: 'Roboto Mono', 'Menlo', ui-monospace, monospace;
 }
+
+/* Dark scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 3px; }
