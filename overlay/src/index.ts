@@ -220,11 +220,40 @@ const OVERLAY_CSS = `
     z-index: 999998;
   }
   /* ── Group picker popover (replaces instance picker) ── */
+  .el-group-exact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #A0ABAB;
+  }
+  .el-group-exact .el-count-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    background: #00848B;
+    border-radius: 9999px;
+  }
+  .el-group-divider {
+    padding: 6px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #687879;
+    border-top: 1px solid #DFE2E2;
+  }
   .el-group-empty {
     padding: 12px 14px;
     font-size: 11px;
     color: #687879;
-    text-align: center;
+    text-align: left;
   }
   .el-group-row {
     display: flex;
@@ -680,14 +709,33 @@ function showGroupPicker(
 	header.className = "el-picker-header";
 	const title = document.createElement("span");
 	title.className = "el-picker-title";
-	title.textContent = "Similar elements";
+	title.textContent = "Selection";
 	header.appendChild(title);
 	picker.appendChild(header);
+
+	// Exact match summary
+	const exactCount = currentEquivalentNodes.length;
+	const exactRow = document.createElement("div");
+	exactRow.className = "el-group-exact";
+	const chip = document.createElement("span");
+	chip.className = "el-count-chip";
+	chip.textContent = String(exactCount);
+	exactRow.appendChild(chip);
+	const exactLabel = document.createElement("span");
+	exactLabel.textContent = `exact match${exactCount !== 1 ? "es" : ""} selected`;
+	exactRow.appendChild(exactLabel);
+	picker.appendChild(exactRow);
+
+	// Divider before similar section
+	const divider = document.createElement("div");
+	divider.className = "el-group-divider";
+	divider.textContent = "Similar";
+	picker.appendChild(divider);
 
 	if (groups.length === 0) {
 		const empty = document.createElement("div");
 		empty.className = "el-group-empty";
-		empty.textContent = "No similar elements found";
+		empty.textContent = "No additional similar elements found";
 		picker.appendChild(empty);
 	} else {
 		const list = document.createElement("div");
@@ -1283,8 +1331,14 @@ async function handleCaptureScreenshot(): Promise<void> {
 	}
 
 	// Record insertion anchor before we remove nodes
-	const parent = currentEquivalentNodes[0].parentElement!;
-	const anchor = currentEquivalentNodes[0].nextSibling;
+	const parent = currentEquivalentNodes[0].parentElement;
+	if (!parent) {
+		showToast("Cannot find parent element");
+		return;
+	}
+	// Use a marker node so the anchor survives sibling removal
+	const marker = document.createComment("tw-placeholder");
+	parent.insertBefore(marker, currentEquivalentNodes[0]);
 
 	// Capture margins from the outer nodes before removal
 	const firstStyle = getComputedStyle(currentEquivalentNodes[0]);
@@ -1346,14 +1400,11 @@ async function handleCaptureScreenshot(): Promise<void> {
   `;
 	wrapper.appendChild(iframe);
 
-	// Insert at original position
-	if (anchor) {
-		parent.insertBefore(wrapper, anchor);
-	} else {
-		parent.appendChild(wrapper);
-	}
+	// Insert at original position, then remove marker
+	parent.insertBefore(wrapper, marker);
+	marker.remove();
 
-	designCanvasWrappers.push({ wrapper, replacedNodes, parent, anchor });
+	designCanvasWrappers.push({ wrapper, replacedNodes, parent, anchor: wrapper.nextSibling });
 	iframe.addEventListener("load", () => {
 		const contextMsg = {
 			type: "ELEMENT_CONTEXT",
@@ -1579,6 +1630,14 @@ function init(): void {
 					}
 				}
 				last.wrapper.remove();
+
+				// Re-apply selection highlights and toolbar so the user can keep editing
+				if (currentTargetEl && currentEquivalentNodes.length > 0) {
+					for (const n of currentEquivalentNodes) {
+						highlightElement(n);
+					}
+					showDrawButton(currentTargetEl);
+				}
 			}
 		}
 	});
