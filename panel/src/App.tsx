@@ -204,6 +204,30 @@ function InspectorApp() {
 
 	const queueFooter = (
 		<div className="shrink-0">
+			{!wsConnected && (
+				<div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-950/40 border-t border-amber-800/40 text-amber-300 text-[10px] font-medium">
+					<div className="w-1.5 h-1.5 rounded-full bg-bv-orange animate-pulse shrink-0" />
+					<span className="flex-1 leading-tight">
+						No agent listening —{" "}
+						<a
+							href="https://github.com/bitovi/vybit?tab=readme-ov-file#telling-your-agent-to-start-making-features"
+							target="_blank"
+							rel="noreferrer"
+							className="underline hover:text-amber-100"
+						>
+							ask your agent
+						</a>{" "}
+						to start!
+					</span>
+					<button
+						onClick={() => copyToClipboard(VYBIT_PROMPT)}
+						className="shrink-0 px-1.5 py-0.5 rounded border border-amber-700/50 bg-amber-900/40 hover:bg-amber-800/40 text-amber-300 font-semibold text-[9px] transition-colors"
+						title={`Copy: "${VYBIT_PROMPT}"`}
+					>
+						Copy prompt
+					</button>
+				</div>
+			)}
 			{showNoAgentWarning && (
 				<div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-950/40 border-t border-amber-800/40 text-amber-300 text-[10px] font-medium">
 					<svg
@@ -240,13 +264,12 @@ function InspectorApp() {
 					</button>
 				</div>
 			)}
-			<div className="flex items-center justify-center px-3 py-1.5 border-t border-bv-border gap-3 text-[9px]">
+			<div className="flex items-center justify-center px-3 py-1.5 border-t border-bv-border gap-3 text-[10px]">
 				<PatchPopover
 					label="draft"
 					count={draft}
 					items={draftPatches}
-					activeColor="text-bv-text"
-					dotColor="bg-amber-400"
+					activeColor="text-amber-400"
 					onDiscard={(id: string) => patchManager.discard(id)}
 					onCommitAll={() => patchManager.commitAll()}
 					onDiscardAll={() => patchManager.discardAll()}
@@ -256,39 +279,22 @@ function InspectorApp() {
 					count={committed}
 					items={committedCommits.flatMap((c) => c.patches)}
 					activeColor="text-bv-orange"
-					dotColor="bg-emerald-400"
 				/>
 				<PatchPopover
 					label="implementing"
 					count={implementing}
 					items={implementingCommits.flatMap((c) => c.patches)}
-					activeColor="text-bv-orange"
-					dotColor="bg-blue-400"
+					activeColor="text-blue-400"
 				/>
 				<PatchPopover
 					label="implemented"
 					count={implemented}
 					items={implementedCommits.flatMap((c) => c.patches)}
 					activeColor="text-bv-teal"
-					dotColor="bg-green-400"
 				/>
 			</div>
 		</div>
 	);
-
-	if (!wsConnected) {
-		return (
-			<div className="h-full flex flex-col">
-				<div className="flex flex-1 flex-col items-center justify-center gap-2 p-6">
-					<div className="w-2 h-2 rounded-full bg-bv-orange animate-pulse" />
-					<span className="text-bv-text-mid text-[12px]">
-						Waiting for connection…
-					</span>
-				</div>
-				{queueFooter}
-			</div>
-		);
-	}
 
 	if (!elementData) {
 		return (

@@ -86,7 +86,7 @@ export function PatchPopover({
 		<div ref={wrapperRef} className="relative">
 			<button
 				ref={buttonRef}
-				className={`flex items-center gap-1 text-[9px] tabular-nums border-none bg-transparent cursor-pointer px-0 py-0 ${
+				className={`flex items-center gap-1 text-[11px] tabular-nums border-none bg-transparent cursor-pointer px-0 py-0 ${
 					isActive ? `${activeColor} font-medium` : "text-bv-muted"
 				} ${isActive ? "hover:underline" : ""}`}
 				onClick={() => isActive && setOpen(!open)}
