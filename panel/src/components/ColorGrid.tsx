@@ -1,12 +1,4 @@
-const HUE_ORDER = [
-  'slate', 'gray', 'zinc', 'neutral', 'stone',
-  'red', 'orange', 'amber', 'yellow', 'lime',
-  'green', 'emerald', 'teal', 'cyan', 'sky',
-  'blue', 'indigo', 'violet', 'purple', 'fuchsia',
-  'pink', 'rose',
-];
-
-const SHADE_ORDER = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+import { HUE_ORDER, SHADE_ORDER } from '../../../overlay/src/tailwind/scales';
 
 interface ColorGridProps {
   prefix: string;

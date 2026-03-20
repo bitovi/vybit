@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFloating, offset, flip, shift, size, autoUpdate, FloatingPortal, useDismiss, useInteractions } from '@floating-ui/react';
-import type { ParsedToken } from '../../overlay/src/grammar';
-import { PROPERTY_RULES, type Category, buildEnumGroupsFromRules, buildAddablePropertiesFromRules } from '../../overlay/src/propertyRules';
+import type { ParsedToken } from '../../overlay/src/tailwind/grammar';
+import { PROPERTY_RULES, type Category, buildEnumGroupsFromRules, buildAddablePropertiesFromRules } from '../../overlay/src/tailwind/propertyRules';
 import { ColorGrid } from './components/ColorGrid';
 import { ScaleScrubber } from './components/ScaleScrubber';
 import { getScaleValues } from './components/getScaleValues';
@@ -28,6 +28,14 @@ import {
   computeEffectiveShadowClasses,
   parsedClassesToShadowLayers,
 } from './components/ShadowEditor/shadowUtils';
+import {
+  SHADOW_SIZE_SET,
+  INSET_SHADOW_SIZE_SET,
+  RING_WIDTH_SET,
+  TEXT_SHADOW_SIZE_SET,
+  RADIUS_SCALE,
+  cornerScale,
+} from '../../overlay/src/tailwind/scales';
 
 const SECTION_LABELS: Record<string, string> = {
   spacing: 'Spacing',
@@ -63,21 +71,10 @@ function isCompositeConsumed(t: ParsedToken): boolean {
   if (t.property === 'rounded') return true; // consumed by CornerModel
   if (t.property === 'bg' || t.property === 'bg-gradient-to' || t.property === 'from' || t.property === 'via' || t.property === 'to') return true;
   if (t.property === 'shadow') return true; // consumed by ShadowEditor
+  if (t.property === 'text-shadow') return true; // consumed by ShadowEditor
   return false;
 }
 
-const RADIUS_SCALE = [
-  'rounded-none', 'rounded-sm', 'rounded', 'rounded-md',
-  'rounded-lg', 'rounded-xl', 'rounded-2xl', 'rounded-3xl', 'rounded-full',
-];
-
-function cornerScale(prefix: string) {
-  return [
-    `${prefix}-none`, `${prefix}-sm`, prefix,
-    `${prefix}-md`, `${prefix}-lg`, `${prefix}-xl`,
-    `${prefix}-2xl`, `${prefix}-3xl`, `${prefix}-full`,
-  ];
-}
 
 /** Builds CornerModelState from the current parsedClasses */
 function cornerModelStateFromClasses(classes: ParsedToken[]): CornerModelState {
@@ -708,6 +705,7 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
               const colorPrefix = layer.type === 'shadow' ? 'shadow-'
                 : layer.type === 'inset-shadow' ? 'inset-shadow-'
                 : layer.type === 'ring' ? 'ring-'
+                : layer.type === 'text-shadow' ? 'text-shadow-'
                 : 'inset-ring-';
               const currentColorClass = layer.colorClass ?? '';
               const currentColorValue = currentColorClass
@@ -727,6 +725,7 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
                     const colorProp = layer.type === 'shadow' ? 'shadow-color'
                       : layer.type === 'inset-shadow' ? 'inset-shadow-color'
                       : layer.type === 'ring' ? 'ring-color'
+                      : layer.type === 'text-shadow' ? 'text-shadow-color'
                       : 'inset-ring-color';
                     patchManager.stage(elementKey, colorProp, currentColorClass, fullClass);
                     setShadowColorPicker(null);
@@ -737,6 +736,7 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
                       const colorProp = layer.type === 'shadow' ? 'shadow-color'
                         : layer.type === 'inset-shadow' ? 'inset-shadow-color'
                         : layer.type === 'ring' ? 'ring-color'
+                        : layer.type === 'text-shadow' ? 'text-shadow-color'
                         : 'inset-ring-color';
                       patchManager.stage(elementKey, colorProp, currentColorClass, '');
                     }
@@ -778,19 +778,24 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
                   const isSizeClass = (cls: string) => {
                     if (cls.startsWith('shadow-')) {
                       const suffix = cls.slice('shadow-'.length).split('/')[0];
-                      return ['none', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'].includes(suffix);
+                      return SHADOW_SIZE_SET.has(suffix);
                     }
                     if (cls.startsWith('inset-shadow-')) {
                       const suffix = cls.slice('inset-shadow-'.length).split('/')[0];
-                      return ['none', '2xs', 'xs', 'sm'].includes(suffix);
+                      return INSET_SHADOW_SIZE_SET.has(suffix);
                     }
                     if (cls.startsWith('ring-') || cls.startsWith('inset-ring-')) {
                       const suffix = cls.slice(cls.startsWith('ring-') ? 'ring-'.length : 'inset-ring-'.length).split('/')[0];
-                      return ['0', '1', '2', '4', '8'].includes(suffix);
+                      return RING_WIDTH_SET.has(suffix);
+                    }
+                    if (cls.startsWith('text-shadow-')) {
+                      const suffix = cls.slice('text-shadow-'.length).split('/')[0];
+                      return TEXT_SHADOW_SIZE_SET.has(suffix);
                     }
                     return false;
                   };
-                  const baseType = prefix.startsWith('inset-shadow') ? 'inset-shadow'
+                  const baseType = prefix.startsWith('text-shadow') ? 'text-shadow'
+                    : prefix.startsWith('inset-shadow') ? 'inset-shadow'
                     : prefix.startsWith('inset-ring') ? 'inset-ring'
                     : prefix.startsWith('ring') ? 'ring'
                     : 'shadow';
@@ -800,7 +805,8 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
                   patchManager.stage(elementKey, prop, oldClass, newClass);
                 }}
                 onAdd={(defaultClass) => {
-                  const prop = defaultClass.startsWith('inset-shadow') ? 'inset-shadow-size'
+                  const prop = defaultClass.startsWith('text-shadow') ? 'text-shadow-size'
+                    : defaultClass.startsWith('inset-shadow') ? 'inset-shadow-size'
                     : defaultClass.startsWith('inset-ring') ? 'inset-ring-size'
                     : defaultClass.startsWith('ring') ? 'ring-size'
                     : 'shadow-size';
@@ -811,15 +817,19 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
                   const isSizeClass = (cls: string) => {
                     if (cls.startsWith('shadow-')) {
                       const suffix = cls.slice('shadow-'.length).split('/')[0];
-                      return ['none', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'].includes(suffix);
+                      return SHADOW_SIZE_SET.has(suffix);
                     }
                     if (cls.startsWith('inset-shadow-')) {
                       const suffix = cls.slice('inset-shadow-'.length).split('/')[0];
-                      return ['none', '2xs', 'xs', 'sm'].includes(suffix);
+                      return INSET_SHADOW_SIZE_SET.has(suffix);
                     }
                     if (cls.startsWith('ring-') || cls.startsWith('inset-ring-')) {
                       const suffix = cls.slice(cls.startsWith('ring-') ? 'ring-'.length : 'inset-ring-'.length).split('/')[0];
-                      return ['0', '1', '2', '4', '8'].includes(suffix);
+                      return RING_WIDTH_SET.has(suffix);
+                    }
+                    if (cls.startsWith('text-shadow-')) {
+                      const suffix = cls.slice('text-shadow-'.length).split('/')[0];
+                      return TEXT_SHADOW_SIZE_SET.has(suffix);
                     }
                     return false;
                   };
@@ -827,7 +837,8 @@ export function Picker({ componentName, instanceCount, rawClasses, parsedClasses
                   // Reverse so the size class is staged LAST to properly signal "ghost row" intent
                   const reversed = [...classes].reverse();
                   for (const cls of reversed) {
-                    const baseType = cls.startsWith('inset-shadow') ? 'inset-shadow'
+                    const baseType = cls.startsWith('text-shadow') ? 'text-shadow'
+                      : cls.startsWith('inset-shadow') ? 'inset-shadow'
                       : cls.startsWith('inset-ring') ? 'inset-ring'
                       : cls.startsWith('ring') ? 'ring'
                       : 'shadow';

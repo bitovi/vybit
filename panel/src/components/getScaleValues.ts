@@ -1,3 +1,7 @@
+import {
+  FONT_SIZES, FONT_WEIGHTS, RADIUS_SCALE, LINE_HEIGHTS, LETTER_SPACINGS, OPACITY_VALUES,
+} from '../../../overlay/src/tailwind/scales';
+
 const SPECIAL_SPACING_ORDER: Record<string, number> = {
   px: 0.0625,  // between 0 and 0.5
 };
@@ -14,20 +18,11 @@ export function getScaleValues(prefix: string, scaleName: string | null, config:
       .sort((a, b) => spacingKeyOrder(a) - spacingKeyOrder(b))
       .map((k) => `${prefix}${k}`);
   }
-  if (scaleName === 'fontSize') {
-    return ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl', 'text-8xl', 'text-9xl'];
-  }
-  if (scaleName === 'fontWeight') {
-    return ['font-thin', 'font-extralight', 'font-light', 'font-normal', 'font-medium', 'font-semibold', 'font-bold', 'font-extrabold', 'font-black'];
-  }
-  if (scaleName === 'borderRadius') {
-    return ['rounded-none', 'rounded-sm', 'rounded', 'rounded-md', 'rounded-lg', 'rounded-xl', 'rounded-2xl', 'rounded-3xl', 'rounded-full'];
-  }
-  if (scaleName === 'lineHeight') {
-    return ['leading-none', 'leading-tight', 'leading-snug', 'leading-normal', 'leading-relaxed', 'leading-loose', 'leading-3', 'leading-4', 'leading-5', 'leading-6', 'leading-7', 'leading-8', 'leading-9', 'leading-10'];
-  }
-  if (scaleName === 'letterSpacing') {
-    return ['tracking-tighter', 'tracking-tight', 'tracking-normal', 'tracking-wide', 'tracking-wider', 'tracking-widest'];
-  }
+  if (scaleName === 'fontSize')     return [...FONT_SIZES];
+  if (scaleName === 'fontWeight')   return [...FONT_WEIGHTS];
+  if (scaleName === 'borderRadius') return RADIUS_SCALE;
+  if (scaleName === 'lineHeight')   return [...LINE_HEIGHTS];
+  if (scaleName === 'letterSpacing') return [...LETTER_SPACINGS];
+  if (scaleName === 'opacity')      return OPACITY_VALUES;
   return [];
 }

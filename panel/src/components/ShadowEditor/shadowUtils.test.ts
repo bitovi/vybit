@@ -185,3 +185,59 @@ describe('computeEffectiveShadowClasses — cross-element contamination', () => 
     expect(layer?.sizeClass).toBe('shadow-sm');
   });
 });
+
+// === text-shadow ===
+
+describe('parsedClassesToShadowLayers — text-shadow', () => {
+  it('parses text-shadow-md into a text-shadow layer with sizeClass', () => {
+    const layers = parsedClassesToShadowLayers('text-shadow-md', null);
+    const layer = layers.find(l => l.type === 'text-shadow');
+    expect(layer).toBeDefined();
+    expect(layer?.sizeClass).toBe('text-shadow-md');
+    expect(layer?.colorClass).toBeNull();
+  });
+
+  it('parses text-shadow-md text-shadow-blue-500 into one text-shadow layer with both classes', () => {
+    const layers = parsedClassesToShadowLayers('text-shadow-md text-shadow-blue-500', null);
+    const layer = layers.find(l => l.type === 'text-shadow');
+    expect(layer).toBeDefined();
+    expect(layer?.sizeClass).toBe('text-shadow-md');
+    expect(layer?.colorClass).toBe('text-shadow-blue-500');
+  });
+
+  it('parses text-shadow independently from shadow', () => {
+    const layers = parsedClassesToShadowLayers('shadow-sm text-shadow-lg', null);
+    expect(layers.find(l => l.type === 'shadow')?.sizeClass).toBe('shadow-sm');
+    expect(layers.find(l => l.type === 'text-shadow')?.sizeClass).toBe('text-shadow-lg');
+  });
+});
+
+describe('computeEffectiveShadowClasses — text-shadow staging', () => {
+  it('applies a text-shadow size patch: text-shadow-sm → text-shadow-lg', () => {
+    const patches: StagedPatch[] = [{ property: 'text-shadow-size', originalClass: 'text-shadow-sm', newClass: 'text-shadow-lg' }];
+    const eff = computeEffectiveShadowClasses('text-shadow-sm', patches);
+    const layers = parsedClassesToShadowLayers(eff, null);
+    expect(layers.find(l => l.type === 'text-shadow')?.sizeClass).toBe('text-shadow-lg');
+  });
+
+  it('removes text-shadow layer when size patch removes the only class', () => {
+    const patches: StagedPatch[] = [{ property: 'text-shadow-size', originalClass: 'text-shadow-md', newClass: '' }];
+    const eff = computeEffectiveShadowClasses('text-shadow-md', patches);
+    expect(parsedClassesToShadowLayers(eff, null).find(l => l.type === 'text-shadow')).toBeUndefined();
+  });
+
+  it('adds text-shadow-md via + button (empty originalClass)', () => {
+    const patches: StagedPatch[] = [{ property: 'text-shadow-size', originalClass: '', newClass: 'text-shadow-md' }];
+    const eff = computeEffectiveShadowClasses('', patches);
+    expect(parsedClassesToShadowLayers(eff, null).find(l => l.type === 'text-shadow')?.sizeClass).toBe('text-shadow-md');
+  });
+
+  it('color removal keeps the text-shadow size class visible', () => {
+    const patches: StagedPatch[] = [{ property: 'text-shadow-color', originalClass: 'text-shadow-blue-500', newClass: '' }];
+    const eff = computeEffectiveShadowClasses('text-shadow-md text-shadow-blue-500', patches);
+    const layer = parsedClassesToShadowLayers(eff, null).find(l => l.type === 'text-shadow');
+    expect(layer).toBeDefined();
+    expect(layer?.sizeClass).toBe('text-shadow-md');
+    expect(layer?.colorClass).toBeNull();
+  });
+});

@@ -4,19 +4,36 @@
  */
 
 import type { ShadowLayerState, ShadowLayerType } from './types';
+import {
+  SHADOW_SIZE_SET,
+  INSET_SHADOW_SIZE_SET,
+  RING_WIDTH_SET,
+  TEXT_SHADOW_SIZE_SET,
+} from '../../../../overlay/src/tailwind/scales';
 
-export const SHADOW_SIZE_SET = new Set(['none', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl']);
-export const INSET_SHADOW_SIZE_SET = new Set(['none', '2xs', 'xs', 'sm']);
-export const RING_WIDTH_SET = new Set(['0', '1', '2', '4', '8']);
+export {
+  SHADOW_SIZE_SET,
+  INSET_SHADOW_SIZE_SET,
+  RING_WIDTH_SET,
+  TEXT_SHADOW_SIZE_SET,
+} from '../../../../overlay/src/tailwind/scales';
+
+export {
+  SHADOW_SIZES,
+  INSET_SHADOW_SIZES,
+  RING_WIDTHS,
+  TEXT_SHADOW_SIZES,
+} from '../../../../overlay/src/tailwind/scales';
 
 export const SHADOW_TYPE_CONFIGS = [
   { prop: 'shadow',       prefix: 'shadow-',       sizeSet: SHADOW_SIZE_SET },
   { prop: 'inset-shadow', prefix: 'inset-shadow-', sizeSet: INSET_SHADOW_SIZE_SET },
   { prop: 'ring',         prefix: 'ring-',         sizeSet: RING_WIDTH_SET },
   { prop: 'inset-ring',   prefix: 'inset-ring-',   sizeSet: RING_WIDTH_SET },
+  { prop: 'text-shadow',  prefix: 'text-shadow-',  sizeSet: TEXT_SHADOW_SIZE_SET },
 ] as const;
 
-export type ShadowProp = 'shadow' | 'inset-shadow' | 'ring' | 'inset-ring';
+export type ShadowProp = 'shadow' | 'inset-shadow' | 'ring' | 'inset-ring' | 'text-shadow';
 
 export interface StagedPatch {
   property: string;
@@ -93,6 +110,7 @@ export function parsedClassesToShadowLayers(rawClasses: string, tailwindConfig: 
     { type: 'inset-shadow', prefix: 'inset-shadow-', sizeSet: INSET_SHADOW_SIZE_SET },
     { type: 'ring',         prefix: 'ring-',         sizeSet: RING_WIDTH_SET },
     { type: 'inset-ring',   prefix: 'inset-ring-',   sizeSet: RING_WIDTH_SET },
+    { type: 'text-shadow',  prefix: 'text-shadow-',  sizeSet: TEXT_SHADOW_SIZE_SET },
   ];
 
   const result: ShadowLayerState[] = [];
@@ -133,12 +151,24 @@ export function parsedClassesToShadowLayers(rawClasses: string, tailwindConfig: 
 /**
  * Compute effective shadow-related classes by applying staged patches on top of raw classes.
  *
- * Key rule: a removal patch (`newClass = ''`) for a COLOR class should only remove that color class
- * and leave the size class intact. A removal patch for a SIZE class removes the entire shadow type
- * from the display (ghost row intent, e.g. from the × button via `onRemove`).
+ * Each shadow type (shadow, inset-shadow, ring, inset-ring, text-shadow) is represented by up to
+ * two Tailwind classes: a SIZE class (e.g. `shadow-md`) and an optional COLOR class
+ * (e.g. `shadow-blue-500`). They share a prefix but must be patched independently — the user can
+ * change color without touching size and vice versa.
+ *
+ * The size class "owns" the color class: if the size is removed (e.g. user clicks ×), the entire
+ * shadow type must disappear from the output — including any orphaned color class that would
+ * otherwise remain. If only the color is removed, the size class stays.
+ *
+ * This asymmetric removal rule — same `newClass = ''` signal, different meaning depending on
+ * whether `originalClass` is a size or color class — is why simple per-property `resolvePropertyState`
+ * can't handle shadows. Both classes must be considered together.
+ *
+ * All five shadow types are processed in one pass so their classes can be emitted back into a
+ * single coherent class string alongside unrelated classes (e.g. `flex`, `p-4`).
  */
 export function computeEffectiveShadowClasses(rawClasses: string, stagedPatches: StagedPatch[]): string {
-  const SHADOW_PROPS = new Set(['shadow', 'inset-shadow', 'ring', 'inset-ring', 'shadow-size', 'shadow-color', 'inset-shadow-size', 'inset-shadow-color', 'ring-size', 'ring-color', 'inset-ring-size', 'inset-ring-color']);
+  const SHADOW_PROPS = new Set(['shadow', 'inset-shadow', 'ring', 'inset-ring', 'text-shadow', 'shadow-size', 'shadow-color', 'inset-shadow-size', 'inset-shadow-color', 'ring-size', 'ring-color', 'inset-ring-size', 'inset-ring-color', 'text-shadow-size', 'text-shadow-color']);
   const shadowPatches = stagedPatches.filter(p => SHADOW_PROPS.has(p.property));
   const rawClassList = rawClasses.trim().split(/\s+/).filter(Boolean);
 

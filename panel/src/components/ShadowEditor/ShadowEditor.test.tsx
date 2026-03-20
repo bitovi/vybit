@@ -56,14 +56,14 @@ describe('ShadowEditor — rendering', () => {
   it('renders ghost rows for absent layer types', () => {
     render(<ShadowEditor {...makeProps({ layers: [shadowMd] })} />);
     const addButtons = screen.getAllByTitle(/^Add /);
-    // 3 ghost rows: inset-shadow, ring, inset-ring
-    expect(addButtons).toHaveLength(3);
+    // 4 ghost rows: inset-shadow, ring, inset-ring, text-shadow
+    expect(addButtons).toHaveLength(4);
   });
 
   it('renders all ghost rows when layers is empty', () => {
     render(<ShadowEditor {...makeProps({ layers: [] })} />);
     const addButtons = screen.getAllByTitle(/^Add /);
-    expect(addButtons).toHaveLength(4);
+    expect(addButtons).toHaveLength(5);
   });
 
   it('renders remove buttons for active layers', () => {

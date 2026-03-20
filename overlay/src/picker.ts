@@ -1,5 +1,5 @@
 import { computePosition, flip, shift, offset } from '@floating-ui/dom';
-import type { ParsedClass } from './class-parser';
+import type { ParsedClass } from './tailwind/class-parser';
 
 interface PickerOptions {
   shadowRoot: ShadowRoot;
@@ -26,15 +26,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   flexbox: 'Flexbox & Grid',
 };
 
-const HUE_ORDER = [
-  'slate', 'gray', 'zinc', 'neutral', 'stone',
-  'red', 'orange', 'amber', 'yellow', 'lime',
-  'green', 'emerald', 'teal', 'cyan', 'sky',
-  'blue', 'indigo', 'violet', 'purple', 'fuchsia',
-  'pink', 'rose'
-];
-
-const SHADE_ORDER = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+import { HUE_ORDER, SHADE_ORDER } from './tailwind/scales';
 
 function createColorCell(
   prefix: string,

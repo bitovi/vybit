@@ -1,4 +1,13 @@
-export type ShadowLayerType = 'shadow' | 'inset-shadow' | 'ring' | 'inset-ring';
+import {
+  SHADOW_SIZES,
+  INSET_SHADOW_SIZES,
+  RING_WIDTHS,
+  TEXT_SHADOW_SIZES,
+} from '../../../../overlay/src/tailwind/scales';
+
+export { SHADOW_SIZES, INSET_SHADOW_SIZES, RING_WIDTHS, TEXT_SHADOW_SIZES };
+
+export type ShadowLayerType = 'shadow' | 'inset-shadow' | 'ring' | 'inset-ring' | 'text-shadow';
 
 export interface ShadowLayerState {
   type: ShadowLayerType;
@@ -20,16 +29,8 @@ export const LAYER_LABELS: Record<ShadowLayerType, string> = {
   'inset-shadow': 'Inset Shadow',
   'ring': 'Ring',
   'inset-ring': 'Inset Ring',
+  'text-shadow': 'Text Shadow',
 };
-
-/** Ordered size scale for shadow (keyword-based) */
-export const SHADOW_SIZES = ['none', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'] as const;
-
-/** Ordered size scale for inset-shadow (keyword-based, smaller range) */
-export const INSET_SHADOW_SIZES = ['none', '2xs', 'xs', 'sm'] as const;
-
-/** Ordered width scale for ring / inset-ring (numeric) */
-export const RING_WIDTHS = ['0', '1', '2', '4', '8'] as const;
 
 /** Default classToken added when user clicks [+] on a ghost row */
 export const LAYER_DEFAULTS: Record<ShadowLayerType, string> = {
@@ -37,6 +38,7 @@ export const LAYER_DEFAULTS: Record<ShadowLayerType, string> = {
   'inset-shadow': 'inset-shadow-sm',
   'ring': 'ring-2',
   'inset-ring': 'inset-ring-2',
+  'text-shadow': 'text-shadow-md',
 };
 
 /** Get the full scale values array for a given layer type, with correct prefix */
@@ -50,6 +52,8 @@ export function getLayerScale(type: ShadowLayerType): string[] {
       return RING_WIDTHS.map(w => `ring-${w}`);
     case 'inset-ring':
       return RING_WIDTHS.map(w => `inset-ring-${w}`);
+    case 'text-shadow':
+      return TEXT_SHADOW_SIZES.map(s => `text-shadow-${s}`);
   }
 }
 
@@ -64,6 +68,8 @@ export function getDisplayScale(type: ShadowLayerType): string[] {
       return [...RING_WIDTHS];
     case 'inset-ring':
       return [...RING_WIDTHS];
+    case 'text-shadow':
+      return [...TEXT_SHADOW_SIZES];
   }
 }
 
@@ -72,7 +78,8 @@ export function displayToFullClass(type: ShadowLayerType, displayValue: string):
   const prefix = type === 'shadow' ? 'shadow-'
     : type === 'inset-shadow' ? 'inset-shadow-'
     : type === 'ring' ? 'ring-'
-    : 'inset-ring-';
+    : type === 'inset-ring' ? 'inset-ring-'
+    : 'text-shadow-';
   return `${prefix}${displayValue}`;
 }
 
@@ -81,7 +88,8 @@ export function fullClassToDisplay(type: ShadowLayerType, fullClass: string): st
   const prefix = type === 'shadow' ? 'shadow-'
     : type === 'inset-shadow' ? 'inset-shadow-'
     : type === 'ring' ? 'ring-'
-    : 'inset-ring-';
+    : type === 'inset-ring' ? 'inset-ring-'
+    : 'text-shadow-';
   return fullClass.startsWith(prefix) ? fullClass.slice(prefix.length) : fullClass;
 }
 
@@ -127,7 +135,43 @@ export function layerToPreviewCSS(layer: ShadowLayerState): string {
       const c = color ?? 'rgba(99,102,241,0.5)';
       return `inset 0 0 0 ${px}px ${c}`;
     }
+    case 'text-shadow':
+      // text-shadow uses textShadow CSS, not boxShadow — return none for the box preview
+      return 'none';
   }
+}
+
+/** CSS text-shadow value for the inline text preview, given a text-shadow layer state */
+export function layerToPreviewTextShadowCSS(layer: ShadowLayerState): string {
+  if (layer.isNone || !layer.sizeClass) return 'none';
+
+  const resolveColor = (fallback: string) => {
+    if (!layer.colorHex) return fallback;
+    if (layer.opacity !== null && layer.opacity < 100) {
+      const a = (layer.opacity / 100).toFixed(2);
+      const r = parseInt(layer.colorHex.slice(1, 3), 16);
+      const g = parseInt(layer.colorHex.slice(3, 5), 16);
+      const b = parseInt(layer.colorHex.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    return layer.colorHex;
+  };
+
+  const c = layer.colorHex ? resolveColor(layer.colorHex) : undefined;
+  const size = extractSizeValue(layer.sizeClass, 'text-shadow-');
+  return textShadowSizeToCSS(size, c);
+}
+
+function textShadowSizeToCSS(size: string, color?: string): string {
+  const c = color ?? 'rgba(0,0,0,0.25)';
+  const shadows: Record<string, string> = {
+    '2xs': `0 1px 0 ${c}`,
+    'xs':  `0 1px 1px ${c}`,
+    'sm':  `0 1px 2px ${c}`,
+    'md':  `0 2px 4px ${c}`,
+    'lg':  `0 4px 6px ${c}`,
+  };
+  return shadows[size] ?? 'none';
 }
 
 function extractSizeValue(sizeClass: string, prefix: string): string {

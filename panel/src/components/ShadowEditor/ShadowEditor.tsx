@@ -7,7 +7,7 @@ import type {
 import { LAYER_DEFAULTS, LAYER_LABELS } from './types';
 import { ShadowLayerRow } from './ShadowLayerRow';
 
-const ALL_LAYER_TYPES: ShadowLayerType[] = ['shadow', 'inset-shadow', 'ring', 'inset-ring'];
+const ALL_LAYER_TYPES: ShadowLayerType[] = ['shadow', 'inset-shadow', 'ring', 'inset-ring', 'text-shadow'];
 
 export function ShadowEditor({
   layers,

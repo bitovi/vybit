@@ -177,3 +177,27 @@ export const Empty: Story = {
 export const WithOpacity: Story = {
   render: () => <InteractiveShadowEditor initialLayers={[{ ...shadowLg, opacity: 50 }, insetRing1]} />,
 };
+
+/** ⑦ Text Shadow active */
+export const TextShadowActive: Story = {
+  render: () => <InteractiveShadowEditor initialLayers={[{
+    type: 'text-shadow',
+    sizeClass: 'text-shadow-md',
+    colorClass: 'text-shadow-blue-500',
+    colorHex: '#3b82f6',
+    opacity: null,
+    isNone: false,
+  }]} />,
+};
+
+/** ⑧ Text Shadow only — no explicit color, all other rows are ghosts */
+export const TextShadowDefault: Story = {
+  render: () => <InteractiveShadowEditor initialLayers={[{
+    type: 'text-shadow',
+    sizeClass: 'text-shadow-sm',
+    colorClass: null,
+    colorHex: null,
+    opacity: null,
+    isNone: false,
+  }]} />,
+};

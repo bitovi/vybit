@@ -154,7 +154,7 @@ export const PROPERTY_RULES: Record<string, PropertyRule> = {
   // ─────────────────────────────────────────────────────────────
   // EFFECTS
   // ─────────────────────────────────────────────────────────────
-  'opacity-': { category: 'effects', themeKey: null, valueType: 'enum' },
+  'opacity-': { category: 'effects', themeKey: 'opacity', valueType: 'scalar', addable: true },
   'shadow-': { category: 'effects', themeKey: null, valueType: 'enum' },
 
   // ─────────────────────────────────────────────────────────────

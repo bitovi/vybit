@@ -1,3 +1,5 @@
+import { SHADOW_SIZES, TEXT_SHADOW_SIZES } from './scales';
+
 /**
  * Tailwind class grammar layer.
  *
@@ -350,7 +352,7 @@ const DISPLAY_KEYWORDS = [
   'table-column-group', 'table-caption', 'table-column', 'table-row', 'table-cell', 'table',
 ];
 const POSITION_KEYWORDS = ['static', 'relative', 'absolute', 'fixed', 'sticky'];
-const SHADOW_KEYWORDS = ['2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', 'none'];
+// SHADOW_SIZES and TEXT_SHADOW_SIZES imported from './tailwind/scales' are used directly below
 const GRADIENT_DIRECTIONS = ['t', 'tr', 'r', 'br', 'b', 'bl', 'l', 'tl'];
 
 const JUSTIFY_CONTENT_KEYWORDS = ['start', 'end', 'end-safe', 'center', 'center-safe', 'between', 'around', 'evenly', 'stretch', 'baseline', 'normal'];
@@ -392,6 +394,8 @@ export const TAILWIND_PARSERS: Parser[] = [
     makeParser('font-serif', nothing()),
     makeParser('font-mono',  nothing()),
     makeParser('font', keyword('scale', FONT_WEIGHT_KEYWORDS)),
+    // text-shadow must come BEFORE text to prevent 'text-shadow-md' being greedy-matched as text color
+    makeParser('text-shadow', oneOf(keyword('size', TEXT_SHADOW_SIZES), color())),
     makeParser('text', oneOf(
       keyword('align', TEXT_ALIGN_KEYWORDS),
       custom((s) => FONT_SIZE_TOKENS.includes(s) ? { props: { size: s, scaleName: 'fontSize' } } : null),
@@ -467,7 +471,7 @@ export const TAILWIND_PARSERS: Parser[] = [
   // ─── EFFECTS ─────────────────────────────────────────────
   ...withSection('effects', [
     makeParser('opacity', scale('opacity')),
-    makeParser('shadow', keyword('size', SHADOW_KEYWORDS)),
+    makeParser('shadow', keyword('size', SHADOW_SIZES)),
   ]),
 
   // ─── LAYOUT ──────────────────────────────────────────────

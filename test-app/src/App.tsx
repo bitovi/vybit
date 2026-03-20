@@ -136,6 +136,13 @@ function App() {
           </h6>
         </div>
 
+        {/* Effects — tests opacity scrubber */}
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Effects (opacity)</h2>
+        <div className="flex flex-wrap gap-4 mb-12">
+          <div className="w-24 h-24 rounded-lg bg-teal-500 opacity-50 flex items-center justify-center text-white font-bold text-sm">50%</div>
+          <div className="w-24 h-24 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold text-sm">100%</div>
+        </div>
+
         {/* Nested structure — tests deep fiber walking */}
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Nested Structure</h2>
         <div className="bg-white rounded-lg shadow p-6">

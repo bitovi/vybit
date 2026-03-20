@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ScaleScrubber } from '../ScaleScrubber';
 import type { ShadowLayerRowProps } from './types';
-import { getDisplayScale, displayToFullClass, fullClassToDisplay, layerToPreviewCSS, LAYER_LABELS } from './types';
+import { getDisplayScale, displayToFullClass, fullClassToDisplay, layerToPreviewCSS, layerToPreviewTextShadowCSS, LAYER_LABELS } from './types';
 
 /** Opacity scale: 0% to 100% in 5% steps */
 const OPACITY_DISPLAY = Array.from({ length: 21 }, (_, i) => `${i * 5}%`);
@@ -28,6 +28,7 @@ export function ShadowLayerRow({
 
   const displayScale = getDisplayScale(layer.type);
   const previewShadow = layerToPreviewCSS(layer);
+  const previewTextShadow = layer.type === 'text-shadow' ? layerToPreviewTextShadowCSS(layer) : 'none';
   const isDisabled = layer.isNone;
 
   // Current display value (short suffix)
@@ -129,11 +130,23 @@ export function ShadowLayerRow({
 
       {/* Col 6: Inline preview square */}
       <span
-        className="ml-4 flex w-[26px] h-[26px] rounded-[5px] bg-bv-surface-hi border border-bv-border transition-[box-shadow] duration-200"
-        style={{ boxShadow: previewShadow }}
+        className="ml-4 flex w-[26px] h-[26px] rounded-[5px] bg-bv-surface-hi border border-bv-border transition-[box-shadow] duration-200 items-center justify-center overflow-hidden"
+        style={layer.type === 'text-shadow'
+          ? {}
+          : { boxShadow: previewShadow }
+        }
         title={`Preview: ${layer.sizeClass ?? ''} ${layer.colorClass ?? ''}`.trim()}
         {...cellHoverProps}
-      />
+      >
+        {layer.type === 'text-shadow' && (
+          <span
+            className="text-[11px] font-semibold text-bv-text select-none transition-[text-shadow] duration-200"
+            style={{ textShadow: previewTextShadow }}
+          >
+            Aa
+          </span>
+        )}
+      </span>
 
       {/* Col 7: Remove button */}
       <button

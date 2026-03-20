@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { parseTokens, TAILWIND_PARSERS } from '../../overlay/src/grammar';
-import type { ParsedToken } from '../../overlay/src/grammar';
+import { parseTokens, TAILWIND_PARSERS } from '../../overlay/src/tailwind/grammar';
+import type { ParsedToken } from '../../overlay/src/tailwind/grammar';
 import { ContainerSwitcher } from "./components/ContainerSwitcher";
 import { MessageTab } from "./components/MessageTab";
 import { PatchPopover } from "./components/PatchPopover";

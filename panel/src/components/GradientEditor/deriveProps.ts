@@ -1,7 +1,7 @@
 import type { GradientDirection, BackgroundMode } from '../DirectionPicker';
 import type { GradientStop } from '../GradientBar';
 import type { GradientEditorProps } from './types';
-import type { ParsedToken } from '../../../../overlay/src/grammar';
+import type { ParsedToken } from '../../../../overlay/src/tailwind/grammar';
 import type { Patch } from '../../../../shared/types';
 import { resolveColorHex } from './useGradientState';
 
