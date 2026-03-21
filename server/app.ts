@@ -4,14 +4,16 @@ import express from "express";
 import cors from "cors";
 import { request as makeRequest } from "http";
 import path from "path";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
 import { getByStatus, getQueueUpdate, clearAll } from "./queue.js";
 import { resolveTailwindConfig, generateCssForClasses, getTailwindVersion } from "./tailwind.js";
+import { loadStoryArgTypes } from "./storybook.js";
 import type { PatchStatus } from "../shared/types.js";
 
 const VALID_STATUSES = new Set<string>(['staged', 'committed', 'implementing', 'implemented', 'error']);
 
-export function createApp(packageRoot: string): express.Express {
+export function createApp(packageRoot: string, storybookUrl: string | null = null): express.Express {
   const app = express();
   app.use(cors());
 
@@ -80,6 +82,67 @@ export function createApp(packageRoot: string): express.Express {
   app.delete("/patches", (_req, res) => {
     clearAll();
     res.json({ ok: true });
+  });
+
+  // --- Storybook proxy ---
+  if (storybookUrl) {
+    // Vite's dev server serves assets at many root-absolute path prefixes:
+    //   /@vite/client, /@react-refresh, /@id/..., /node_modules/.cache/..., /src/...
+    // Rather than enumerate them all, proxy everything that isn't ours.
+    const OWN_PATHS = new Set(['/panel', '/overlay.js', '/api', '/patches', '/css', '/tailwind-config']);
+    const isOwnPath = (p: string) =>
+      OWN_PATHS.has(p) ||
+      [...OWN_PATHS].some(own => p.startsWith(own + '/')) ||
+      p === '/';
+
+    app.use('/storybook', createProxyMiddleware({
+      target: storybookUrl,
+      changeOrigin: true,
+      pathRewrite: { '^/storybook': '' },
+    }));
+
+    app.use(createProxyMiddleware({
+      target: storybookUrl,
+      changeOrigin: true,
+      pathFilter: (pathname) => !isOwnPath(pathname),
+    }));
+
+    console.error(`[storybook] Proxying /storybook + Vite asset paths → ${storybookUrl}`);
+  }
+
+  app.get('/api/storybook-status', (_req, res) => {
+    res.json({ url: storybookUrl ? '/storybook' : null, directUrl: storybookUrl ?? null });
+  });
+
+  app.get('/api/storybook-argtypes', async (_req, res) => {
+    if (!storybookUrl) { res.json({}); return; }
+    try {
+      const argTypes = await loadStoryArgTypes(storybookUrl);
+      res.json(argTypes);
+    } catch (err) {
+      console.error('[storybook] /api/storybook-argtypes failed:', err);
+      res.json({});
+    }
+  });
+
+  // Single endpoint: everything the Draw tab panel needs in one request.
+  app.get('/api/storybook-data', async (_req, res) => {
+    if (!storybookUrl) {
+      res.json({ available: false });
+      return;
+    }
+    try {
+      const [indexRes, argTypes] = await Promise.all([
+        fetch(`${storybookUrl}/index.json`, { signal: AbortSignal.timeout(5000) }),
+        loadStoryArgTypes(storybookUrl),
+      ]);
+      if (!indexRes.ok) { res.json({ available: false }); return; }
+      const index = await indexRes.json();
+      res.json({ available: true, directUrl: storybookUrl, index, argTypes });
+    } catch (err) {
+      console.error('[storybook] /api/storybook-data failed:', err);
+      res.json({ available: false });
+    }
   });
 
   // --- Serve Panel app ---

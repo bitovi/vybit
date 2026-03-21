@@ -1,85 +1,104 @@
-import { sendTo } from '../../ws';
+import { useEffect, useState } from 'react';
+import type { ArgType, ComponentGroup, StoryEntry } from './types';
+import { ComponentGroupItem } from './components/ComponentGroupItem';
 
-interface DrawTabProps {
-  componentName: string;
-  instanceCount: number;
-}
-
-export function DrawTab({ componentName }: DrawTabProps) {
-  const handleInsertDesign = (insertMode: 'before' | 'after' | 'first-child' | 'last-child') => {
-    sendTo('overlay', {
-      type: 'INSERT_DESIGN_CANVAS',
-      insertMode,
-    });
-  };
+export function DrawTab() {
+  const { groups, loading, error } = useComponentGroups();
 
   return (
     <div className="p-3 flex flex-col gap-3">
-      <div className="text-[11px] text-bv-text-mid leading-relaxed">
-        Insert a drawing canvas into the page to visually sketch a new UI element.
-        The sketch will be queued as a change for an AI agent to implement.
-      </div>
-
       <div className="flex flex-col gap-1.5">
         <div className="text-[9px] font-semibold uppercase tracking-wider text-bv-muted">
-          Insert Drawing Canvas
+          Components
         </div>
-
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            onClick={() => handleInsertDesign('before')}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-bv-border bg-bv-bg text-[11px] text-bv-text-mid cursor-pointer hover:bg-bv-teal/5 hover:border-bv-teal hover:text-bv-teal transition-all"
-          >
-            <span className="text-[13px]">↑</span>
-            Before element
-          </button>
-          <button
-            onClick={() => handleInsertDesign('after')}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-bv-border bg-bv-bg text-[11px] text-bv-text-mid cursor-pointer hover:bg-bv-teal/5 hover:border-bv-teal hover:text-bv-teal transition-all"
-          >
-            <span className="text-[13px]">↓</span>
-            After element
-          </button>
-          <button
-            onClick={() => handleInsertDesign('first-child')}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-bv-border bg-bv-bg text-[11px] text-bv-text-mid cursor-pointer hover:bg-bv-teal/5 hover:border-bv-teal hover:text-bv-teal transition-all"
-          >
-            <span className="text-[13px]">⤒</span>
-            First child
-          </button>
-          <button
-            onClick={() => handleInsertDesign('last-child')}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-bv-border bg-bv-bg text-[11px] text-bv-text-mid cursor-pointer hover:bg-bv-teal/5 hover:border-bv-teal hover:text-bv-teal transition-all"
-          >
-            <span className="text-[13px]">⤓</span>
-            Last child
-          </button>
-        </div>
-      </div>
-
-      <div className="text-[9px] text-bv-muted italic">
-        The canvas will be injected relative to the selected <span className="font-mono">&lt;{componentName}&gt;</span> element.
-      </div>
-
-      <div className="border-t border-bv-border" />
-
-      <div className="flex flex-col gap-1.5">
-        <div className="text-[9px] font-semibold uppercase tracking-wider text-bv-muted">
-          Screenshot &amp; Annotate
-        </div>
-        <div className="text-[11px] text-bv-text-mid leading-relaxed">
-          Capture the selected element(s) and annotate in the drawing canvas.
-          The selected elements will be replaced by the canvas. All selected
-          elements must be siblings in the DOM.
-        </div>
-        <button
-          onClick={() => sendTo('overlay', { type: 'CAPTURE_SCREENSHOT' })}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-bv-border bg-bv-bg text-[11px] text-bv-text-mid cursor-pointer hover:bg-bv-teal/5 hover:border-bv-teal hover:text-bv-teal transition-all w-full"
-        >
-          <span className="text-[13px]">📷</span>
-          Screenshot &amp; Annotate
-        </button>
+        {loading && (
+          <div className="text-[11px] text-bv-muted">Loading components…</div>
+        )}
+        {!loading && error && (
+          <div className="text-[11px] text-bv-text-mid leading-relaxed">
+            <span className="block mb-0.5">Storybook not detected.</span>
+            <span className="text-bv-muted">Start Storybook on port 6006–6010 to browse components.</span>
+          </div>
+        )}
+        {!loading && !error && groups.length === 0 && (
+          <div className="text-[11px] text-bv-muted">No stories found.</div>
+        )}
+        {!loading && !error && groups.length > 0 && (
+          <ul className="flex flex-col gap-0.5">
+            {groups.map(group => (
+              <ComponentGroupItem
+                key={group.name}
+                group={group}
+              />
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
+}
+
+function useComponentGroups() {
+  const [groups, setGroups] = useState<ComponentGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await fetch('/api/storybook-data').then(r => r.json()) as {
+          available: boolean;
+          index?: Record<string, unknown>;
+          argTypes?: Record<string, Record<string, ArgType>>;
+        };
+        if (!data.available) {
+          if (!cancelled) { setError(true); setLoading(false); }
+          return;
+        }
+        const entries = Object.values(
+          ((data.index?.entries ?? data.index?.stories ?? {}) as Record<string, StoryEntry>)
+        );
+        if (!cancelled) setGroups(groupByComponent(entries, data.argTypes ?? {}));
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
+  return { groups, loading, error };
+}
+
+function groupByComponent(
+  entries: StoryEntry[],
+  serverArgTypes: Record<string, Record<string, ArgType>> = {}
+): ComponentGroup[] {
+  const map = new Map<string, StoryEntry[]>();
+  for (const entry of entries) {
+    // title: "Components/Button" → component name: "Button"
+    const name = entry.title.split('/').at(-1) ?? entry.title;
+    if (!map.has(name)) map.set(name, []);
+    map.get(name)!.push(entry);
+  }
+  return Array.from(map.entries()).map(([name, stories]) => ({
+    name,
+    stories,
+    // Prefer server-loaded argTypes (from the actual story file) over index.json (which has none)
+    argTypes: serverArgTypes[name] ?? mergeArgTypes(stories),
+  }));
+}
+
+function mergeArgTypes(stories: StoryEntry[]): ComponentGroup['argTypes'] {
+  const merged: ComponentGroup['argTypes'] = {};
+  for (const story of stories) {
+    for (const [key, argType] of Object.entries(story.argTypes ?? {})) {
+      if (!(key in merged)) merged[key] = argType;
+    }
+  }
+  return merged;
 }

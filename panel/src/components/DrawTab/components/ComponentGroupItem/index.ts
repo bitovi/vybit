@@ -1,0 +1,1 @@
+export { ComponentGroupItem } from './ComponentGroupItem';

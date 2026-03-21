@@ -1185,12 +1185,14 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 		wrapper.style.height = `${newHeight}px`;
 	};
 	const onResizeUp = () => {
+		iframe.style.pointerEvents = "";
 		document.removeEventListener("mousemove", onResizeMove);
 		document.removeEventListener("mouseup", onResizeUp);
 		document.documentElement.style.cursor = "";
 	};
 	resizeHandle.addEventListener("mousedown", (e) => {
 		e.preventDefault();
+		iframe.style.pointerEvents = "none";
 		startY = e.clientY;
 		startHeight = wrapper.offsetHeight;
 		document.documentElement.style.cursor = "ns-resize";
@@ -1233,12 +1235,14 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 		wrapper.style.height = `${Math.max(150, cornerStartHeight + dh)}px`;
 	};
 	const onCornerUp = () => {
+		iframe.style.pointerEvents = "";
 		document.removeEventListener("mousemove", onCornerMove);
 		document.removeEventListener("mouseup", onCornerUp);
 		document.documentElement.style.cursor = "";
 	};
 	cornerHandle.addEventListener("mousedown", (e) => {
 		e.preventDefault();
+		iframe.style.pointerEvents = "none";
 		cornerStartX = e.clientX;
 		cornerStartY = e.clientY;
 		cornerStartWidth = wrapper.offsetWidth;

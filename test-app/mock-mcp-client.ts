@@ -83,7 +83,11 @@ async function main() {
     const stdioTransport = new StdioClientTransport({
       command: "npx",
       args: ["tsx", serverScript],
-      env: { ...process.env, PORT: String(PORT) },
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        STORYBOOK_URL: process.env.STORYBOOK_URL ?? 'http://localhost:6007',
+      },
       stderr: "pipe",
     });
     stdioTransport.stderr?.on("data", (chunk: Buffer) => {

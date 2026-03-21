@@ -48,6 +48,7 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.5",
     "tsx": "^4.21.0",
     "ws": "^8.18.0",
     "zod": "^3.23.0"

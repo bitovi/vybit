@@ -20,6 +20,8 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
   const isDrawingShapeRef = useRef(false);
   // Track whether a background image has been pinned — prevents ResizeObserver from clobbering dimensions
   const hasBackgroundRef = useRef(false);
+  const clipboardRef = useRef<any[]>([]);
+  const pasteOffsetRef = useRef(0);
   const [lockedHeight, setLockedHeight] = useState<number | null>(null);
 
   // Initialize Fabric.js canvas
@@ -71,6 +73,33 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
     });
   }, [backgroundImage]);
 
+  // Apply fill/stroke color changes to currently selected objects
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const active = canvas.getActiveObjects();
+    if (active.length === 0) return;
+    active.forEach(obj => {
+      if ('fill' in obj && obj.fill !== '' && obj.fill !== null) {
+        obj.set('fill', fillColor);
+      }
+    });
+    canvas.requestRenderAll();
+  }, [fillColor]);
+
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const active = canvas.getActiveObjects();
+    if (active.length === 0) return;
+    active.forEach(obj => {
+      if ('stroke' in obj) {
+        obj.set('stroke', strokeColor);
+      }
+    });
+    canvas.requestRenderAll();
+  }, [strokeColor]);
+
   // Save state after modifications for undo/redo
   const saveState = useCallback(() => {
     const canvas = fabricRef.current;
@@ -111,7 +140,15 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
       brush.color = strokeColor;
       brush.width = 2;
       canvas.freeDrawingBrush = brush;
-      canvas.on('path:created', () => saveState());
+      canvas.on('path:created', (e) => {
+        saveState();
+        const path = (e as any).path;
+        if (path) {
+          canvas.setActiveObject(path);
+          canvas.requestRenderAll();
+        }
+        setActiveTool('select');
+      });
     } else if (activeTool === 'eraser') {
       canvas.selection = false;
       const eraserSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4-4 9.5-9.5 5.5 5.5L7 21Z"/><path d="M22 21H7"/><path d="m11.5 12.5 5.5 5.5"/></svg>`;
@@ -223,10 +260,6 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
 
       canvas.on('mouse:up', () => {
         if (shapeObj) {
-          // Keep selectable/evented false while still in drawing mode so the
-          // next drag can't accidentally move this shape. Select mode restores them.
-          canvas.discardActiveObject();
-
           // For arrow, add arrowhead triangle
           if (activeTool === 'arrow' && drawStartRef.current) {
             const x1 = shapeObj.x1 as number;
@@ -250,6 +283,13 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
           }
 
           saveState();
+
+          // Auto-switch to select tool and select the drawn shape
+          shapeObj.set({ evented: true, selectable: true, hasControls: true, hasBorders: true });
+          shapeObj.setCoords();
+          canvas.setActiveObject(shapeObj);
+          canvas.requestRenderAll();
+          setActiveTool('select');
         }
         shapeObj = null;
         drawStartRef.current = null;
@@ -315,6 +355,46 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
     }
   }, [saveState]);
 
+  const handleCopy = useCallback(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const active = canvas.getActiveObjects();
+    if (active.length === 0) return;
+    Promise.all(active.map(obj => obj.clone())).then(clones => {
+      clipboardRef.current = clones;
+      pasteOffsetRef.current = 0;
+    });
+  }, []);
+
+  const handlePaste = useCallback(() => {
+    const canvas = fabricRef.current;
+    if (!canvas || clipboardRef.current.length === 0) return;
+    const STEP = 20;
+    pasteOffsetRef.current += STEP;
+    const offset = pasteOffsetRef.current;
+    Promise.all(clipboardRef.current.map(obj => obj.clone())).then(clones => {
+      canvas.discardActiveObject();
+      clones.forEach(clone => {
+        clone.set({
+          left: (clone.left ?? 0) + offset,
+          top: (clone.top ?? 0) + offset,
+          evented: true,
+          selectable: true,
+        });
+        clone.setCoords();
+        canvas.add(clone);
+      });
+      if (clones.length === 1) {
+        canvas.setActiveObject(clones[0]);
+      } else {
+        const sel = new (canvas.constructor as any).ActiveSelection(clones, { canvas });
+        canvas.setActiveObject(sel);
+      }
+      canvas.requestRenderAll();
+      saveState();
+    });
+  }, [saveState]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -332,10 +412,28 @@ export function useFabricCanvas({ onSubmit, backgroundImage }: UseFabricCanvasOp
         if (e.shiftKey) handleRedo();
         else handleUndo();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        // Don't intercept if editing text
+        const canvas = fabricRef.current;
+        if (canvas) {
+          const active = canvas.getActiveObject();
+          if (active && active.type === 'textbox' && (active as Textbox).isEditing) return;
+        }
+        handleCopy();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        const canvas = fabricRef.current;
+        if (canvas) {
+          const active = canvas.getActiveObject();
+          if (active && active.type === 'textbox' && (active as Textbox).isEditing) return;
+        }
+        e.preventDefault();
+        handlePaste();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleDelete, handleUndo, handleRedo]);
+  }, [handleDelete, handleUndo, handleRedo, handleCopy, handlePaste]);
 
   return {
     canvasElRef,

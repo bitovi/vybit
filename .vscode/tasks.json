@@ -30,7 +30,7 @@
     {
       "label": "Server (port 3333)",
       "type": "shell",
-      "command": "npx tsx watch ../server/index.ts",
+      "command": "STORYBOOK_URL=http://localhost:6007 npx tsx watch ../server/index.ts",
       "options": { "cwd": "${workspaceFolder}/test-app" },
       "isBackground": true,
       "problemMatcher": {
@@ -117,6 +117,19 @@
         "owner": "astro",
         "pattern": { "regexp": "^(.*error.*)$", "message": 1 },
         "background": { "activeOnStart": true, "beginsPattern": "astro", "endsPattern": "localhost" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Storybook: Test App (port 6007)",
+      "type": "shell",
+      "command": "npm run storybook",
+      "options": { "cwd": "${workspaceFolder}/test-app" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "storybook-test-app",
+        "pattern": { "regexp": "^(Error): (.*)$", "severity": 1, "message": 2 },
+        "background": { "activeOnStart": true, "beginsPattern": "storybook", "endsPattern": "Local:" }
       },
       "presentation": { "panel": "dedicated", "reveal": "always" }
     }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { parseTokens, TAILWIND_PARSERS } from '../../overlay/src/tailwind/grammar';
 import type { ParsedToken } from '../../overlay/src/tailwind/grammar';
 import { ContainerSwitcher } from "./components/ContainerSwitcher";
+import { DrawTab } from "./components/DrawTab";
 import { MessageTab } from "./components/MessageTab";
 import { PatchPopover } from "./components/PatchPopover";
 import type { Tab } from "./components/TabBar";
@@ -27,6 +28,7 @@ const appMode = urlParams.get("mode");
 
 const TABS: Tab[] = [
 	{ id: "design", label: "Design" },
+	{ id: "draw", label: "Draw" },
 	{ id: "message", label: "Message" },
 ];
 
@@ -325,7 +327,9 @@ function InspectorApp() {
 				</div>
 				<TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 				<div className="flex-1 overflow-auto">
-					{activeTab === "message" ? (
+				{activeTab === "draw" ? (
+					<DrawTab />
+				) : activeTab === "message" ? (
 						<MessageTab
 							draft={draftPatches}
 							currentElementKey=""
@@ -447,6 +451,9 @@ function InspectorApp() {
 						tailwindConfig={elementData.tailwindConfig}
 						patchManager={patchManager}
 					/>
+				)}
+				{activeTab === "draw" && (
+					<DrawTab />
 				)}
 				{activeTab === "message" && (
 					<MessageTab

@@ -16,6 +16,7 @@ import { createApp } from "./app.js";
 import { setupWebSocket } from "./websocket.js";
 import { registerMcpTools } from "./mcp-tools.js";
 import { checkTailwindAvailable } from "./tailwind.js";
+import { detectStorybookUrl } from "./storybook.js";
 
 // --- Resolve project root (precedence: --cwd flag, VYBIT_PROJECT_ROOT, cwd) ---
 const argv = process.argv.slice(2);
@@ -57,8 +58,11 @@ const packageRoot = __dirname.includes(`${path.sep}dist${path.sep}`)
 
 const port = Number(process.env.PORT) || 3333;
 
+// --- Storybook detection ---
+const storybookUrl = await detectStorybookUrl();
+
 // --- HTTP + WebSocket ---
-const app = createApp(packageRoot);
+const app = createApp(packageRoot, storybookUrl);
 const httpServer = createServer(app);
 const { broadcastPatchUpdate } = setupWebSocket(httpServer);
 
