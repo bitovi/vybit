@@ -8,6 +8,10 @@ import type {
 	TailwindAdapter,
 	TailwindThemeSubset,
 } from "./tailwind-adapter.js";
+import {
+	SHADOW_PROBE_CLASSES,
+	extractShadowDefaults,
+} from "./shadow-defaults.js";
 
 // Cached compiler instance (from target project's tailwindcss)
 let compilerCache: { build: (classes: string[]) => string } | null = null;
@@ -252,16 +256,22 @@ export class TailwindV4Adapter implements TailwindAdapter {
 		for (const k of BORDER_RADIUS_KEYS)
 			borderRadius[k || "DEFAULT"] = k || "DEFAULT";
 
+		// --- Shadow/ring defaults (probe compiled CSS for fallback colors) ---
+		const shadowCss = compiler.build(SHADOW_PROBE_CLASSES);
+		const shadowDefaults = extractShadowDefaults(shadowCss);
+
 		const result: TailwindThemeSubset = {
 			spacing,
 			colors,
 			fontSize,
 			fontWeight,
 			borderRadius,
+			shadowDefaults,
 		};
 		console.error("[tailwind] v4 resolved theme:", {
 			colors: Object.keys(colors).length + " entries",
 			spacing: Object.keys(spacing).length + " entries",
+			shadowDefaults,
 		});
 		return result;
 	}

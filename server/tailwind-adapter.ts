@@ -8,6 +8,9 @@ export interface TailwindThemeSubset {
   fontSize: Record<string, unknown>;
   fontWeight: Record<string, unknown>;
   borderRadius: Record<string, string>;
+  /** Default colors for shadow/ring layer types, extracted from compiled CSS.
+   *  Keys are layer types ("shadow", "ring", etc.), values are CSS color strings. */
+  shadowDefaults?: Record<string, string>;
 }
 
 export interface TailwindAdapter {

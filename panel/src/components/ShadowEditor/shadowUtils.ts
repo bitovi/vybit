@@ -101,9 +101,10 @@ function resolveColorHex(colorSuffix: string, colors: Record<string, unknown> | 
 }
 
 /** Build ShadowLayerState[] from the raw class string without relying on grammar parsers. */
-export function parsedClassesToShadowLayers(rawClasses: string, tailwindConfig: { colors?: Record<string, unknown> } | null | undefined): ShadowLayerState[] {
+export function parsedClassesToShadowLayers(rawClasses: string, tailwindConfig: { colors?: Record<string, unknown>; shadowDefaults?: Record<string, string> } | null | undefined): ShadowLayerState[] {
   const classes = rawClasses.trim().split(/\s+/).filter(Boolean);
   const colors = tailwindConfig?.colors;
+  const shadowDefaults = tailwindConfig?.shadowDefaults;
 
   const configs: { type: ShadowLayerType; prefix: string; sizeSet: Set<string> }[] = [
     { type: 'shadow',       prefix: 'shadow-',       sizeSet: SHADOW_SIZE_SET },
@@ -143,6 +144,7 @@ export function parsedClassesToShadowLayers(rawClasses: string, tailwindConfig: 
       colorHex,
       opacity,
       isNone: sizeClass !== null && (sizeClass.endsWith('-none') || sizeClass.endsWith('-0')),
+      defaultColorCSS: shadowDefaults?.[type] ?? null,
     });
   }
   return result;

@@ -21,6 +21,8 @@ export interface ShadowLayerState {
   opacity: number | null;
   /** True when layer is explicitly "none"/"0" (shadow-none, ring-0, etc.) */
   isNone: boolean;
+  /** Default CSS color from Tailwind theme (e.g. "rgb(0 0 0 / 0.1)"), or null if unknown */
+  defaultColorCSS: string | null;
 }
 
 /** Display labels for each layer type */
@@ -117,22 +119,22 @@ export function layerToPreviewCSS(layer: ShadowLayerState): string {
   switch (layer.type) {
     case 'shadow': {
       const value = extractSizeValue(layer.sizeClass, 'shadow-');
-      return shadowSizeToCSS(value, color);
+      return shadowSizeToCSS(value, color, layer.defaultColorCSS);
     }
     case 'inset-shadow': {
       const value = extractSizeValue(layer.sizeClass, 'inset-shadow-');
-      return insetShadowSizeToCSS(value, color);
+      return insetShadowSizeToCSS(value, color, layer.defaultColorCSS);
     }
     case 'ring': {
       const width = extractSizeValue(layer.sizeClass, 'ring-');
       const px = width === '0' ? 0 : Number(width) || 1;
-      const c = color ?? 'rgba(99,102,241,0.5)';
+      const c = color ?? layer.defaultColorCSS ?? 'rgba(99,102,241,0.5)';
       return `0 0 0 ${px}px ${c}`;
     }
     case 'inset-ring': {
       const width = extractSizeValue(layer.sizeClass, 'inset-ring-');
       const px = width === '0' ? 0 : Number(width) || 1;
-      const c = color ?? 'rgba(99,102,241,0.5)';
+      const c = color ?? layer.defaultColorCSS ?? 'rgba(99,102,241,0.5)';
       return `inset 0 0 0 ${px}px ${c}`;
     }
     case 'text-shadow':
@@ -159,11 +161,11 @@ export function layerToPreviewTextShadowCSS(layer: ShadowLayerState): string {
 
   const c = layer.colorHex ? resolveColor(layer.colorHex) : undefined;
   const size = extractSizeValue(layer.sizeClass, 'text-shadow-');
-  return textShadowSizeToCSS(size, c);
+  return textShadowSizeToCSS(size, c, layer.defaultColorCSS);
 }
 
-function textShadowSizeToCSS(size: string, color?: string): string {
-  const c = color ?? 'rgba(0,0,0,0.25)';
+function textShadowSizeToCSS(size: string, color?: string, defaultColorCSS?: string | null): string {
+  const c = color ?? defaultColorCSS ?? 'rgba(0,0,0,0.25)';
   const shadows: Record<string, string> = {
     '2xs': `0 1px 0 ${c}`,
     'xs':  `0 1px 1px ${c}`,
@@ -178,8 +180,8 @@ function extractSizeValue(sizeClass: string, prefix: string): string {
   return sizeClass.startsWith(prefix) ? sizeClass.slice(prefix.length) : sizeClass;
 }
 
-function shadowSizeToCSS(size: string, color?: string): string {
-  const c = color ?? 'rgba(0,0,0,0.15)';
+function shadowSizeToCSS(size: string, color?: string, defaultColorCSS?: string | null): string {
+  const c = color ?? defaultColorCSS ?? 'rgba(0,0,0,0.15)';
   const shadows: Record<string, string> = {
     '2xs': `0 1px ${c}`,
     'xs': `0 1px 2px 0 ${c}`,
@@ -192,8 +194,8 @@ function shadowSizeToCSS(size: string, color?: string): string {
   return shadows[size] ?? 'none';
 }
 
-function insetShadowSizeToCSS(size: string, color?: string): string {
-  const c = color ?? 'rgba(0,0,0,0.05)';
+function insetShadowSizeToCSS(size: string, color?: string, defaultColorCSS?: string | null): string {
+  const c = color ?? defaultColorCSS ?? 'rgba(0,0,0,0.05)';
   const shadows: Record<string, string> = {
     '2xs': `inset 0 0.5px ${c}`,
     'xs': `inset 0 1px 1px ${c}`,
