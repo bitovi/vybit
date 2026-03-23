@@ -1,6 +1,18 @@
 // Shared types for the PATCH protocol.
 // Imported by overlay (esbuild), panel (Vite), and server (tsx).
 
+/** Cached ghost HTML + host styles for instant component preview placeholders. */
+export interface GhostCacheEntry {
+  storyId: string;
+  argsHash: string;
+  ghostHtml: string;
+  hostStyles: Record<string, string>;
+  storyBackground?: string;
+  componentName: string;
+  componentPath?: string;
+  extractedAt: number;
+}
+
 export type ContainerName = 'modal' | 'popover' | 'sidebar' | 'popup';
 
 /** A component placed on the Fabric.js design canvas */
@@ -311,6 +323,11 @@ export interface ClosePanelMessage {
   type: 'CLOSE_PANEL';
 }
 
+/** Overlay → Server: story changed in Storybook, clear panel selection */
+export interface ResetSelectionMessage {
+  type: 'RESET_SELECTION';
+}
+
 // ---------------------------------------------------------------------------
 // Component arm-and-place messages
 // ---------------------------------------------------------------------------
@@ -361,7 +378,7 @@ export type PanelToOverlay =
   | ClosePanelMessage
   | ComponentArmMessage
   | ComponentDisarmMessage;
-export type OverlayToServer = PatchStagedMessage | ComponentDroppedMessage;
+export type OverlayToServer = PatchStagedMessage | ComponentDroppedMessage | ResetSelectionMessage;
 export type PanelToServer = PatchCommitMessage | MessageStageMessage;
 export type ClientToServer =
   | RegisterMessage
@@ -371,10 +388,12 @@ export type ClientToServer =
   | DesignSubmitMessage
   | DesignCloseMessage
   | ComponentDroppedMessage
+  | ResetSelectionMessage
   | PingMessage;
 export type ServerToClient =
   | PongMessage
   | QueueUpdateMessage
+  | ResetSelectionMessage
   | PatchUpdateMessage
   | PatchImplementingMessage
   | PatchImplementedMessage
@@ -405,5 +424,6 @@ export type AnyMessage =
   | ComponentDisarmMessage
   | ComponentDisarmedMessage
   | ComponentDroppedMessage
+  | ResetSelectionMessage
   | PingMessage
   | PongMessage;

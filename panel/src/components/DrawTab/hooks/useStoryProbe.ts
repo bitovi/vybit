@@ -43,7 +43,7 @@ export interface StoryProbeResult {
  *
  * Returns the first story with args, or falls back to stories[0].
  */
-export function useStoryProbe(stories: StoryEntry[]): StoryProbeResult {
+export function useStoryProbe(stories: StoryEntry[], enabled = true): StoryProbeResult {
   const [bestStory, setBestStory] = useState<StoryEntry | null>(null);
   const [probing, setProbing] = useState(true);
   const [argTypes, setArgTypes] = useState<Record<string, ArgType>>({});
@@ -55,6 +55,7 @@ export function useStoryProbe(stories: StoryEntry[]): StoryProbeResult {
   const resolvedRef = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return;
     if (stories.length === 0) {
       setProbing(false);
       return;
@@ -90,6 +91,7 @@ export function useStoryProbe(stories: StoryEntry[]): StoryProbeResult {
         return;
       }
       indexRef.current = idx;
+      console.log(`[useStoryProbe] loading iframe: /storybook/iframe.html?id=${stories[idx].id}`);
       iframe.src = `/storybook/iframe.html?id=${stories[idx].id}&viewMode=story`;
     }
 
@@ -146,6 +148,7 @@ export function useStoryProbe(stories: StoryEntry[]): StoryProbeResult {
       setupStoryTimeout();
     });
 
+    console.log(`[useStoryProbe] starting probe for ${stories[0]?.id} (${stories.length} stories)`);
     // Start probing the first story
     loadStory(0);
 
@@ -156,7 +159,7 @@ export function useStoryProbe(stories: StoryEntry[]): StoryProbeResult {
       iframe.remove();
       iframeRef.current = null;
     };
-  }, [stories]);
+  }, [stories, enabled]);
 
   return { bestStory, probing, argTypes, defaultArgs };
 }

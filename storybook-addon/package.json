@@ -1,0 +1,10 @@
+{
+  "name": "@bitovi/vybit-storybook-addon",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Storybook addon wiring for Vybit — overlay injection + panel registration",
+  "peerDependencies": {
+    "storybook": "^8.0.0"
+  }
+}

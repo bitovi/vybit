@@ -78,7 +78,10 @@ function InspectorApp() {
 		const offDisconnect = onDisconnect(() => setWsConnected(false));
 
 		const offMessage = onMessage((msg) => {
-			if (msg.type === "ELEMENT_SELECTED") {
+			if (msg.type === "RESET_SELECTION") {
+				setElementData(null);
+				setSelectionId((prev) => prev + 1);
+			} else if (msg.type === "ELEMENT_SELECTED") {
 				setElementData({
 					componentName: msg.componentName,
 					instanceCount: msg.instanceCount,

@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import type { ArgType, ComponentGroup, StoryEntry } from './types';
 import { ComponentGroupItem } from './components/ComponentGroupItem';
 import { sendTo, onMessage } from '../../ws';
+import { useGhostCache } from '../../hooks/useGhostCache';
 
 export function DrawTab() {
   const { groups, loading, error } = useComponentGroups();
   const [armedGroup, setArmedGroup] = useState<string | null>(null);
+  const { getCachedGhost, submitToCache } = useGhostCache();
 
   const arm = useCallback((group: ComponentGroup, ghostHtml: string, args?: Record<string, unknown>) => {
     setArmedGroup(group.name);
@@ -60,15 +62,23 @@ export function DrawTab() {
         )}
         {!loading && !error && groups.length > 0 && (
           <ul className="flex flex-col gap-2">
-            {groups.map(group => (
-              <ComponentGroupItem
-                key={group.name}
-                group={group}
-                isArmed={armedGroup === group.name}
-                onArm={(ghostHtml: string, args?: Record<string, unknown>) => arm(group, ghostHtml, args)}
-                onDisarm={disarm}
-              />
-            ))}
+            {groups.map(group => {
+              const firstStoryId = group.stories[0]?.id;
+              const cached = firstStoryId ? getCachedGhost(firstStoryId) : null;
+              return (
+                <ComponentGroupItem
+                  key={group.name}
+                  group={group}
+                  isArmed={armedGroup === group.name}
+                  onArm={(ghostHtml: string, args?: Record<string, unknown>) => arm(group, ghostHtml, args)}
+                  onDisarm={disarm}
+                  cachedGhostHtml={cached?.ghostHtml}
+                  cachedHostStyles={cached?.hostStyles}
+                  cachedStoryBackground={cached?.storyBackground}
+                  onGhostExtracted={submitToCache}
+                />
+              );
+            })}
           </ul>
         )}
       </div>
@@ -118,6 +128,8 @@ function groupByComponent(
 ): ComponentGroup[] {
   const map = new Map<string, StoryEntry[]>();
   for (const entry of entries) {
+    // Skip docs entries — they can't be rendered in viewMode=story
+    if (entry.type === 'docs' || entry.id.endsWith('--docs')) continue;
     // title: "Components/Button" → component name: "Button"
     const name = entry.title.split('/').at(-1) ?? entry.title;
     if (!map.has(name)) map.set(name, []);

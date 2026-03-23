@@ -9,6 +9,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import { getByStatus, getQueueUpdate, clearAll } from "./queue.js";
 import { resolveTailwindConfig, generateCssForClasses, getTailwindVersion } from "./tailwind.js";
 import { loadStoryArgTypes } from "./storybook.js";
+import { loadCache, getAllCachedGhosts, setCachedGhost, invalidateAll as invalidateGhostCache } from "./ghost-cache.js";
 import type { PatchStatus } from "../shared/types.js";
 
 const VALID_STATUSES = new Set<string>(['staged', 'committed', 'implementing', 'implemented', 'error']);
@@ -16,6 +17,9 @@ const VALID_STATUSES = new Set<string>(['staged', 'committed', 'implementing', '
 export function createApp(packageRoot: string, storybookUrl: string | null = null): express.Express {
   const app = express();
   app.use(cors());
+
+  // Load ghost cache from disk on startup
+  loadCache();
 
   app.get("/overlay.js", (_req, res) => {
     const overlayPath = path.join(packageRoot, "overlay", "dist", "overlay.js");
@@ -81,6 +85,26 @@ export function createApp(packageRoot: string, storybookUrl: string | null = nul
 
   app.delete("/patches", (_req, res) => {
     clearAll();
+    res.json({ ok: true });
+  });
+
+  // --- Ghost cache REST endpoints ---
+  app.get('/api/ghost-cache', (_req, res) => {
+    res.json(getAllCachedGhosts());
+  });
+
+  app.post('/api/ghost-cache', express.json({ limit: '1mb' }), (req, res) => {
+    const { storyId, args, ghostHtml, hostStyles, storyBackground, componentName, componentPath } = req.body;
+    if (!storyId || typeof ghostHtml !== 'string') {
+      res.status(400).json({ error: 'storyId and ghostHtml are required' });
+      return;
+    }
+    setCachedGhost({ storyId, args, ghostHtml, hostStyles: hostStyles ?? {}, storyBackground, componentName: componentName ?? '', componentPath });
+    res.json({ ok: true });
+  });
+
+  app.delete('/api/ghost-cache', (_req, res) => {
+    invalidateGhostCache();
     res.json({ ok: true });
   });
 

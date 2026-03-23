@@ -11,7 +11,7 @@ function injectChildStylesDeep(source: Element, clone: Element): void {
   for (let i = 0; i < len; i++) {
     const srcChild = srcChildren[i];
     const clnChild = clnChildren[i] as HTMLElement;
-    const computed = getComputedStyle(srcChild);
+    const computed = (srcChild.ownerDocument.defaultView ?? window).getComputedStyle(srcChild);
     if (clnChild.style) {
       for (const prop of COMPONENT_INLINE_PROPS) {
         clnChild.style.setProperty(prop, computed.getPropertyValue(prop));
@@ -27,6 +27,9 @@ export class AdaptiveIframe extends HTMLElement {
   private shadow: ShadowRoot;
   private ghostEl: HTMLDivElement;
   private hiddenIframe: HTMLIFrameElement;
+  private loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private hasLoaded = false;
+  private _loadedDispatched = false;
 
   constructor() {
     super();
@@ -56,22 +59,26 @@ export class AdaptiveIframe extends HTMLElement {
     `;
     this.shadow.append(style, this.ghostEl);
 
-    // Hidden iframe for style extraction — lives offscreen in document.body.
-    // Its width is synced to the host element before each extraction so that
-    // block-level content auto-expands to the same width it would have in the
-    // host's container, not an arbitrary large value.
+    // Hidden iframe for style extraction — positioned at (0,0) and made
+    // invisible via opacity:0 rather than visibility:hidden or a large negative
+    // offset.  Browsers skip CSS custom-property resolution for
+    // visibility:hidden iframes and for elements scrolled far off-screen, so
+    // computed colors (e.g. --secondary) come back wrong.  opacity:0 keeps the
+    // element fully rendered while remaining invisible to the user.
     this.hiddenIframe = document.createElement('iframe');
     Object.assign(this.hiddenIframe.style, {
       position: 'fixed',
-      left: '-99999px',
-      top: '-99999px',
+      left: '0',
+      top: '0',
       width: '800px',
-      height: '99999px',
-      visibility: 'hidden',
+      height: '600px',
+      opacity: '0',
       pointerEvents: 'none',
       border: 'none',
+      zIndex: '-999999',
     });
     this.hiddenIframe.addEventListener('load', () => this.onIframeLoad());
+    this.hiddenIframe.addEventListener('error', () => this.reportError('Failed to load iframe'));
   }
 
   private observer: MutationObserver | null = null;
@@ -96,6 +103,11 @@ export class AdaptiveIframe extends HTMLElement {
     this.observer?.disconnect();
     this.observer = null;
 
+    // Clear any pending load timeout
+    if (this.loadTimeoutId) clearTimeout(this.loadTimeoutId);
+    this.hasLoaded = false;
+    this._loadedDispatched = false;
+
     const src = this.getAttribute('src');
     const srcdoc = this.getAttribute('srcdoc');
     if (srcdoc != null) {
@@ -103,9 +115,24 @@ export class AdaptiveIframe extends HTMLElement {
     } else if (src) {
       this.hiddenIframe.src = src;
     }
+
+    // Set a timeout to detect if the iframe never loads (e.g., wrong URL, network error)
+    this.loadTimeoutId = setTimeout(() => {
+      if (!this.hasLoaded) {
+        const src = this.getAttribute('src');
+        this.reportError(`Story failed to load (${src || 'unknown'}) — check that Storybook is running on port 6006+`);
+      }
+    }, 20000);
   }
 
   private onIframeLoad() {
+    // Clear the load timeout since the iframe loaded successfully
+    if (this.loadTimeoutId) {
+      clearTimeout(this.loadTimeoutId);
+      this.loadTimeoutId = null;
+    }
+    this.hasLoaded = true;
+
     const doc = this.hiddenIframe.contentDocument;
     if (!doc) return;
 
@@ -180,13 +207,19 @@ export class AdaptiveIframe extends HTMLElement {
     if (!target) return;
 
     const observer = new MutationObserver(() => {
+      const root = this.findStoryRoot(doc);
       if (!extracted) {
         // Initial extraction — run immediately
         tryExtract();
       } else {
-        // Subsequent mutations (e.g. args update) — debounce re-extraction
+        // Subsequent mutations (e.g. args update) — wait for CSS transitions to finish
+        // before extracting, so computed colors are fully resolved.
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => tryExtract(), 50);
+        const transitionMs = root
+          ? parseFloat((root.ownerDocument.defaultView ?? window).getComputedStyle(root).transitionDuration) * 1000
+          : 0;
+        const waitMs = Math.ceil(transitionMs) + 50;
+        debounceTimer = setTimeout(() => tryExtract(), waitMs);
       }
     });
     this.observer = observer;
@@ -204,8 +237,9 @@ export class AdaptiveIframe extends HTMLElement {
       if (!extracted && this.observer === observer) {
         this.observer.disconnect();
         this.observer = null;
+        this.reportError('Story did not render — component may not exist or Storybook story file has an error');
       }
-    }, 10000);
+    }, 20000);
   }
 
   /**
@@ -250,6 +284,7 @@ export class AdaptiveIframe extends HTMLElement {
 
   private extractAndApply(doc: Document) {
     const root = this.findStoryRoot(doc);
+    const win = root ? (root.ownerDocument.defaultView ?? window) : window;
     if (!root) return;
 
     // Sync hidden iframe width to the host element's actual width so that
@@ -274,5 +309,38 @@ export class AdaptiveIframe extends HTMLElement {
     for (let i = 0; i < len; i++) {
       injectChildStyles(rootChildren[i], ghostChildren[i]);
     }
+
+    // Signal first successful render so the load queue can free its slot.
+    if (!this._loadedDispatched) {
+      this._loadedDispatched = true;
+      this.dispatchEvent(new CustomEvent('iframe-loaded'));
+    }
+
+    // Emit extracted ghost data for caching — fires on every extraction
+    // (initial load AND arg-change re-renders) so the cache stays fresh.
+    const ghostHtml = this.getComponentHtml();
+    const storyBackground = getComputedStyle(doc.body).backgroundColor;
+    this.dispatchEvent(new CustomEvent('ghost-extracted', {
+      detail: { ghostHtml, hostStyles: styles, storyBackground },
+    }));
+  }
+
+  private _error: string | null = null;
+
+  /** Report an error that occurred during loading or rendering. */
+  private reportError(message: string) {
+    this._error = message;
+    console.error(`[AdaptiveIframe] ${message}`);
+    this.dispatchEvent(new CustomEvent('iframe-error', { detail: { message } }));
+  }
+
+  /** Get any error message from the last load attempt. */
+  getError(): string | null {
+    return this._error;
+  }
+
+  /** Clear the error state (e.g. when retrying). */
+  clearError() {
+    this._error = null;
   }
 }

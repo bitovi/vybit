@@ -2,7 +2,7 @@
 
 ## Overview
 
-A first-class Storybook addon that embeds the Tailwind Inspector inside Storybook's UI. Designers can click elements in the story canvas, inspect and change Tailwind classes in the inspector panel, and queue changes for the AI agent — all without leaving Storybook.
+A first-class Storybook addon that embeds Vybit inside Storybook's UI. Designers can click elements in the story canvas, inspect and change Tailwind classes in the inspector panel, and queue changes for the AI agent — all without leaving Storybook.
 
 The overlay is injected into Storybook's story iframe. The inspector panel appears as a native addon panel on the right side of the canvas. The agent runs alongside Storybook and picks up queued changes normally via `implement_next_change`.
 
@@ -80,7 +80,7 @@ The `npx` invocation starts the server when the agent connects. The locally-inst
 ```ts
 // .storybook/preview.ts
 export const parameters = {
-  tailwindInspector: {
+  vybit: {
     serverUrl: 'http://localhost:4000',  // only needed if running vybit on a non-default port
   },
 };
@@ -148,7 +148,7 @@ One-time setup:
       addons: ['../storybook-addon']   ← or npm package name once published
    (Optional) Add to .storybook/preview.ts:
       export const parameters = {
-        tailwindInspector: { serverUrl: 'http://localhost:3333' }
+        vybit: { serverUrl: 'http://localhost:3333' }
       }
       │
       ▼
@@ -167,7 +167,7 @@ Runtime:
       │  └── Injects <script src="http://localhost:3333/overlay.js"> once
       │  └── Overlay boots: shadow host, toggle button, WS connects to ws://localhost:3333
       ▼
-5. "Tailwind Inspector" panel tab appears on the right side of the canvas
+5. "Vybit" panel tab appears on the right side of the canvas
       │  └── manager.tsx has registered an AddonPanel
       │  └── Panel renders as <iframe src="http://localhost:3333/panel/">
       │  └── Panel iframe registers as 'panel' over WS → receives QUEUE_UPDATE
@@ -243,7 +243,7 @@ let injected = false;
 export const decorators = [
   (StoryFn: any, context: any) => {
     const serverUrl =
-      context.parameters?.tailwindInspector?.serverUrl ?? 'http://localhost:3333';
+      context.parameters?.vybit?.serverUrl ?? 'http://localhost:3333';
 
     if (!injected) {
       const script = document.createElement('script');
@@ -270,24 +270,24 @@ Runs in Storybook's manager (shell) window. Registers the inspector panel.
 import { addons, types } from '@storybook/manager-api';
 import { AddonPanel } from '@storybook/components';
 
-const ADDON_ID = 'tailwind-inspector';
+const ADDON_ID = 'vybit';
 const PANEL_ID = `${ADDON_ID}/panel`;
 
 addons.register(ADDON_ID, (api) => {
   const serverUrl =
-    api.getCurrentParameter<{ serverUrl?: string }>('tailwindInspector')?.serverUrl
+    api.getCurrentParameter<{ serverUrl?: string }>('vybit')?.serverUrl
     ?? 'http://localhost:3333';
 
   addons.add(PANEL_ID, {
     type: types.PANEL,
-    title: 'Tailwind Inspector',
-    paramKey: 'tailwindInspector',
+    title: 'Vybit',
+    paramKey: 'vybit',
     render: ({ active }) => (
       <AddonPanel active={active ?? false}>
         <iframe
           src={`${serverUrl}/panel/`}
           style={{ width: '100%', height: '100%', border: 'none' }}
-          title="Tailwind Inspector Panel"
+          title="Vybit Panel"
         />
       </AddonPanel>
     ),
@@ -344,12 +344,12 @@ Complete user-facing setup. All fields are optional — defaults work for the st
 ```ts
 // .storybook/main.ts
 export default {
-  addons: ['../storybook-addon'],  // or '@bitovi/tailwind-inspector' once published
+  addons: ['../storybook-addon'],  // or '@bitovi/vybit/storybook-addon' once published
 };
 
 // .storybook/preview.ts  (only needed for non-default server port)
 export const parameters = {
-  tailwindInspector: {
+  vybit: {
     serverUrl: 'http://localhost:3333',  // default
   },
 };
@@ -365,7 +365,7 @@ export const parameters = {
    - `overlay/src/ws.ts` — listen for `STORYBOOK_STORY_RENDERED` window message, send `RESET_SELECTION` over WS
    - `server/websocket.ts` — on receipt from overlay, broadcast to all panel clients
    - `panel/src/ws.ts` — on receipt, clear selected element state
-3. **Wire addon into test-app Storybook** — add to `panel/.storybook/main.ts` for local verification
+3. **Wire addon into test-app Storybook** — add to `test-app/.storybook/main.ts` (port 6007) for end-to-end verification
 4. **Verify end-to-end** — click element in story canvas → edit Tailwind class → queue change → confirm mock MCP client picks it up → navigate to different story → confirm panel clears
 
 ---

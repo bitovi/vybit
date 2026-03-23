@@ -53,6 +53,13 @@ export function sendTo(role: string, data: object): void {
   send({ ...data, to: role });
 }
 
+// Listen for Storybook story-change events and notify server
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'STORYBOOK_STORY_RENDERED') {
+    send({ type: 'RESET_SELECTION' });
+  }
+});
+
 export function isConnected(): boolean {
   return connected;
 }

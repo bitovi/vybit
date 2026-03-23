@@ -46,7 +46,7 @@ export { STYLE_PROPERTIES, CHILD_STYLE_PROPERTIES };
  * Returns a plain object of property → resolved value.
  */
 export function extractStyles(el: Element): Record<string, string> {
-  const computed = getComputedStyle(el);
+  const computed = (el.ownerDocument.defaultView ?? window).getComputedStyle(el);
   const styles: Record<string, string> = {};
   for (const prop of STYLE_PROPERTIES) {
     styles[prop] = computed.getPropertyValue(prop);
@@ -90,7 +90,7 @@ export function injectChildStyles(
 ): void {
   if (!sourceEl || !cloneEl) return;
 
-  const computed = getComputedStyle(sourceEl);
+  const computed = (sourceEl.ownerDocument.defaultView ?? window).getComputedStyle(sourceEl);
   const clone = cloneEl as HTMLElement;
   if (clone.style) {
     for (const prop of CHILD_STYLE_PROPERTIES) {
