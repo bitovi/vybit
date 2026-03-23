@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Storybook test lockfiles (each env installs independently)
+storybook-test/v8/package-lock.json
+storybook-test/v10/package-lock.json
+
 # Compiled output
 dist/
 overlay/dist/overlay.js

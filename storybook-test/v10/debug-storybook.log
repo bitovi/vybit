@@ -1,0 +1,19 @@
+[13:07:00.135] [INFO] storybook v10.3.3
+[13:07:00.366] [DEBUG] Getting package.json info for /Users/justinmeyer/dev/tailwind-inspector-mcp/storybook-test/v10/package.json...
+[13:07:01.093] [INFO] Starting...
+[13:07:01.166] [ERROR] [38;2;241;97;97mError: Build failed with 2 errors:
+../../storybook-addon/manager.tsx:2:30: ERROR: Could not resolve "@storybook/manager-api"
+../../storybook-addon/manager.tsx:3:27: ERROR: Could not resolve "@storybook/components"[39m
+    at failureErrorWithLog (./node_modules/esbuild/lib/main.js:1748:15)
+    at ./node_modules/esbuild/lib/main.js:1207:25
+    at runOnEndCallbacks (./node_modules/esbuild/lib/main.js:1588:45)
+    at buildResponseToResult (./node_modules/esbuild/lib/main.js:1205:7)
+    at ./node_modules/esbuild/lib/main.js:1232:16
+    at responseCallbacks.<computed> (./node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (./node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (./node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+[13:07:01.169] [WARN] Broken build, fix the error above.
+You may need to refresh the browser.
+[13:07:01.173] [INFO] Storybook collects completely anonymous usage telemetry. We use it to shape Storybook's roadmap and prioritize features. You can learn more, including how to opt out, at https://storybook.js.org/telemetry

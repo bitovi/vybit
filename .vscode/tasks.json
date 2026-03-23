@@ -130,7 +130,7 @@
       "label": "Storybook: Test App (port 6007)",
       "type": "shell",
       "command": "npm run storybook",
-      "options": { "cwd": "${workspaceFolder}/test-app" },
+      "options": { "cwd": "${workspaceFolder}/storybook-test/v8" },
       "isBackground": true,
       "problemMatcher": {
         "owner": "storybook-test-app",
@@ -138,6 +138,56 @@
         "background": { "activeOnStart": true, "beginsPattern": "storybook", "endsPattern": "Local:" }
       },
       "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Storybook 10: Test App (port 6008)",
+      "type": "shell",
+      "command": "npm run storybook",
+      "options": { "cwd": "${workspaceFolder}/storybook-test/v10" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "storybook-test-app-v10",
+        "pattern": { "regexp": "^(Error): (.*)$", "severity": 1, "message": 2 },
+        "background": { "activeOnStart": true, "beginsPattern": "storybook", "endsPattern": "Local:" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Server for SB10 (port 3333)",
+      "type": "shell",
+      "command": "npx tsx watch ../server/index.ts",
+      "options": {
+        "cwd": "${workspaceFolder}/test-app",
+        "env": { "STORYBOOK_URL": "http://localhost:6008" }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "tsx-sb10",
+        "pattern": { "regexp": "^(Error): (.*)$", "severity": 1, "message": 2 },
+        "background": { "activeOnStart": true, "beginsPattern": ".", "endsPattern": "Listening on" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Dev: Test App",
+      "dependsOn": ["Watch: Overlay", "Watch: Panel", "Server (port 3333)", "Test App (port 5173)"],
+      "dependsOrder": "parallel",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: SB8",
+      "dependsOn": ["Watch: Overlay", "Watch: Panel", "Server (port 3333)", "Storybook: Test App (port 6007)", "Test App (port 5173)"],
+      "dependsOrder": "parallel",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: SB10",
+      "dependsOn": ["Watch: Overlay", "Watch: Panel", "Server for SB10 (port 3333)", "Storybook 10: Test App (port 6008)", "Test App (port 5173)"],
+      "dependsOrder": "parallel",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
     }
   ]
 }

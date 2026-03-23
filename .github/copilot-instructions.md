@@ -4,7 +4,7 @@
 
 A browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app. The user clicks elements in the page, and the panel lets them scrub/select new Tailwind values which are queued as changes for an AI agent to apply.
 
-**Stack:** TypeScript, React 18, Vite 5, Tailwind v4 (CSS-only `@theme`), Express + WebSocket, MCP SDK, Vitest, Storybook 8, esbuild.
+**Stack:** TypeScript, React 18, Vite 5, Tailwind v4 (CSS-only `@theme`), Express + WebSocket, MCP SDK, Vitest, Storybook 8 + 10, esbuild.
 
 ## Key Design Tokens (Bitovi brand)
 
@@ -64,9 +64,10 @@ cd test-app && npx tsx mock-mcp-client.ts
 cd test-app && npx vite
 # → http://localhost:5173 (page to inspect)
 
-# 5. Storybook (optional, from panel/)
-cd panel && npm run storybook
-# → http://localhost:6006
+# 5. Storybook (optional)
+cd panel && npm run storybook          # → http://localhost:6006 (panel components)
+cd storybook-test/v8 && npm run storybook   # → http://localhost:6007 (test-app stories, SB8)
+cd storybook-test/v10 && npm run storybook  # → http://localhost:6008 (test-app stories, SB10)
 ```
 
 ## Running Tests
@@ -101,7 +102,17 @@ cd panel && npm test -- ScaleScrubber
     src/Picker.tsx       ← Main inspector UI (property chips, scrubbers)
     src/ws.ts            ← WebSocket client + message bus
     src/components/      ← Modlet-style components
+  storybook-addon/       ← Storybook addon (SB8 + SB10 compatible)
+    manager.tsx          ← Addon panel for SB8 (embeds inspector via iframe)
+    manager-v10.tsx      ← Addon panel for SB10 (storybook/* imports)
+    preview.ts           ← Decorator for SB8 (injects overlay.js into stories)
+    preview-v10.ts       ← Decorator for SB10 (storybook/* imports)
+    preset.js            ← Storybook preset hooks (auto-detects SB version)
+  storybook-test/          ← Storybook integration test environments
+    v8/                  ← Storybook 8 (port 6007) — stories from test-app
+    v10/                 ← Storybook 10 (port 6008) — stories from test-app
   test-app/              ← Sample React app used for testing/demo
+    src/components/      ← Components + story files (loaded by storybook-test/)
     e2e/                 ← Playwright E2E tests
 ```
 
@@ -163,7 +174,7 @@ interface ParsedClass {
 ## Common Pitfalls
 
 - **Server cwd**: Always start server from `test-app/` — not from the root
-- **Port conflicts**: Server=3333, test-app=5173, Storybook=6006, panel dev=5174
+- **Port conflicts**: Server=3333, test-app=5173, panel SB=6006, SB8 test=6007, SB10 test=6008, panel dev=5174
 - **`class-parser.ts` is shared**: Both overlay and panel import it — changes affect both
 - **No `tailwind.config.js`**: Tailwind v4 uses `@theme {}` in `panel/src/index.css` only
 - **`scrollIntoView` in tests**: jsdom doesn't implement it — use optional chaining `el.scrollIntoView?.()`

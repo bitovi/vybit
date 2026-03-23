@@ -1,0 +1,25 @@
+{
+  "name": "storybook-test-v10",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "storybook": "storybook dev -p 6008",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@storybook/react-vite": "^10.3.3",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.1",
+    "storybook": "^10.3.3",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
+  }
+}

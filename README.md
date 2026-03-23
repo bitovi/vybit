@@ -157,7 +157,7 @@ Once you have the changes you want to make, you can click the drafts button. Thi
 
 ## Storybook Integrations
 
-VyBit offers two separate Storybook integrations. Each requires its own setup.
+VyBit offers two separate Storybook integrations. Each requires its own setup. Both work with **Storybook 8** and **Storybook 10**.
 
 ### 1. Drag Components from Storybook into Your Page
 
@@ -171,7 +171,9 @@ STORYBOOK_URL=http://localhost:7000 npx @bitovi/vybit
 
 ### 2. Use the VyBit Panel Inside Storybook
 
-You can embed the VyBit editor panel as a tab directly inside your Storybook UI. Because VyBit is typically run via `npx` in the MCP config (not installed locally), you need to add it as a dev dependency so Storybook can resolve the addon.
+You can embed the VyBit editor panel as a tab directly inside your Storybook UI. The addon auto-detects whether you're running Storybook 8 or 10 and loads the correct entry points.
+
+Because VyBit is typically run via `npx` in the MCP config (not installed locally), you need to add it as a dev dependency so Storybook can resolve the addon.
 
 Install it in the same package where Storybook is a dependency (this may be a subdirectory in a monorepo):
 
@@ -187,7 +189,7 @@ export default {
 };
 ```
 
-The VyBit editor panel will now appear as a tab inside your Storybook.
+The VyBit editor panel will now appear as a "Vybit" tab inside your Storybook.
 
 ## MCP Tools
 
