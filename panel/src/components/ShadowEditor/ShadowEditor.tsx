@@ -55,7 +55,7 @@ export function ShadowEditor({
 		 */
 		<div
 			className="grid items-center gap-x-1.5 gap-y-1 w-full"
-			style={{ gridTemplateColumns: "16px auto 1fr 1fr 26px 18px" }}
+			style={{ gridTemplateColumns: "16px auto auto 1fr 26px 18px" }}
 		>
 			{items.map(({ type, layer }, idx) => (
 				<Fragment key={type}>

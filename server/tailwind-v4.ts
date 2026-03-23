@@ -4,14 +4,14 @@ import { readFileSync } from "fs";
 import { createRequire } from "module";
 import { dirname, resolve } from "path";
 import { pathToFileURL } from "url";
+import {
+	extractShadowDefaults,
+	SHADOW_PROBE_CLASSES,
+} from "./shadow-defaults.js";
 import type {
 	TailwindAdapter,
 	TailwindThemeSubset,
 } from "./tailwind-adapter.js";
-import {
-	SHADOW_PROBE_CLASSES,
-	extractShadowDefaults,
-} from "./shadow-defaults.js";
 
 // Cached compiler instance (from target project's tailwindcss)
 let compilerCache: { build: (classes: string[]) => string } | null = null;

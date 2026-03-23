@@ -4,14 +4,14 @@ import { existsSync, readFileSync } from "fs";
 import { createRequire } from "module";
 import { resolve } from "path";
 import { pathToFileURL } from "url";
+import {
+	extractShadowDefaults,
+	SHADOW_PROBE_CLASSES,
+} from "./shadow-defaults.js";
 import type {
 	TailwindAdapter,
 	TailwindThemeSubset,
 } from "./tailwind-adapter.js";
-import {
-	SHADOW_PROBE_CLASSES,
-	extractShadowDefaults,
-} from "./shadow-defaults.js";
 
 let cached: TailwindThemeSubset | null = null;
 
@@ -434,14 +434,24 @@ export class TailwindV3Adapter implements TailwindAdapter {
 
 				// Extract shadow/ring defaults by compiling probe classes
 				try {
-					const probeCss = await this.generateCssForClassesWithBase(SHADOW_PROBE_CLASSES);
+					const probeCss =
+						await this.generateCssForClassesWithBase(SHADOW_PROBE_CLASSES);
 					// In v3, --tw-ring-color is set in @tailwind base — extract it
 					const ringMatch = probeCss.match(/--tw-ring-color:\s*([^;]+);/);
 					const ringColorFromBase = ringMatch ? ringMatch[1].trim() : undefined;
-					cached.shadowDefaults = extractShadowDefaults(probeCss, ringColorFromBase);
-					console.error("[tailwind] v3 shadow defaults:", cached.shadowDefaults);
+					cached.shadowDefaults = extractShadowDefaults(
+						probeCss,
+						ringColorFromBase,
+					);
+					console.error(
+						"[tailwind] v3 shadow defaults:",
+						cached.shadowDefaults,
+					);
 				} catch (err) {
-					console.error("[tailwind] v3 failed to extract shadow defaults:", err);
+					console.error(
+						"[tailwind] v3 failed to extract shadow defaults:",
+						err,
+					);
 				}
 
 				console.error(`[tailwind] v3 resolved config from ${configPath}`);
@@ -460,11 +470,18 @@ export class TailwindV3Adapter implements TailwindAdapter {
 
 		// Still try to extract shadow defaults even with the fallback theme
 		try {
-			const probeCss = await this.generateCssForClassesWithBase(SHADOW_PROBE_CLASSES);
+			const probeCss =
+				await this.generateCssForClassesWithBase(SHADOW_PROBE_CLASSES);
 			const ringMatch = probeCss.match(/--tw-ring-color:\s*([^;]+);/);
 			const ringColorFromBase = ringMatch ? ringMatch[1].trim() : undefined;
-			cached.shadowDefaults = extractShadowDefaults(probeCss, ringColorFromBase);
-			console.error("[tailwind] v3 shadow defaults (fallback):", cached.shadowDefaults);
+			cached.shadowDefaults = extractShadowDefaults(
+				probeCss,
+				ringColorFromBase,
+			);
+			console.error(
+				"[tailwind] v3 shadow defaults (fallback):",
+				cached.shadowDefaults,
+			);
 		} catch {
 			// Shadow defaults are optional — don't fail config resolution
 		}
@@ -477,7 +494,9 @@ export class TailwindV3Adapter implements TailwindAdapter {
 	}
 
 	/** Like generateCssForClasses but includes @tailwind base for CSS variable defaults. */
-	private async generateCssForClassesWithBase(classes: string[]): Promise<string> {
+	private async generateCssForClassesWithBase(
+		classes: string[],
+	): Promise<string> {
 		return this._compileCss(classes, "@tailwind base; @tailwind utilities;");
 	}
 

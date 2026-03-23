@@ -133,14 +133,14 @@ export function ScaleScrubber({
 		<div ref={containerRef} className="relative w-full">
 			<div
 				ref={refs.setReference}
-				className={`group select-none px-2 py-1 rounded text-[11px] font-mono transition-colors w-full ${foreignLocked ? "cursor-default" : "cursor-ew-resize"} ${chipStyle}`}
+				className={`group relative select-none px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors w-full text-center ${foreignLocked ? "cursor-default" : "cursor-ew-resize"} ${chipStyle}`}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
 			>
 				{!foreignLocked && (
 					<span
-						className={`inline-block mr-0.5 text-[9px] transition-opacity ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
+						className={`absolute left-0.5 top-1/2 -translate-y-1/2 text-[9px] transition-opacity pointer-events-none ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
 					>
 						‹
 					</span>
@@ -148,7 +148,7 @@ export function ScaleScrubber({
 				{displayValue}
 				{!foreignLocked && (
 					<span
-						className={`inline-block ml-0.5 text-[9px] transition-opacity ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
+						className={`absolute right-0.5 top-1/2 -translate-y-1/2 text-[9px] transition-opacity pointer-events-none ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
 					>
 						›
 					</span>
