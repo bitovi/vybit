@@ -12,8 +12,7 @@ Change designs, draw mockups, and provide suggestions __in your browser__ and se
 | 2    | __Use VyBit to fine-tune your design system in Storybook__ - Adjust colors, spacing, shadows, layout and more | <img  alt="image" src="https://github.com/user-attachments/assets/79ca04be-db8f-458f-8632-87cc040875db" />    |
 | 3a   | __Use VyBit to design features__ - drop customized design system components into your pages | <img width="1481" height="922" alt="image" src="https://github.com/user-attachments/assets/415acdb7-102a-4c31-910b-10536c59ee4a" /> |
 | 3b  | __Use VyBit to design features__ -  sketch a feature with the design canvas | <img width="1482" height="924" alt="image" src="https://github.com/user-attachments/assets/924e9733-baf6-4492-b9da-05fd27c2df93" /> | 
-| 4 | Add text or voice messages for extra context | <img width="376" height="261" alt="image" src="https://github.com/user-attachments/assets/546ea987-a0ad-4809-85c6-52fb91fb987e" />
- | 
+| 4 | Add text or voice messages for extra context | <img width="376" height="261" alt="image" src="https://github.com/user-attachments/assets/546ea987-a0ad-4809-85c6-52fb91fb987e" /> | 
 
 Plus, VyBit always knows what page, components, and elements you're editing, making it easier for agents to know exactly what you want!
 
