@@ -1,12 +1,11 @@
-import { armInsert, cancelInsert } from "./drop-zone";
 import { computePosition, flip, offset } from "@floating-ui/dom";
-import { parseClasses } from "./tailwind/class-parser";
 import type { ContainerName, IContainer } from "./containers/IContainer";
 import { ModalContainer } from "./containers/ModalContainer";
 import { PopoverContainer } from "./containers/PopoverContainer";
 import { PopupContainer } from "./containers/PopupContainer";
 import { SidebarContainer } from "./containers/SidebarContainer";
 import { buildContext } from "./context";
+import { armInsert, cancelInsert } from "./drop-zone";
 import {
 	findAllInstances,
 	findComponentBoundary,
@@ -28,6 +27,7 @@ import {
 	revertPreview,
 } from "./patcher";
 import { areSiblings, captureRegion } from "./screenshot";
+import { parseClasses } from "./tailwind/class-parser";
 import { connect, onMessage, send, sendTo } from "./ws";
 
 let shadowRoot: ShadowRoot;
@@ -121,10 +121,6 @@ const OVERLAY_CSS = `
   .toast.visible {
     opacity: 1;
   }
-  @keyframes highlight-pulse {
-    0%, 100% { border-color: #00848B; box-shadow: 0 0 6px rgba(0,132,139,0.5); }
-    50%       { border-color: #F5532D; box-shadow: 0 0 6px rgba(245,83,45,0.5); }
-  }
   .highlight-overlay {
     position: fixed;
     pointer-events: none;
@@ -132,7 +128,18 @@ const OVERLAY_CSS = `
     border-radius: 2px;
     box-sizing: border-box;
     z-index: 999998;
-    animation: highlight-pulse 2s ease-in-out infinite;
+    opacity: 1;
+    transition: opacity 0.6s ease;
+  }
+  .highlight-overlay.secondary {
+    border-style: dashed;
+    opacity: 0.5;
+  }
+  .highlight-overlay.dimmed {
+    opacity: 0.25;
+  }
+  .highlight-overlay.secondary.dimmed {
+    opacity: 0.15;
   }
   /* Hover preview — lightweight outline shown while selection mode is active */
   .hover-target-outline {
@@ -474,10 +481,13 @@ const OVERLAY_CSS = `
   }
 `;
 
-function highlightElement(el: HTMLElement): void {
+function highlightElement(el: HTMLElement, primary = false): void {
 	const rect = el.getBoundingClientRect();
 	const overlay = document.createElement("div");
-	overlay.className = `highlight-overlay${highlightsVisible ? "" : " hidden"}`;
+	let cls = "highlight-overlay";
+	if (!primary) cls += " secondary";
+	if (!highlightsVisible) cls += " hidden";
+	overlay.className = cls;
 	overlay.style.top = `${rect.top - 3}px`;
 	overlay.style.left = `${rect.left - 3}px`;
 	overlay.style.width = `${rect.width + 6}px`;
@@ -485,12 +495,25 @@ function highlightElement(el: HTMLElement): void {
 	shadowRoot.appendChild(overlay);
 }
 
+let dimTimer: ReturnType<typeof setTimeout> | null = null;
+
 function clearHighlights(): void {
+	if (dimTimer) { clearTimeout(dimTimer); dimTimer = null; }
 	shadowRoot
 		.querySelectorAll(".highlight-overlay")
 		.forEach((el) => el.remove());
 	removeDrawButton();
 	highlightsVisible = true;
+}
+
+/** Add .dimmed to all highlights after a delay so they fade out of the way */
+function scheduleDim(): void {
+	if (dimTimer) clearTimeout(dimTimer);
+	dimTimer = setTimeout(() => {
+		shadowRoot
+			.querySelectorAll(".highlight-overlay")
+			.forEach((el) => el.classList.add("dimmed"));
+	}, 2000);
 }
 
 // Whether selection highlight borders are visible (toggled by eye button)
@@ -658,18 +681,26 @@ function showDrawButton(targetEl: HTMLElement): void {
 	const visBtn = document.createElement("button");
 	visBtn.className = `el-visibility-btn${highlightsVisible ? "" : " off"}`;
 	visBtn.innerHTML = highlightsVisible ? EYE_ON_SVG : EYE_OFF_SVG;
-	visBtn.title = highlightsVisible ? "Hide selection borders" : "Show selection borders";
+	visBtn.title = highlightsVisible
+		? "Hide selection borders"
+		: "Show selection borders";
 	toolbar.appendChild(visBtn);
 
 	visBtn.addEventListener("click", (e) => {
 		e.stopPropagation();
 		highlightsVisible = !highlightsVisible;
 		visBtn.innerHTML = highlightsVisible ? EYE_ON_SVG : EYE_OFF_SVG;
-		visBtn.title = highlightsVisible ? "Hide selection borders" : "Show selection borders";
+		visBtn.title = highlightsVisible
+			? "Hide selection borders"
+			: "Show selection borders";
 		visBtn.classList.toggle("off", !highlightsVisible);
 		shadowRoot
 			.querySelectorAll(".highlight-overlay")
-			.forEach((el) => el.classList.toggle("hidden", !highlightsVisible));
+			.forEach((el) => {
+				el.classList.toggle("hidden", !highlightsVisible);
+				if (highlightsVisible) el.classList.remove("dimmed");
+			});
+		if (highlightsVisible) scheduleDim();
 	});
 
 	// Separator
@@ -798,7 +829,8 @@ function showGroupPicker(
 			shadowRoot
 				.querySelectorAll(".highlight-overlay")
 				.forEach((el) => el.remove());
-			currentEquivalentNodes.forEach((n) => highlightElement(n));
+			currentEquivalentNodes.forEach((n) => highlightElement(n, n === currentTargetEl));
+			scheduleDim();
 			onCountChange(currentEquivalentNodes.length);
 			// Update panel
 			if (currentTargetEl && currentBoundary) {
@@ -1002,12 +1034,12 @@ function getServerOrigin(): string {
 }
 
 const SERVER_ORIGIN = getServerOrigin();
-console.log('[vybit-overlay] SERVER_ORIGIN =', SERVER_ORIGIN);
+console.log("[vybit-overlay] SERVER_ORIGIN =", SERVER_ORIGIN);
 
 // When running inside a Storybook iframe, the panel is already shown in
 // the Storybook addon tab — suppress the overlay's own panel container.
 const insideStorybook = !!(window as any).__STORYBOOK_PREVIEW__;
-console.log('[vybit-overlay] insideStorybook =', insideStorybook);
+console.log("[vybit-overlay] insideStorybook =", insideStorybook);
 
 async function fetchTailwindConfig(): Promise<any> {
 	if (tailwindConfigCache) return tailwindConfigCache;
@@ -1022,10 +1054,17 @@ async function fetchTailwindConfig(): Promise<any> {
 }
 
 async function clickHandler(e: MouseEvent): Promise<void> {
-	console.log('[vybit-overlay] clickHandler fired on', (e.target as Element)?.tagName, (e.target as Element)?.className);
+	console.log(
+		"[vybit-overlay] clickHandler fired on",
+		(e.target as Element)?.tagName,
+		(e.target as Element)?.className,
+	);
 	// Ignore clicks on our own shadow DOM UI
 	const composed = e.composedPath();
-	if (composed.some((el) => el === shadowHost)) { console.log('[vybit-overlay] click ignored — shadow host'); return; }
+	if (composed.some((el) => el === shadowHost)) {
+		console.log("[vybit-overlay] click ignored — shadow host");
+		return;
+	}
 
 	// Ignore clicks inside an active design canvas wrapper
 	if (
@@ -1050,8 +1089,9 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 
 	clearHighlights();
 	for (const node of result.exactMatch) {
-		highlightElement(node);
+		highlightElement(node, node === targetEl);
 	}
+	scheduleDim();
 
 	// Fetch tailwind config (cached after first fetch)
 	const config = await fetchTailwindConfig();
@@ -1095,7 +1135,7 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 }
 
 function setSelectMode(on: boolean): void {
-	console.log('[vybit-overlay] setSelectMode', on);
+	console.log("[vybit-overlay] setSelectMode", on);
 	if (on) {
 		document.documentElement.style.cursor = "crosshair";
 		document.addEventListener("click", clickHandler, { capture: true });
@@ -1112,7 +1152,7 @@ function setSelectMode(on: boolean): void {
 const PANEL_OPEN_KEY = "tw-inspector-panel-open";
 
 function toggleInspect(btn: HTMLButtonElement): void {
-	console.log('[vybit-overlay] toggleInspect, active will be', !active);
+	console.log("[vybit-overlay] toggleInspect, active will be", !active);
 	active = !active;
 	if (active) {
 		btn.classList.add("active");
@@ -1454,7 +1494,12 @@ async function handleCaptureScreenshot(): Promise<void> {
 	parent.insertBefore(wrapper, marker);
 	marker.remove();
 
-	designCanvasWrappers.push({ wrapper, replacedNodes, parent, anchor: wrapper.nextSibling });
+	designCanvasWrappers.push({
+		wrapper,
+		replacedNodes,
+		parent,
+		anchor: wrapper.nextSibling,
+	});
 	iframe.addEventListener("load", () => {
 		const contextMsg = {
 			type: "ELEMENT_CONTEXT",
@@ -1506,7 +1551,7 @@ function getDefaultContainer(): ContainerName {
 }
 
 function init(): void {
-	console.log('[vybit-overlay] init() called');
+	console.log("[vybit-overlay] init() called");
 	shadowHost = document.createElement("div");
 	shadowHost.id = "tw-visual-editor-host";
 	shadowHost.style.cssText =
@@ -1559,7 +1604,7 @@ function init(): void {
 
 	// Handle messages from Panel via WS
 	onMessage((msg: any) => {
-		console.log('[vybit-overlay] WS message received:', msg.type);
+		console.log("[vybit-overlay] WS message received:", msg.type);
 		if (msg.type === "TOGGLE_SELECT_MODE") {
 			if (msg.active) {
 				setSelectMode(true);
@@ -1588,11 +1633,18 @@ function init(): void {
 			applyPreviewBatch(currentEquivalentNodes, msg.pairs, SERVER_ORIGIN);
 		} else if (msg.type === "PATCH_REVERT") {
 			revertPreview();
-		} else if (msg.type === "PATCH_REVERT_STAGED" && currentEquivalentNodes.length > 0) {
+		} else if (
+			msg.type === "PATCH_REVERT_STAGED" &&
+			currentEquivalentNodes.length > 0
+		) {
 			// Undo a previously committed staged change: apply the reverse swap to the DOM
 			// and commit it as the new baseline without telling the server.
-			applyPreview(currentEquivalentNodes, msg.oldClass, msg.newClass, SERVER_ORIGIN)
-				.then(() => commitPreview());
+			applyPreview(
+				currentEquivalentNodes,
+				msg.oldClass,
+				msg.newClass,
+				SERVER_ORIGIN,
+			).then(() => commitPreview());
 		} else if (
 			msg.type === "PATCH_STAGE" &&
 			currentTargetEl &&
@@ -1649,8 +1701,12 @@ function init(): void {
 			// the new class was never applied to the DOM. Apply it now, then commit
 			// once the CSS is injected so the class renders immediately.
 			if (!state && !msg.oldClass && msg.newClass) {
-				applyPreview(currentEquivalentNodes, '', msg.newClass, SERVER_ORIGIN)
-					.then(() => commitPreview());
+				applyPreview(
+					currentEquivalentNodes,
+					"",
+					msg.newClass,
+					SERVER_ORIGIN,
+				).then(() => commitPreview());
 			} else {
 				commitPreview();
 			}
@@ -1727,8 +1783,9 @@ function init(): void {
 				// Re-apply selection highlights and toolbar so the user can keep editing
 				if (currentTargetEl && currentEquivalentNodes.length > 0) {
 					for (const n of currentEquivalentNodes) {
-						highlightElement(n);
+						highlightElement(n, n === currentTargetEl);
 					}
+					scheduleDim();
 					showDrawButton(currentTargetEl);
 				}
 			}
@@ -1740,7 +1797,7 @@ function init(): void {
 			shadowRoot
 				.querySelectorAll(".highlight-overlay")
 				.forEach((el) => el.remove());
-			currentEquivalentNodes.forEach((n) => highlightElement(n));
+			currentEquivalentNodes.forEach((n) => highlightElement(n, n === currentTargetEl));
 		}
 		if (toolbarEl && currentTargetEl) {
 			positionWithFlip(currentTargetEl, toolbarEl);
@@ -1754,7 +1811,7 @@ function init(): void {
 				shadowRoot
 					.querySelectorAll(".highlight-overlay")
 					.forEach((el) => el.remove());
-				currentEquivalentNodes.forEach((n) => highlightElement(n));
+				currentEquivalentNodes.forEach((n) => highlightElement(n, n === currentTargetEl));
 			}
 			if (toolbarEl && currentTargetEl) {
 				positionWithFlip(currentTargetEl, toolbarEl);
