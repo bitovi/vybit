@@ -971,10 +971,12 @@ function getServerOrigin(): string {
 }
 
 const SERVER_ORIGIN = getServerOrigin();
+console.log('[vybit-overlay] SERVER_ORIGIN =', SERVER_ORIGIN);
 
 // When running inside a Storybook iframe, the panel is already shown in
 // the Storybook addon tab — suppress the overlay's own panel container.
 const insideStorybook = !!(window as any).__STORYBOOK_PREVIEW__;
+console.log('[vybit-overlay] insideStorybook =', insideStorybook);
 
 async function fetchTailwindConfig(): Promise<any> {
 	if (tailwindConfigCache) return tailwindConfigCache;
@@ -989,9 +991,10 @@ async function fetchTailwindConfig(): Promise<any> {
 }
 
 async function clickHandler(e: MouseEvent): Promise<void> {
+	console.log('[vybit-overlay] clickHandler fired on', (e.target as Element)?.tagName, (e.target as Element)?.className);
 	// Ignore clicks on our own shadow DOM UI
 	const composed = e.composedPath();
-	if (composed.some((el) => el === shadowHost)) return;
+	if (composed.some((el) => el === shadowHost)) { console.log('[vybit-overlay] click ignored — shadow host'); return; }
 
 	// Ignore clicks inside an active design canvas wrapper
 	if (
@@ -1061,6 +1064,7 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 }
 
 function setSelectMode(on: boolean): void {
+	console.log('[vybit-overlay] setSelectMode', on);
 	if (on) {
 		document.documentElement.style.cursor = "crosshair";
 		document.addEventListener("click", clickHandler, { capture: true });
@@ -1077,6 +1081,7 @@ function setSelectMode(on: boolean): void {
 const PANEL_OPEN_KEY = "tw-inspector-panel-open";
 
 function toggleInspect(btn: HTMLButtonElement): void {
+	console.log('[vybit-overlay] toggleInspect, active will be', !active);
 	active = !active;
 	if (active) {
 		btn.classList.add("active");
@@ -1470,6 +1475,7 @@ function getDefaultContainer(): ContainerName {
 }
 
 function init(): void {
+	console.log('[vybit-overlay] init() called');
 	shadowHost = document.createElement("div");
 	shadowHost.id = "tw-visual-editor-host";
 	shadowHost.style.cssText =
@@ -1522,6 +1528,7 @@ function init(): void {
 
 	// Handle messages from Panel via WS
 	onMessage((msg: any) => {
+		console.log('[vybit-overlay] WS message received:', msg.type);
 		if (msg.type === "TOGGLE_SELECT_MODE") {
 			if (msg.active) {
 				setSelectMode(true);

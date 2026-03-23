@@ -8,8 +8,11 @@ export const decorators = [
       context.parameters?.vybit?.serverUrl ?? 'http://localhost:3333';
 
     if (!injected) {
+      console.log('[vybit-addon] Injecting overlay script from', serverUrl);
       const script = document.createElement('script');
       script.src = `${serverUrl}/overlay.js`;
+      script.onload = () => console.log('[vybit-addon] overlay.js loaded successfully');
+      script.onerror = (err) => console.error('[vybit-addon] overlay.js FAILED to load', err);
       document.head.appendChild(script);
       injected = true;
     }

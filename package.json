@@ -1,6 +1,6 @@
 {
   "name": "@bitovi/vybit",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "Browser overlay + inspector panel + MCP server for visually editing Tailwind CSS classes on a running React app",
   "keywords": [
     "tailwind",
@@ -23,7 +23,10 @@
   },
   "exports": {
     ".": "./loader.mjs",
-    "./storybook-addon": "./storybook-addon/index.js"
+    "./storybook-addon": "./storybook-addon/index.js",
+    "./storybook-addon/preset.js": "./storybook-addon/preset.js",
+    "./storybook-addon/manager.tsx": "./storybook-addon/manager.tsx",
+    "./storybook-addon/preview.ts": "./storybook-addon/preview.ts"
   },
   "files": [
     "loader.mjs",

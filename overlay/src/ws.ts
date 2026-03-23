@@ -5,10 +5,12 @@ type MessageHandler = (data: any) => void;
 const handlers: MessageHandler[] = [];
 
 export function connect(url: string = 'ws://localhost:3333'): void {
+  console.log('[vybit-overlay] WS connecting to', url);
   socket = new WebSocket(url);
 
   socket.addEventListener('open', () => {
     connected = true;
+    console.log('[vybit-overlay] WS connected, registering as overlay');
     // Register as overlay so the server can route messages to us
     send({ type: 'REGISTER', role: 'overlay' });
     window.dispatchEvent(new CustomEvent('overlay-ws-connected'));
@@ -17,6 +19,7 @@ export function connect(url: string = 'ws://localhost:3333'): void {
   socket.addEventListener('close', () => {
     connected = false;
     socket = null;
+    console.log('[vybit-overlay] WS disconnected, will reconnect in 3s');
     window.dispatchEvent(new CustomEvent('overlay-ws-disconnected'));
     setTimeout(() => connect(url), 3000);
   });

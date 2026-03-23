@@ -21,11 +21,13 @@ addons.register(ADDON_ID, (api) => {
 
       return (
         <AddonPanel active={active ?? false}>
-          <iframe
-            src={`${serverUrl}/panel/`}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            title="Vybit Panel"
-          />
+          <div style={{ height: '100%', width: '100%' }}>
+            <iframe
+              src={`${serverUrl}/panel/`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="Vybit Panel"
+            />
+          </div>
         </AddonPanel>
       );
     },
