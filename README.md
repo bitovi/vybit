@@ -155,6 +155,37 @@ Once you have the changes you want to make, you can click the drafts button. Thi
 
 
 
+## Storybook Integrations
+
+VyBit offers two separate Storybook integrations. Each requires its own setup.
+
+### 1. Drag Components from Storybook into Your Page
+
+The VyBit editor's **Components** tab lists your Storybook stories so you can drag them directly onto your page. VyBit's MCP server auto-detects your running Storybook by scanning ports 6006–6010. No extra installation is needed — just make sure Storybook is running before starting VyBit.
+
+To use a different port or URL, set the `STORYBOOK_URL` environment variable:
+
+```bash
+STORYBOOK_URL=http://localhost:7000 npx @bitovi/vybit
+```
+
+### 2. Use the VyBit Panel Inside Storybook
+
+You can embed the VyBit editor panel as a tab directly inside your Storybook UI. This requires installing the addon separately:
+
+1. Install the addon in your project:
+   ```bash
+   npm install --save-dev @bitovi/vybit-storybook-addon
+   ```
+2. Register it in `.storybook/main.ts`:
+   ```ts
+   export default {
+     addons: ['@bitovi/vybit-storybook-addon'],
+   };
+   ```
+
+The VyBit editor panel will now appear as a tab inside your Storybook.
+
 ## MCP Tools
 
 There are other MCP tools you can use if you don't want to work in the implement loop:

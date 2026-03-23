@@ -28,7 +28,7 @@ const appMode = urlParams.get("mode");
 
 const TABS: Tab[] = [
 	{ id: "design", label: "Design" },
-	{ id: "draw", label: "Draw" },
+	{ id: "draw", label: "Components" },
 	{ id: "message", label: "Message" },
 ];
 
@@ -126,10 +126,23 @@ function InspectorApp() {
 		};
 	}, []);
 
+	// Escape key — clear current selection
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && elementData) {
+				setElementData(null);
+				setSelectionId((prev) => prev + 1);
+				sendTo("overlay", { type: "CLEAR_HIGHLIGHTS" });
+			}
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [elementData]);
+
 	const { draft, committed, implementing, implemented, partial, error } =
 		patchManager.counts;
 	const showNoAgentWarning =
-		committed > 0 && !patchManager.agentWaiting && implementing === 0;
+		(draft > 0 || committed > 0) && !patchManager.agentWaiting && implementing === 0;
 
 	// Merge server draft + local patches for display.
 	// Server draft is the source of truth for IDs; local patches carry richer detail.

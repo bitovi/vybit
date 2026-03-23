@@ -1503,6 +1503,19 @@ function init(): void {
 	btn.addEventListener("click", () => toggleInspect(btn));
 	shadowRoot.appendChild(btn);
 
+	// Escape key — clear current selection
+	document.addEventListener("keydown", (e) => {
+		if (e.key === "Escape" && currentTargetEl) {
+			revertPreview();
+			clearHighlights();
+			currentEquivalentNodes = [];
+			currentTargetEl = null;
+			currentBoundary = null;
+			cachedNearGroups = null;
+			sendTo("panel", { type: "RESET_SELECTION" });
+		}
+	});
+
 	// WebSocket connection — derive WS URL from script src
 	const wsUrl = SERVER_ORIGIN.replace(/^http/, "ws");
 	connect(wsUrl);
@@ -1604,7 +1617,12 @@ function init(): void {
 				commitPreview();
 			}
 		} else if (msg.type === "CLEAR_HIGHLIGHTS") {
+			revertPreview();
 			clearHighlights();
+			currentEquivalentNodes = [];
+			currentTargetEl = null;
+			currentBoundary = null;
+			cachedNearGroups = null;
 		} else if (msg.type === "SWITCH_CONTAINER") {
 			const newName = msg.container as ContainerName;
 			if (containers[newName] && newName !== activeContainer.name) {
