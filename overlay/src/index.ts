@@ -1377,6 +1377,10 @@ function toggleInspect(btn: HTMLButtonElement): void {
 				activeContainer.open(panelUrl);
 			}
 		}
+		// Restore element toolbar if an element was previously selected
+		if (currentTargetEl) {
+			showDrawButton(currentTargetEl);
+		}
 	} else {
 		btn.classList.remove("active");
 		sessionStorage.removeItem(PANEL_OPEN_KEY);
