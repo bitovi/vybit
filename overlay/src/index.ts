@@ -1418,6 +1418,99 @@ interface DesignCanvasEntry {
 }
 const designCanvasWrappers: DesignCanvasEntry[] = [];
 
+// Standalone canvas — floating overlay for wireframing (no element context needed)
+let standaloneCanvasWrapper: HTMLElement | null = null;
+
+function openStandaloneCanvas(canvasType: string, canvasName: string, canvasContent: string): void {
+	if (standaloneCanvasWrapper) {
+		// Already open — just update context
+		sendTo("canvas", {
+			type: "CANVAS_CONTEXT",
+			canvasType,
+			canvasName,
+			canvasContent,
+		});
+		return;
+	}
+
+	// Create a large floating canvas overlay
+	const backdrop = document.createElement("div");
+	backdrop.setAttribute("data-tw-standalone-canvas", "true");
+	backdrop.style.cssText = `
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		z-index: 2147483640;
+		background: rgba(0, 0, 0, 0.4);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		pointer-events: auto;
+	`;
+
+	const wrapper = document.createElement("div");
+	wrapper.style.cssText = `
+		width: 80vw;
+		height: 80vh;
+		max-width: 1200px;
+		max-height: 900px;
+		min-width: 400px;
+		min-height: 300px;
+		border-radius: 12px;
+		overflow: hidden;
+		box-shadow: 0 8px 48px rgba(0, 0, 0, 0.3);
+		background: #FAFBFB;
+		position: relative;
+	`;
+
+	const iframe = document.createElement("iframe");
+	iframe.src = `${SERVER_ORIGIN}/panel/?mode=canvas`;
+	iframe.allow = "microphone";
+	iframe.style.cssText = `
+		width: 100%;
+		height: 100%;
+		border: none;
+		display: block;
+	`;
+	wrapper.appendChild(iframe);
+	backdrop.appendChild(wrapper);
+
+	// Close on backdrop click (not on the wrapper itself)
+	backdrop.addEventListener("mousedown", (e) => {
+		if (e.target === backdrop) {
+			closeStandaloneCanvas();
+		}
+	});
+
+	document.body.appendChild(backdrop);
+	standaloneCanvasWrapper = backdrop;
+
+	// Send canvas context to the iframe once it connects
+	iframe.addEventListener("load", () => {
+		let attempts = 0;
+		const trySend = () => {
+			sendTo("canvas", {
+				type: "CANVAS_CONTEXT",
+				canvasType,
+				canvasName,
+				canvasContent,
+			});
+			attempts++;
+			if (attempts < 5) setTimeout(trySend, 300);
+		};
+		setTimeout(trySend, 200);
+	});
+}
+
+function closeStandaloneCanvas(): void {
+	if (standaloneCanvasWrapper) {
+		standaloneCanvasWrapper.remove();
+		standaloneCanvasWrapper = null;
+	}
+}
+
 function injectDesignCanvas(insertMode: InsertMode): void {
 	if (!currentTargetEl || !currentBoundary) {
 		showToast("Select an element first");
@@ -1998,9 +2091,15 @@ function init(): void {
 			applyThemePreview(msg.overrides ?? []);
 		} else if (msg.type === "INSERT_DESIGN_CANVAS") {
 			injectDesignCanvas(msg.insertMode as InsertMode);
+		} else if (msg.type === "OPEN_CANVAS") {
+			openStandaloneCanvas(msg.canvasType ?? "", msg.canvasName ?? "", msg.canvasContent ?? "");
 		} else if (msg.type === "CAPTURE_SCREENSHOT") {
 			handleCaptureScreenshot();
 		} else if (msg.type === "DESIGN_SUBMITTED") {
+			// Close standalone canvas if it was the source
+			if (standaloneCanvasWrapper) {
+				closeStandaloneCanvas();
+			}
 			// Replace the most recent canvas iframe with a static image preview
 			const lastEntry = designCanvasWrappers[designCanvasWrappers.length - 1];
 			const last = lastEntry?.wrapper;
@@ -2030,6 +2129,11 @@ function init(): void {
 		} else if (msg.type === "COMPONENT_DISARM") {
 			cancelInsert();
 		} else if (msg.type === "DESIGN_CLOSE") {
+			// Close standalone canvas if it's open
+			if (standaloneCanvasWrapper) {
+				closeStandaloneCanvas();
+				return;
+			}
 			// Remove the most recently added canvas wrapper, restoring replaced nodes if any
 			const last = designCanvasWrappers.pop();
 			if (last) {

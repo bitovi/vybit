@@ -349,6 +349,24 @@ export interface ClosePanelMessage {
   type: 'CLOSE_PANEL';
 }
 
+/** Panel → Overlay: open a standalone canvas for wireframing */
+export interface OpenCanvasMessage {
+  type: 'OPEN_CANVAS';
+  to: 'overlay';
+  canvasType: 'page' | 'component' | 'composition';
+  canvasName: string;
+  canvasContent: string;
+}
+
+/** Panel → Canvas iframe: metadata for the canvas session */
+export interface CanvasContextMessage {
+  type: 'CANVAS_CONTEXT';
+  to: 'canvas';
+  canvasType: 'page' | 'component' | 'composition';
+  canvasName: string;
+  canvasContent: string;
+}
+
 /** Overlay → Server: story changed in Storybook, clear panel selection */
 export interface ResetSelectionMessage {
   type: 'RESET_SELECTION';
@@ -429,6 +447,7 @@ export type PanelToOverlay =
   | InsertDesignCanvasMessage
   | CaptureScreenshotMessage
   | ClosePanelMessage
+  | OpenCanvasMessage
   | ComponentArmMessage
   | ComponentDisarmMessage
   | ThemePreviewMessage
@@ -475,6 +494,8 @@ export type AnyMessage =
   | DesignSubmitMessage
   | DesignCloseMessage
   | ClosePanelMessage
+  | OpenCanvasMessage
+  | CanvasContextMessage
   | ComponentArmMessage
   | ComponentDisarmMessage
   | ComponentDisarmedMessage

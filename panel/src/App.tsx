@@ -4,8 +4,8 @@ import {
 	parseTokens,
 	TAILWIND_PARSERS,
 } from "../../overlay/src/tailwind/grammar";
-import { ContainerSwitcher } from "./components/ContainerSwitcher";
 import { CanvasTab } from "./components/CanvasTab";
+import { ContainerSwitcher } from "./components/ContainerSwitcher";
 import { DrawTab } from "./components/DrawTab";
 import { MessageTab } from "./components/MessageTab";
 import { PatchPopover } from "./components/PatchPopover";
@@ -20,12 +20,14 @@ import {
 	onConnect,
 	onDisconnect,
 	onMessage,
-	send,
 	sendTo,
 } from "./ws";
 
 const DesignMode = lazy(() =>
 	import("./DesignMode").then((m) => ({ default: m.DesignMode })),
+);
+const CanvasMode = lazy(() =>
+	import("./CanvasMode").then((m) => ({ default: m.CanvasMode })),
 );
 
 // URL param routing: ?mode=design renders the drawing canvas instead of the Picker
@@ -57,6 +59,15 @@ export function App() {
 		return (
 			<Suspense fallback={null}>
 				<DesignMode />
+			</Suspense>
+		);
+	}
+
+	// If URL has ?mode=canvas, render the standalone canvas (used inside the canvas iframe)
+	if (appMode === "canvas") {
+		return (
+			<Suspense fallback={null}>
+				<CanvasMode />
 			</Suspense>
 		);
 	}
@@ -104,31 +115,15 @@ function InspectorApp() {
 		[patchManager],
 	);
 
-	const handleStageDesign = useCallback(
-		(data: {
-			image: string;
-			width: number;
-			height: number;
-			canvasType: 'page' | 'component' | 'composition';
-			canvasName: string;
-			canvasContent: string;
-		}) => {
-			send({
-				type: 'DESIGN_SUBMIT',
-				image: data.image,
-				componentName: data.canvasName || `New ${data.canvasType}`,
-				target: { tag: '', classes: '', innerText: '' },
-				context: `Canvas wireframe: ${data.canvasType}${data.canvasName ? ` — ${data.canvasName}` : ''}`,
-				insertMode: 'after',
-				canvasWidth: data.width,
-				canvasHeight: data.height,
-				canvasType: data.canvasType,
-				canvasName: data.canvasName,
-				canvasContent: data.canvasContent,
-			});
-		},
-		[],
-	);
+	const handleOpenCanvas = useCallback(() => {
+		sendTo("overlay", {
+			type: "OPEN_CANVAS",
+			to: "overlay",
+			canvasType: "page",
+			canvasName: "",
+			canvasContent: "",
+		});
+	}, []);
 
 	useEffect(() => {
 		const offConnect = onConnect(() => {
@@ -440,7 +435,7 @@ function InspectorApp() {
 							onStageThemeChange={handleStageThemeChange}
 						/>
 					) : activeTab === "canvas" ? (
-						<CanvasTab onStageDesign={handleStageDesign} />
+						<CanvasTab onOpenCanvas={handleOpenCanvas} />
 					) : activeTab === "draw" ? (
 						<DrawTab />
 					) : activeTab === "message" ? (
@@ -564,12 +559,27 @@ function InspectorApp() {
 								onClick={() => sendTo("overlay", { type: "TEXT_EDIT_START" })}
 								className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-bv-text-mid hover:text-bv-text hover:bg-bv-surface-hi transition-colors"
 							>
-								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+								<svg
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="square"
+									strokeLinejoin="miter"
+								>
 									<title>Edit text</title>
-									<path d="M6 4H18" /><path d="M6 20H18" /><path d="M20 6L20 18" /><path d="M4 6L4 18" />
-									<rect x="2" y="2" width="4" height="4" /><rect x="2" y="18" width="4" height="4" />
-									<rect x="18" y="2" width="4" height="4" /><rect x="18" y="18" width="4" height="4" />
-									<path d="M12 16V9" /><path d="M9 9H15" />
+									<path d="M6 4H18" />
+									<path d="M6 20H18" />
+									<path d="M20 6L20 18" />
+									<path d="M4 6L4 18" />
+									<rect x="2" y="2" width="4" height="4" />
+									<rect x="2" y="18" width="4" height="4" />
+									<rect x="18" y="2" width="4" height="4" />
+									<rect x="18" y="18" width="4" height="4" />
+									<path d="M12 16V9" />
+									<path d="M9 9H15" />
 								</svg>
 							</button>
 						)}
@@ -599,7 +609,7 @@ function InspectorApp() {
 				)}
 				{activeTab === "draw" && <DrawTab />}
 				{activeTab === "canvas" && (
-					<CanvasTab onStageDesign={handleStageDesign} />
+					<CanvasTab onOpenCanvas={handleOpenCanvas} />
 				)}
 				{activeTab === "message" && (
 					<MessageTab
