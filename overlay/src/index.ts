@@ -948,10 +948,10 @@ function showDrawPopover(anchorBtn: HTMLElement): void {
 		label: string;
 		hint: string;
 	}[] = [
-		{ mode: "before", icon: "↑", label: "Before element", hint: "sibling" },
-		{ mode: "after", icon: "↓", label: "After element", hint: "sibling" },
-		{ mode: "first-child", icon: "⤒", label: "First child", hint: "child" },
-		{ mode: "last-child", icon: "⤓", label: "Last child", hint: "child" },
+		{ mode: "before", icon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect y="12" width="16" height="4" rx="1"/><path d="M4.707,5.707,7,3.414V9A1,1,0,0,0,9,9V3.414l2.293,2.293a1,1,0,0,0,1.414-1.414l-4-4a1,1,0,0,0-1.414,0l-4,4A1,1,0,0,0,4.707,5.707Z"/></svg>', label: "Before element", hint: "sibling" },
+		{ mode: "after", icon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2A1,1,0,0,0,2,2H14a1,1,0,0,0,0-2Z"/><path d="M12.293,9.293,9,12.586V5A1,1,0,0,0,7,5v7.586L3.707,9.293a1,1,0,0,0-1.414,1.414l5,5a1,1,0,0,0,1.414,0l5-5a1,1,0,0,0-1.414-1.414Z"/></svg>', label: "After element", hint: "sibling" },
+		{ mode: "first-child", icon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="12" width="4" height="16" rx="1"/><path d="M9,7H3.414L5.707,4.707A1,1,0,0,0,4.293,3.293l-4,4a1,1,0,0,0,0,1.414l4,4a1,1,0,1,0,1.414-1.414L3.414,9H9A1,1,0,0,0,9,7Z"/></svg>', label: "First child", hint: "child" },
+		{ mode: "last-child", icon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect width="4" height="16" rx="1"/><path d="M11.707,3.293a1,1,0,0,0-1.414,1.414L12.586,7H7A1,1,0,0,0,7,9h5.586l-2.293,2.293a1,1,0,1,0,1.414,1.414l4-4a1,1,0,0,0,0-1.414Z"/></svg>', label: "Last child", hint: "child" },
 	];
 
 	for (const item of items) {
