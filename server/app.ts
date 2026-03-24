@@ -53,12 +53,17 @@ export function createApp(packageRoot: string, storybookUrl: string | null = nul
 
   app.post("/css", express.json(), async (req, res) => {
     const { classes } = req.body as { classes?: unknown };
+    console.error("[http] POST /css — requested classes:", classes);
     if (!Array.isArray(classes) || classes.some((c) => typeof c !== "string")) {
+      console.error("[http] POST /css — invalid request body");
       res.status(400).json({ error: "classes must be an array of strings" });
       return;
     }
     try {
       const css = await generateCssForClasses(classes as string[]);
+      console.error(`[http] POST /css — generated ${css.length} chars for [${classes.join(', ')}]`);
+      if (css.length < 500) console.error("[http] POST /css — full CSS:", css);
+      else console.error("[http] POST /css — CSS preview:", css.substring(0, 300), "...");
       res.json({ css });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
