@@ -351,6 +351,7 @@ export class TailwindV4Adapter implements TailwindAdapter {
 		const shadowDefaults = extractShadowDefaults(shadowCss);
 
 		const result: TailwindThemeSubset = {
+			tailwindVersion: 4,
 			spacing,
 			colors,
 			fontSize,

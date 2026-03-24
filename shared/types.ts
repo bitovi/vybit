@@ -330,6 +330,13 @@ export interface ResetSelectionMessage {
   type: 'RESET_SELECTION';
 }
 
+/** Panel → Overlay: preview theme color overrides via CSS custom properties */
+export interface ThemePreviewMessage {
+  type: 'THEME_PREVIEW';
+  to: 'overlay';
+  overrides: Array<{ variable: string; value: string }>;
+}
+
 // ---------------------------------------------------------------------------
 // Component arm-and-place messages
 // ---------------------------------------------------------------------------
@@ -379,7 +386,8 @@ export type PanelToOverlay =
   | CaptureScreenshotMessage
   | ClosePanelMessage
   | ComponentArmMessage
-  | ComponentDisarmMessage;
+  | ComponentDisarmMessage
+  | ThemePreviewMessage;
 export type OverlayToServer = PatchStagedMessage | ComponentDroppedMessage | ResetSelectionMessage;
 export type PanelToServer = PatchCommitMessage | MessageStageMessage;
 export type ClientToServer =
@@ -427,5 +435,6 @@ export type AnyMessage =
   | ComponentDisarmedMessage
   | ComponentDroppedMessage
   | ResetSelectionMessage
+  | ThemePreviewMessage
   | PingMessage
   | PongMessage;

@@ -16,6 +16,7 @@ import type {
 let cached: TailwindThemeSubset | null = null;
 
 const defaultTheme: TailwindThemeSubset = {
+	tailwindVersion: 3,
 	spacing: {
 		"0": "0px",
 		px: "1px",
@@ -433,6 +434,7 @@ export class TailwindV3Adapter implements TailwindAdapter {
 				const theme = full.theme ?? {};
 
 				cached = {
+					tailwindVersion: 3,
 					spacing:
 						(theme.spacing as Record<string, string>) ?? defaultTheme.spacing,
 					colors:

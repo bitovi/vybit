@@ -1,12 +1,16 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { parseTokens, TAILWIND_PARSERS } from '../../overlay/src/tailwind/grammar';
-import type { ParsedToken } from '../../overlay/src/tailwind/grammar';
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import type { ParsedToken } from "../../overlay/src/tailwind/grammar";
+import {
+	parseTokens,
+	TAILWIND_PARSERS,
+} from "../../overlay/src/tailwind/grammar";
 import { ContainerSwitcher } from "./components/ContainerSwitcher";
 import { DrawTab } from "./components/DrawTab";
 import { MessageTab } from "./components/MessageTab";
 import { PatchPopover } from "./components/PatchPopover";
 import type { Tab } from "./components/TabBar";
 import { TabBar } from "./components/TabBar";
+import { ThemeTab } from "./components/ThemeTab";
 import { usePatchManager } from "./hooks/usePatchManager";
 import { Picker } from "./Picker";
 import {
@@ -28,6 +32,7 @@ const appMode = urlParams.get("mode");
 
 const TABS: Tab[] = [
 	{ id: "design", label: "Design" },
+	{ id: "theme", label: "Theme" },
 	{ id: "draw", label: "Components" },
 	{ id: "message", label: "Message" },
 ];
@@ -59,7 +64,39 @@ function InspectorApp() {
 	const [selectionId, setSelectionId] = useState(0);
 	const [activeTab, setActiveTab] = useState("design");
 	const [selectModeActive, setSelectModeActive] = useState(false);
+	const [themeConfig, setThemeConfig] = useState<
+		ElementData["tailwindConfig"] | null
+	>(null);
 	const patchManager = usePatchManager();
+
+	// Fetch theme config from server when Theme tab is activated
+	useEffect(() => {
+		if (activeTab !== "theme") return;
+		// Use element's config if available, otherwise fetch from server
+		if (elementData?.tailwindConfig) {
+			setThemeConfig(elementData.tailwindConfig);
+			return;
+		}
+		let cancelled = false;
+		fetch("/tailwind-config")
+			.then((res) => res.json())
+			.then((data) => {
+				if (!cancelled) setThemeConfig(data);
+			})
+			.catch(() => {
+				/* ignore fetch errors */
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [activeTab, elementData?.tailwindConfig]);
+
+	const handleStageThemeChange = useCallback(
+		(description: string) => {
+			patchManager.stageMessage(description, "theme-config");
+		},
+		[patchManager],
+	);
 
 	useEffect(() => {
 		const offConnect = onConnect(() => {
@@ -142,7 +179,9 @@ function InspectorApp() {
 	const { draft, committed, implementing, implemented, partial, error } =
 		patchManager.counts;
 	const showNoAgentWarning =
-		(draft > 0 || committed > 0) && !patchManager.agentWaiting && implementing === 0;
+		(draft > 0 || committed > 0) &&
+		!patchManager.agentWaiting &&
+		implementing === 0;
 
 	// Merge server draft + local patches for display.
 	// Server draft is the source of truth for IDs; local patches carry richer detail.
@@ -343,9 +382,14 @@ function InspectorApp() {
 				</div>
 				<TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 				<div className="flex-1 overflow-auto">
-				{activeTab === "draw" ? (
-					<DrawTab />
-				) : activeTab === "message" ? (
+					{activeTab === "theme" ? (
+						<ThemeTab
+							tailwindConfig={themeConfig}
+							onStageThemeChange={handleStageThemeChange}
+						/>
+					) : activeTab === "draw" ? (
+						<DrawTab />
+					) : activeTab === "message" ? (
 						<MessageTab
 							draft={draftPatches}
 							currentElementKey=""
@@ -375,7 +419,9 @@ function InspectorApp() {
 								select.
 								<br />
 								Press{" "}
-								<span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/6 border border-white/8 font-mono text-[10px] text-bv-text-mid leading-none">Esc</span>{" "}
+								<span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/6 border border-white/8 font-mono text-[10px] text-bv-text-mid leading-none">
+									Esc
+								</span>{" "}
 								to cancel.
 							</span>
 						</div>
@@ -416,9 +462,15 @@ function InspectorApp() {
 									Select an element to inspect
 								</span>
 								<span className="inline-flex items-center gap-1">
-									<span className="w-5 h-5 rounded flex items-center justify-center bg-white/6 border border-white/8 font-mono text-[10px] font-semibold text-bv-text-mid leading-none">⌘</span>
-									<span className="w-5 h-5 rounded flex items-center justify-center bg-white/6 border border-white/8 font-mono text-[10px] font-semibold text-bv-text-mid leading-none">⇧</span>
-									<span className="w-5 h-5 rounded flex items-center justify-center bg-white/6 border border-white/8 font-mono text-[10px] font-semibold text-bv-text-mid leading-none">C</span>
+									<span className="w-5 h-5 rounded flex items-center justify-center bg-white/6 border border-white/8 font-mono text-[10px] font-semibold text-bv-text-mid leading-none">
+										⌘
+									</span>
+									<span className="w-5 h-5 rounded flex items-center justify-center bg-white/6 border border-white/8 font-mono text-[10px] font-semibold text-bv-text-mid leading-none">
+										⇧
+									</span>
+									<span className="w-5 h-5 rounded flex items-center justify-center bg-white/6 border border-white/8 font-mono text-[10px] font-semibold text-bv-text-mid leading-none">
+										C
+									</span>
 								</span>
 							</button>
 						</div>
@@ -468,9 +520,13 @@ function InspectorApp() {
 						patchManager={patchManager}
 					/>
 				)}
-				{activeTab === "draw" && (
-					<DrawTab />
+				{activeTab === "theme" && (
+					<ThemeTab
+						tailwindConfig={themeConfig ?? elementData.tailwindConfig}
+						onStageThemeChange={handleStageThemeChange}
+					/>
 				)}
+				{activeTab === "draw" && <DrawTab />}
 				{activeTab === "message" && (
 					<MessageTab
 						draft={draftPatches}
@@ -510,12 +566,7 @@ function SelectElementButton({
 				}`}
 		>
 			{/* Select element icon */}
-			<svg
-				width="14"
-				height="14"
-				viewBox="0 0 16 16"
-				fill="currentColor"
-			>
+			<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 				<path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z" />
 				<path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z" />
 			</svg>
