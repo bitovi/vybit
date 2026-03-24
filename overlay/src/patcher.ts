@@ -178,3 +178,43 @@ export function commitPreview(): void {
     previewStyleEl = null;
   }
 }
+
+/**
+ * Apply a class change directly to the DOM without using the preview lifecycle.
+ * Synchronous DOM mutation + async CSS fetch into committed styles.
+ * Use for PATCH_STAGE when there is no active hover preview to avoid race
+ * conditions with rapid sequential calls (e.g. adding 3 gradient classes at once).
+ */
+export function applyStagedClassChange(
+  elements: HTMLElement[],
+  oldClass: string,
+  newClass: string,
+  serverOrigin: string,
+): void {
+  // Synchronously apply class change to DOM
+  for (const node of elements) {
+    if (oldClass) node.classList.remove(oldClass);
+    if (newClass) node.classList.add(newClass);
+  }
+
+  // Async: fetch CSS for new class so purged/JIT classes render
+  if (newClass) {
+    fetch(`${serverOrigin}/css`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classes: [newClass] }),
+    })
+      .then(res => res.ok ? res.json() as Promise<{ css: string }> : null)
+      .then(data => {
+        if (data?.css) {
+          if (!committedStyleEl) {
+            committedStyleEl = document.createElement('style');
+            committedStyleEl.setAttribute('data-tw-committed', '');
+            document.head.appendChild(committedStyleEl);
+          }
+          committedStyleEl.textContent += data.css;
+        }
+      })
+      .catch(err => console.error('[vybit-patcher] CSS stage fetch error:', err));
+  }
+}

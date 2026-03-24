@@ -1,3 +1,3 @@
-export { GradientEditor } from './GradientEditor';
-export type { GradientEditorProps } from './types';
-export { parsedClassesToGradientEditorProps } from './deriveProps';
+export { parsedClassesToGradientEditorProps } from "./deriveProps";
+export { GradientEditor } from "./GradientEditor";
+export type { FillType, GradientEditorProps } from "./types";

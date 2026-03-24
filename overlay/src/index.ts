@@ -22,6 +22,7 @@ import type { InsertMode } from "./messages";
 import {
 	applyPreview,
 	applyPreviewBatch,
+	applyStagedClassChange,
 	commitPreview,
 	getPreviewState,
 	revertPreview,
@@ -1762,20 +1763,12 @@ function init(): void {
 
 			showToast("Change staged");
 
-			// The staged change is now the baseline — clear preview tracking so the
-			// next preview captures the current DOM state (with the staged class).
-			// Special case: if this is an "add" (oldClass = '') with no prior preview,
-			// the new class was never applied to the DOM. Apply it now, then commit
-			// once the CSS is injected so the class renders immediately.
-			if (!state && !msg.oldClass && msg.newClass) {
-				applyPreview(
-					currentEquivalentNodes,
-					"",
-					msg.newClass,
-					SERVER_ORIGIN,
-				).then(() => commitPreview());
-			} else {
+			if (state) {
+				// Active hover preview already applied the change — freeze it as baseline
 				commitPreview();
+			} else if (msg.oldClass || msg.newClass) {
+				// No preview — apply directly to DOM (synchronous, handles rapid sequential stages)
+				applyStagedClassChange(currentEquivalentNodes, msg.oldClass, msg.newClass, SERVER_ORIGIN);
 			}
 		} else if (msg.type === "CLEAR_HIGHLIGHTS") {
 			revertPreview();
