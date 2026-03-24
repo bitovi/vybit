@@ -363,13 +363,15 @@ const SELF_KEYWORDS = ['auto', 'start', 'end', 'center', 'stretch', 'baseline'];
 
 export const TAILWIND_PARSERS: Parser[] = [
   // ─── SPACING ─────────────────────────────────────────────
-  ...withSection('spacing', [
+  // ─── MARGIN ──────────────────────────────────────────────
+  ...withSection('margin', [
     ...sideParser('m', scale('spacing'), SIDES_WITH_LOGICAL),
     ...sideParser('-m', scale('spacing'), SIDES_WITH_LOGICAL), // negative margins: -m-4, -mt-2, etc.
+  ]),
+
+  // ─── PADDING ─────────────────────────────────────────────
+  ...withSection('padding', [
     ...sideParser('p', scale('spacing'), SIDES_WITH_LOGICAL),
-    makeParser('gap-x', scale('spacing')),
-    makeParser('gap-y', scale('spacing')),
-    makeParser('gap', scale('spacing')),
     makeParser('space-x-reverse', nothing()),
     makeParser('space-y-reverse', nothing()),
     makeParser('space-x', scale('spacing')),
@@ -499,6 +501,10 @@ export const TAILWIND_PARSERS: Parser[] = [
 
   // ─── FLEXBOX & GRID ──────────────────────────────────────
   ...withSection('flexbox', [
+    // Gap (flex/grid container spacing)
+    makeParser('gap-x', scale('spacing')),
+    makeParser('gap-y', scale('spacing')),
+    makeParser('gap', scale('spacing')),
     // Flex direction compound keywords (not in display enum — these have meaningful suffixes)
     makeParser('flex-row-reverse', nothing()),
     makeParser('flex-col-reverse', nothing()),
@@ -530,7 +536,7 @@ export const TAILWIND_PARSERS: Parser[] = [
   ]),
 
   // ─── OVERFLOW ────────────────────────────────────────────
-  ...withSection('overflow', [
+  ...withSection('layout', [
     makeParser('overflow-x', keyword('value', ['auto', 'hidden', 'clip', 'visible', 'scroll'])),
     makeParser('overflow-y', keyword('value', ['auto', 'hidden', 'clip', 'visible', 'scroll'])),
     makeParser('overflow', keyword('value', ['auto', 'hidden', 'clip', 'visible', 'scroll'])),

@@ -6,7 +6,7 @@
  * - Both: avoiding duplication and keeping behavior consistent
  */
 
-export type Category = 'spacing' | 'sizing' | 'typography' | 'color' | 'borders' | 'effects' | 'layout' | 'flexbox' | 'gradient';
+export type Category = 'padding' | 'margin' | 'sizing' | 'typography' | 'color' | 'borders' | 'effects' | 'layout' | 'flexbox' | 'gradient';
 export type ValueType = 'scalar' | 'enum' | 'color';
 export type RenderMode = 'chip' | 'scrubber' | 'boxmodel' | 'gradient-editor';
 
@@ -34,48 +34,32 @@ export interface PropertyRule {
 
 export const PROPERTY_RULES: Record<string, PropertyRule> = {
   // ─────────────────────────────────────────────────────────────
-  // SPACING
+  // MARGIN
   // ─────────────────────────────────────────────────────────────
-  'm-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar', renderMode: 'boxmodel', isComposite: true,
-    compositeRelatedPrefixes: [
-      // BoxModel: margin layer
-      'm-', 'mx-', 'my-', 'mt-', 'mr-', 'mb-', 'ml-', 'ms-', 'me-',
-      // BoxModel: padding layer
-      'p-', 'px-', 'py-', 'pt-', 'pr-', 'pb-', 'pl-', 'ps-', 'pe-',
-      // BoxModel: padding layer (space render inside padding area)
-      'space-x-', 'space-y-',
-      // BoxModel: border layer (width slots — style/color slots derived from class keywords)
-      'border-', 'border-t-', 'border-r-', 'border-b-', 'border-l-',
-      // TODO: no BoxModel layer yet — rounded-* are consumed here but never displayed anywhere
-      'rounded-', 'rounded-t-', 'rounded-r-', 'rounded-b-', 'rounded-l-',
-      'rounded-tl-', 'rounded-tr-', 'rounded-br-', 'rounded-bl-',
-    ],
-    compositeExactMatches: [
-      'border',   // BoxModel: border layer shorthand
-      'rounded',  // TODO: no BoxModel layer yet — consumed here but never displayed
-    ] },
-  'mx-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'my-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'mt-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'mr-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'mb-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'ml-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'ms-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'me-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'p-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'px-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'py-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'pt-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'pr-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'pb-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'pl-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'ps-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'pe-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'gap-': { category: 'flexbox', themeKey: 'spacing', valueType: 'scalar', addable: true, controlGroup: 'flex-container', propertyKey: 'gap' },
-  'gap-x-': { category: 'flexbox', themeKey: 'spacing', valueType: 'scalar', controlGroup: 'flex-container', propertyKey: 'gap-x' },
-  'gap-y-': { category: 'flexbox', themeKey: 'spacing', valueType: 'scalar', controlGroup: 'flex-container', propertyKey: 'gap-y' },
-  'space-x-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
-  'space-y-': { category: 'spacing', themeKey: 'spacing', valueType: 'scalar' },
+  'm-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'margin' },
+  'mx-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'my-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'mt-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'mr-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'mb-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'ml-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'ms-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+  'me-': { category: 'margin', themeKey: 'spacing', valueType: 'scalar' },
+
+  // ─────────────────────────────────────────────────────────────
+  // PADDING
+  // ─────────────────────────────────────────────────────────────
+  'p-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar', addable: true, propertyKey: 'padding' },
+  'px-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'py-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'pt-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'pr-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'pb-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'pl-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'ps-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'pe-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'space-x-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
+  'space-y-': { category: 'padding', themeKey: 'spacing', valueType: 'scalar' },
 
   // ─────────────────────────────────────────────────────────────
   // SIZING
@@ -179,23 +163,43 @@ export const PROPERTY_RULES: Record<string, PropertyRule> = {
   'hidden':       { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'display', enumAlts: ['block', 'inline-block', 'inline', 'flex', 'inline-flex', 'grid', 'inline-grid', 'hidden', 'table', 'contents'] },
   'table':        { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'display', enumAlts: ['block', 'inline-block', 'inline', 'flex', 'inline-flex', 'grid', 'inline-grid', 'hidden', 'table', 'contents'] },
   'contents':     { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'display', enumAlts: ['block', 'inline-block', 'inline', 'flex', 'inline-flex', 'grid', 'inline-grid', 'hidden', 'table', 'contents'] },
-  'static':   { category: 'layout', themeKey: null, valueType: 'enum' },
-  'fixed':    { category: 'layout', themeKey: null, valueType: 'enum' },
-  'absolute': { category: 'layout', themeKey: null, valueType: 'enum' },
-  'relative': { category: 'layout', themeKey: null, valueType: 'enum' },
-  'sticky':   { category: 'layout', themeKey: null, valueType: 'enum' },
-  'inset-': { category: 'layout', themeKey: 'spacing', valueType: 'scalar' },
-  'top-': { category: 'layout', themeKey: 'spacing', valueType: 'scalar' },
-  'right-': { category: 'layout', themeKey: 'spacing', valueType: 'scalar' },
-  'bottom-': { category: 'layout', themeKey: 'spacing', valueType: 'scalar' },
-  'left-': { category: 'layout', themeKey: 'spacing', valueType: 'scalar' },
-  'z-': { category: 'layout', themeKey: null, valueType: 'enum' },
+  'static':   { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'position', enumAlts: ['static', 'fixed', 'absolute', 'relative', 'sticky'] },
+  'fixed':    { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'position', enumAlts: ['static', 'fixed', 'absolute', 'relative', 'sticky'] },
+  'absolute': { category: 'layout', themeKey: null, valueType: 'enum', addable: true, propertyKey: 'position', enumAlts: ['static', 'fixed', 'absolute', 'relative', 'sticky'] },
+  'relative': { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'position', enumAlts: ['static', 'fixed', 'absolute', 'relative', 'sticky'] },
+  'sticky':   { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'position', enumAlts: ['static', 'fixed', 'absolute', 'relative', 'sticky'] },
+  'inset-':  { category: 'layout', themeKey: 'spacing', valueType: 'scalar', addable: true },
+  'top-':    { category: 'layout', themeKey: 'spacing', valueType: 'scalar', addable: true },
+  'right-':  { category: 'layout', themeKey: 'spacing', valueType: 'scalar', addable: true },
+  'bottom-': { category: 'layout', themeKey: 'spacing', valueType: 'scalar', addable: true },
+  'left-':   { category: 'layout', themeKey: 'spacing', valueType: 'scalar', addable: true },
+  'z-': { category: 'layout', themeKey: 'zIndex', valueType: 'scalar', addable: true },
+
+  // Overflow
+  'overflow-auto':    { category: 'layout', themeKey: null, valueType: 'enum', addable: true, propertyKey: 'overflow', enumAlts: ['overflow-auto', 'overflow-hidden', 'overflow-visible', 'overflow-scroll', 'overflow-clip'] },
+  'overflow-hidden':  { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow', enumAlts: ['overflow-auto', 'overflow-hidden', 'overflow-visible', 'overflow-scroll', 'overflow-clip'] },
+  'overflow-visible': { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow', enumAlts: ['overflow-auto', 'overflow-hidden', 'overflow-visible', 'overflow-scroll', 'overflow-clip'] },
+  'overflow-scroll':  { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow', enumAlts: ['overflow-auto', 'overflow-hidden', 'overflow-visible', 'overflow-scroll', 'overflow-clip'] },
+  'overflow-clip':    { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow', enumAlts: ['overflow-auto', 'overflow-hidden', 'overflow-visible', 'overflow-scroll', 'overflow-clip'] },
+  'overflow-x-auto':    { category: 'layout', themeKey: null, valueType: 'enum', addable: true, propertyKey: 'overflow-x', enumAlts: ['overflow-x-auto', 'overflow-x-hidden', 'overflow-x-visible', 'overflow-x-scroll', 'overflow-x-clip'] },
+  'overflow-x-hidden':  { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-x', enumAlts: ['overflow-x-auto', 'overflow-x-hidden', 'overflow-x-visible', 'overflow-x-scroll', 'overflow-x-clip'] },
+  'overflow-x-visible': { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-x', enumAlts: ['overflow-x-auto', 'overflow-x-hidden', 'overflow-x-visible', 'overflow-x-scroll', 'overflow-x-clip'] },
+  'overflow-x-scroll':  { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-x', enumAlts: ['overflow-x-auto', 'overflow-x-hidden', 'overflow-x-visible', 'overflow-x-scroll', 'overflow-x-clip'] },
+  'overflow-x-clip':    { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-x', enumAlts: ['overflow-x-auto', 'overflow-x-hidden', 'overflow-x-visible', 'overflow-x-scroll', 'overflow-x-clip'] },
+  'overflow-y-auto':    { category: 'layout', themeKey: null, valueType: 'enum', addable: true, propertyKey: 'overflow-y', enumAlts: ['overflow-y-auto', 'overflow-y-hidden', 'overflow-y-visible', 'overflow-y-scroll', 'overflow-y-clip'] },
+  'overflow-y-hidden':  { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-y', enumAlts: ['overflow-y-auto', 'overflow-y-hidden', 'overflow-y-visible', 'overflow-y-scroll', 'overflow-y-clip'] },
+  'overflow-y-visible': { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-y', enumAlts: ['overflow-y-auto', 'overflow-y-hidden', 'overflow-y-visible', 'overflow-y-scroll', 'overflow-y-clip'] },
+  'overflow-y-scroll':  { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-y', enumAlts: ['overflow-y-auto', 'overflow-y-hidden', 'overflow-y-visible', 'overflow-y-scroll', 'overflow-y-clip'] },
+  'overflow-y-clip':    { category: 'layout', themeKey: null, valueType: 'enum',               propertyKey: 'overflow-y', enumAlts: ['overflow-y-auto', 'overflow-y-hidden', 'overflow-y-visible', 'overflow-y-scroll', 'overflow-y-clip'] },
 
   // ─────────────────────────────────────────────────────────────
   // FLEXBOX & GRID
   // ─────────────────────────────────────────────────────────────
   'flex':        { category: 'layout', themeKey: null, valueType: 'enum', controlGroup: 'flex-container', propertyKey: 'display', enumAlts: ['block', 'inline-block', 'inline', 'flex', 'inline-flex', 'grid', 'inline-grid', 'hidden', 'table', 'contents'] },
   'inline-flex': { category: 'layout', themeKey: null, valueType: 'enum', controlGroup: 'flex-container', propertyKey: 'display', enumAlts: ['block', 'inline-block', 'inline', 'flex', 'inline-flex', 'grid', 'inline-grid', 'hidden', 'table', 'contents'] },
+  'gap-': { category: 'flexbox', themeKey: 'spacing', valueType: 'scalar', addable: true, controlGroup: 'flex-container', propertyKey: 'gap' },
+  'gap-x-': { category: 'flexbox', themeKey: 'spacing', valueType: 'scalar', controlGroup: 'flex-container', propertyKey: 'gap-x' },
+  'gap-y-': { category: 'flexbox', themeKey: 'spacing', valueType: 'scalar', controlGroup: 'flex-container', propertyKey: 'gap-y' },
   'flex-row':         { category: 'flexbox', themeKey: null, valueType: 'enum', addable: true, controlGroup: 'flex-container', propertyKey: 'flex-direction', enumAlts: ['flex-row', 'flex-col', 'flex-row-reverse', 'flex-col-reverse'] },
   'flex-col':         { category: 'flexbox', themeKey: null, valueType: 'enum',               controlGroup: 'flex-container', propertyKey: 'flex-direction', enumAlts: ['flex-row', 'flex-col', 'flex-row-reverse', 'flex-col-reverse'] },
   'flex-row-reverse': { category: 'flexbox', themeKey: null, valueType: 'enum',               controlGroup: 'flex-container', propertyKey: 'flex-direction', enumAlts: ['flex-row', 'flex-col', 'flex-row-reverse', 'flex-col-reverse'] },
@@ -325,7 +329,7 @@ export function buildEnumGroupsFromRules(): Record<string, { alternatives: strin
  */
 export function buildAddablePropertiesFromRules(): Record<Category, Array<{ name: string; prefixHint: string; prefix: string }>> {
   const map: Record<Category, Array<{ name: string; prefixHint: string; prefix: string }>> = {
-    spacing: [], sizing: [], typography: [], color: [], borders: [], effects: [], layout: [], flexbox: [], gradient: [],
+    padding: [], margin: [], sizing: [], typography: [], color: [], borders: [], effects: [], layout: [], flexbox: [], gradient: [],
   };
   const seenPropertyKeys = new Set<string>();
 

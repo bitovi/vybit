@@ -3,7 +3,7 @@ import { getRuleForClass, PROPERTY_RULES } from './propertyRules';
 export type ValueType = 'scalar' | 'enum' | 'color';
 
 export interface ParsedClass {
-  category: 'spacing' | 'sizing' | 'typography' | 'color' | 'borders' | 'effects' | 'layout' | 'flexbox' | 'gradient';
+  category: 'padding' | 'margin' | 'sizing' | 'typography' | 'color' | 'borders' | 'effects' | 'layout' | 'flexbox' | 'gradient';
   valueType: ValueType;
   prefix: string;
   value: string;
