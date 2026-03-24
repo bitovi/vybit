@@ -5,7 +5,12 @@ import {
 } from "../../../../overlay/src/tailwind/scales";
 import type { TailwindThemeSubset } from "../../../../server/tailwind-adapter";
 import { sendTo } from "../../ws";
-import { type ColorEdit, CustomColorGroups, HueGroup } from "./ColorSection";
+import {
+	type ColorEdit,
+	CustomColorGroups,
+	HueGroup,
+	hexToOklch,
+} from "./ColorSection";
 import { SectionHeader } from "./SectionHeader";
 import { type TypoEdit, TypographySection } from "./TypographySection";
 
@@ -136,6 +141,7 @@ export function ThemeTab({
 		const lines: string[] = [];
 		const configFile =
 			version === 4 ? "the CSS @theme block" : "tailwind.config.js";
+		const isV4 = version === 4 || version === undefined;
 
 		if (edits.size > 0) {
 			lines.push(
@@ -143,8 +149,13 @@ export function ThemeTab({
 			);
 			lines.push("");
 			for (const [, edit] of edits) {
+				// For v4, convert hex values to oklch to match @theme block format
+				const currentValue =
+					isV4 && edit.current.startsWith("#")
+						? hexToOklch(edit.current)
+						: edit.current;
 				lines.push(
-					`- ${edit.hue}-${edit.shade}: ${edit.original} → ${edit.current}`,
+					`- ${edit.hue}-${edit.shade}: ${edit.original} → ${currentValue}`,
 				);
 			}
 		}

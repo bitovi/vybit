@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "vybit": {
+      "command": "npx",
+      "args": ["tsx", "server/index.ts"],
+      "cwd": "test-app"
+    }
+  }
+}

@@ -33,6 +33,57 @@ function resolveToHex(value: string): string {
 	return "#000000";
 }
 
+/** Convert a hex color (#rrggbb) to oklch() for Tailwind v4 @theme blocks */
+export function hexToOklch(hex: string): string {
+	const r = parseInt(hex.slice(1, 3), 16) / 255;
+	const g = parseInt(hex.slice(3, 5), 16) / 255;
+	const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+	// sRGB → linear RGB
+	const toLinear = (c: number) =>
+		c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+	const lr = toLinear(r);
+	const lg = toLinear(g);
+	const lb = toLinear(b);
+
+	// Linear RGB → CIE XYZ (D65)
+	const x = 0.4124564 * lr + 0.3575761 * lg + 0.1804375 * lb;
+	const y = 0.2126729 * lr + 0.7151522 * lg + 0.0721750 * lb;
+	const z = 0.0193339 * lr + 0.1191920 * lg + 0.9503041 * lb;
+
+	// XYZ → LMS (using the M1 matrix from OKLab spec)
+	const l_ = 0.8189330101 * x + 0.3618667424 * y - 0.1288597137 * z;
+	const m_ = 0.0329845436 * x + 0.9293118715 * y + 0.0361456387 * z;
+	const s_ = 0.0482003018 * x + 0.2643662691 * y + 0.6338517070 * z;
+
+	// LMS → LMS' (cube root)
+	const l1 = Math.cbrt(l_);
+	const m1 = Math.cbrt(m_);
+	const s1 = Math.cbrt(s_);
+
+	// LMS' → OKLab
+	const L = 0.2104542553 * l1 + 0.7936177850 * m1 - 0.0040720468 * s1;
+	const A = 1.9779984951 * l1 - 2.4285922050 * m1 + 0.4505937099 * s1;
+	const B = 0.0259040371 * l1 + 0.7827717662 * m1 - 0.8086757660 * s1;
+
+	// OKLab → OKLCH
+	const C = Math.sqrt(A * A + B * B);
+	let H = (Math.atan2(B, A) * 180) / Math.PI;
+	if (H < 0) H += 360;
+
+	// Round to 3 decimal places for readability
+	const lRound = Math.round(L * 1000) / 1000;
+	const cRound = Math.round(C * 1000) / 1000;
+	const hRound = Math.round(H * 1000) / 1000;
+
+	// For achromatic colors (very low chroma), omit hue
+	if (cRound < 0.001) {
+		return `oklch(${lRound} ${cRound} 0)`;
+	}
+
+	return `oklch(${lRound} ${cRound} ${hRound})`;
+}
+
 function capitalize(s: string): string {
 	return s.charAt(0).toUpperCase() + s.slice(1);
 }
