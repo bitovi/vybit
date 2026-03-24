@@ -267,7 +267,11 @@ export class TailwindV4Adapter implements TailwindAdapter {
 	}
 
 	async generateCssForClasses(classes: string[]): Promise<string> {
+		console.error(`[tailwind-v4] Generating CSS for classes:`, classes);
 		const compiler = await getCompiler();
-		return compiler.build(classes);
+		const css = compiler.build(classes);
+		console.error(`[tailwind-v4] Generated ${css.length} chars`);
+		if (css.length < 500) console.error(`[tailwind-v4] Full CSS:`, css);
+		return css;
 	}
 }

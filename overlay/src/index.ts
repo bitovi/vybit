@@ -1546,17 +1546,23 @@ function init(): void {
 			msg.type === "PATCH_PREVIEW" &&
 			currentEquivalentNodes.length > 0
 		) {
+			console.log('[vybit-overlay] PATCH_PREVIEW:', msg.oldClass, '→', msg.newClass, 'nodes:', currentEquivalentNodes.length);
 			applyPreview(
 				currentEquivalentNodes,
 				msg.oldClass,
 				msg.newClass,
 				SERVER_ORIGIN,
 			);
+		} else if (msg.type === "PATCH_PREVIEW" && currentEquivalentNodes.length === 0) {
+			console.warn('[vybit-overlay] PATCH_PREVIEW DROPPED — no selected elements! oldClass:', msg.oldClass, 'newClass:', msg.newClass);
 		} else if (
 			msg.type === "PATCH_PREVIEW_BATCH" &&
 			currentEquivalentNodes.length > 0
 		) {
+			console.log('[vybit-overlay] PATCH_PREVIEW_BATCH:', msg.pairs, 'nodes:', currentEquivalentNodes.length);
 			applyPreviewBatch(currentEquivalentNodes, msg.pairs, SERVER_ORIGIN);
+		} else if (msg.type === "PATCH_PREVIEW_BATCH" && currentEquivalentNodes.length === 0) {
+			console.warn('[vybit-overlay] PATCH_PREVIEW_BATCH DROPPED — no selected elements!', msg.pairs);
 		} else if (msg.type === "PATCH_REVERT") {
 			revertPreview();
 		} else if (msg.type === "PATCH_REVERT_STAGED" && currentEquivalentNodes.length > 0) {

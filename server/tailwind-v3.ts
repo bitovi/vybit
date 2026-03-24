@@ -462,10 +462,15 @@ export class TailwindV3Adapter implements TailwindAdapter {
 		let userConfig: object = {};
 		if (configPath) {
 			try {
+				console.error(`[tailwind-v3] Loading config from: ${configPath}`);
 				userConfig = (await import(pathToFileURL(configPath).href)).default;
-			} catch {
+				console.error(`[tailwind-v3] Config loaded successfully, keys:`, Object.keys(userConfig));
+			} catch (err) {
+				console.error(`[tailwind-v3] Failed to load config from ${configPath}:`, err);
 				// fall through to empty config
 			}
+		} else {
+			console.error(`[tailwind-v3] No config file found in ${cwd}`);
 		}
 
 		// Load postcss and tailwindcss as a PostCSS plugin from the target project
@@ -475,6 +480,7 @@ export class TailwindV3Adapter implements TailwindAdapter {
 			await import(pathToFileURL(req.resolve("tailwindcss")).href)
 		).default;
 
+		console.error(`[tailwind-v3] Running PostCSS with safelist:`, classes);
 		const result = await postcss([
 			tailwindPlugin({
 				...userConfig,
@@ -483,6 +489,8 @@ export class TailwindV3Adapter implements TailwindAdapter {
 			}),
 		]).process("@tailwind utilities;", { from: undefined });
 
+		console.error(`[tailwind-v3] PostCSS result: ${result.css.length} chars`);
+		if (result.css.length < 500) console.error(`[tailwind-v3] Full CSS:`, result.css);
 		return result.css;
 	}
 }
