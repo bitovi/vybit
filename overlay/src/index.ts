@@ -4,7 +4,7 @@ import { ModalContainer } from "./containers/ModalContainer";
 import { PopoverContainer } from "./containers/PopoverContainer";
 import { PopupContainer } from "./containers/PopupContainer";
 import { SidebarContainer } from "./containers/SidebarContainer";
-import { buildContext } from "./context";
+import { buildContext, getInnerText, hasOnlyTextChildren } from "./context";
 import { armInsert, cancelInsert } from "./drop-zone";
 import {
 	findAllInstances,
@@ -46,6 +46,71 @@ let currentInstances: Array<{ index: number; label: string; parent: string }> =
 
 // Cached near-groups for the current selection (computed lazily on first + click)
 let cachedNearGroups: ElementGroup[] | null = null;
+
+// Text-editing state
+let textEditActive = false;
+let textEditOriginal = "";
+
+function enterTextEditMode() {
+	if (!currentTargetEl || textEditActive) return;
+	textEditActive = true;
+	textEditOriginal = currentTargetEl.innerText;
+	currentTargetEl.contentEditable = "true";
+	currentTargetEl.dataset.twTextEditing = "";
+	currentTargetEl.focus();
+	// Select all text
+	const sel = window.getSelection();
+	if (sel) {
+		const range = document.createRange();
+		range.selectNodeContents(currentTargetEl);
+		sel.removeAllRanges();
+		sel.addRange(range);
+	}
+	currentTargetEl.addEventListener("keydown", textEditKeyHandler);
+	currentTargetEl.addEventListener("blur", textEditBlurHandler);
+}
+
+function exitTextEditMode(confirm: boolean) {
+	if (!currentTargetEl || !textEditActive) return;
+	textEditActive = false;
+	currentTargetEl.removeEventListener("keydown", textEditKeyHandler);
+	currentTargetEl.removeEventListener("blur", textEditBlurHandler);
+	currentTargetEl.contentEditable = "false";
+	delete currentTargetEl.dataset.twTextEditing;
+	if (confirm) {
+		const newText = currentTargetEl.innerText;
+		if (newText !== textEditOriginal) {
+			sendTo("panel", {
+				type: "TEXT_EDIT_END",
+				originalText: textEditOriginal,
+				newText,
+			});
+		} else {
+			sendTo("panel", { type: "TEXT_EDIT_CANCEL" });
+		}
+	} else {
+		currentTargetEl.innerText = textEditOriginal;
+		sendTo("panel", { type: "TEXT_EDIT_CANCEL" });
+	}
+}
+
+function textEditKeyHandler(e: KeyboardEvent) {
+	if (e.key === "Enter" && !e.shiftKey) {
+		e.preventDefault();
+		exitTextEditMode(true);
+	} else if (e.key === "Escape") {
+		e.preventDefault();
+		e.stopPropagation();
+		exitTextEditMode(false);
+	}
+}
+
+function textEditBlurHandler() {
+	// Small delay to allow Enter key handler to fire first
+	setTimeout(() => {
+		if (textEditActive) exitTextEditMode(true);
+	}, 50);
+}
 
 // Hover preview state (shown while selection mode is active + mouse moves)
 let hoverOutlineEl: HTMLElement | null = null;
@@ -224,6 +289,12 @@ const OVERLAY_CSS = `
     background: rgba(255,255,255,0.12);
   }
   .highlight-overlay.hidden { display: none; }
+  /* ── Text editing mode — dashed orange outline on the editable element ── */
+  [data-tw-text-editing] {
+    outline: 2px dashed #F5532D !important;
+    outline-offset: 2px !important;
+    cursor: text !important;
+  }
   /* ── Hover preview highlight (dashed, for group hover) ── */
   .highlight-preview {
     position: fixed;
@@ -620,6 +691,8 @@ const EYE_OFF_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="curre
 
 const RESELECT_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>`;
 
+const TEXT_EDIT_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>`;
+
 async function positionWithFlip(
 	anchor: HTMLElement,
 	floating: HTMLElement,
@@ -677,6 +750,24 @@ function showDrawButton(targetEl: HTMLElement): void {
 			showDrawPopover(drawBtn);
 		}
 	});
+
+	// Text edit button — only shown for elements with editable text
+	if (hasOnlyTextChildren(targetEl)) {
+		const textBtn = document.createElement("button");
+		textBtn.className = "draw-btn";
+		textBtn.innerHTML = TEXT_EDIT_SVG;
+		textBtn.title = "Edit text content";
+		toolbar.appendChild(textBtn);
+
+		textBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			pickerEl?.remove();
+			pickerEl = null;
+			drawPopoverEl?.remove();
+			drawPopoverEl = null;
+			enterTextEditMode();
+		});
+	}
 
 	// Visibility toggle — show/hide selection borders
 	const visBtn = document.createElement("button");
@@ -1191,12 +1282,16 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 	// Send element data to Panel via WS
 	// Resolve CSS variable color values using the live DOM context
 	const resolvedConfig = config ? resolveConfigCssVars(config) : config;
+	const textContent = getInnerText(targetEl);
+	const editableText = hasOnlyTextChildren(targetEl);
 	sendTo("panel", {
 		type: "ELEMENT_SELECTED",
 		componentName,
 		instanceCount: result.exactMatch.length,
 		classes: classString,
 		tailwindConfig: resolvedConfig,
+		textContent: textContent || undefined,
+		hasEditableText: editableText || undefined,
 	});
 }
 
@@ -1653,9 +1748,9 @@ function init(): void {
 	}
 	shadowRoot.appendChild(btn);
 
-	// Escape key — clear current selection
+	// Escape key — clear current selection (skip during text editing — handled by text edit keydown)
 	document.addEventListener("keydown", (e) => {
-		if (e.key === "Escape" && currentTargetEl) {
+		if (e.key === "Escape" && currentTargetEl && !textEditActive) {
 			revertPreview();
 			clearHighlights();
 			currentEquivalentNodes = [];
@@ -1810,6 +1905,38 @@ function init(): void {
 					activeContainer = containers[newName];
 				}
 			}
+		} else if (msg.type === "TEXT_EDIT_START") {
+			enterTextEditMode();
+		} else if (
+			msg.type === "TEXT_CHANGE_STAGE" &&
+			currentTargetEl &&
+			currentBoundary
+		) {
+			const context = buildContext(currentTargetEl, "", "", new Map());
+			send({
+				type: "PATCH_STAGED",
+				patch: {
+					id: msg.id,
+					kind: "text-change",
+					elementKey: currentBoundary.componentName,
+					status: "staged",
+					originalClass: "",
+					newClass: "",
+					property: "",
+					timestamp: new Date().toISOString(),
+					pageUrl: window.location.href,
+					component: { name: currentBoundary.componentName },
+					target: {
+						tag: currentTargetEl.tagName.toLowerCase(),
+						classes: typeof currentTargetEl.className === "string" ? currentTargetEl.className : "",
+						innerText: (msg.originalText || "").trim().slice(0, 60),
+					},
+					context,
+					originalText: msg.originalText,
+					newText: msg.newText,
+				},
+			});
+			showToast("Text change staged");
 		} else if (msg.type === "THEME_PREVIEW") {
 			applyThemePreview(msg.overrides ?? []);
 		} else if (msg.type === "INSERT_DESIGN_CANVAS") {

@@ -175,13 +175,22 @@ function FontSizeRow({
 				isEdited ? "bg-bv-orange/5" : ""
 			}`}
 		>
-			{/* Preview text */}
-			<span
-				className="w-8 text-bv-text shrink-0 leading-tight truncate"
-				style={{ fontSize: value, lineHeight: lineHeight ?? undefined }}
+			{/* Icon */}
+			<svg
+				className="w-4 h-4 shrink-0 text-bv-text-mid"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="square"
+				strokeLinejoin="miter"
 			>
-				Aa
-			</span>
+				<title>Font size</title>
+				<path d="M2.78 15H10.22" strokeLinecap="butt" />
+				<path d="M1.5 19L5.94 5H7.06L11.5 19" />
+				<path d="M22.98 15.56C21.98 17.87 19.94 18.97 18.03 19 16.69 19.02 15.3 18.18 15.04 16.71 14.81 15.44 15.55 13.94 17.31 13.43 19.23 12.88 23 13.02 23 13.02" strokeLinecap="butt" />
+				<path d="M23 19V11.74C23 9.67 21.33 8 19.26 8 18.29 8 17.36 8.38 16.66 9.05L16 9.69" />
+			</svg>
 
 			{/* Token name */}
 			<span className="text-[11px] text-bv-text flex-1 min-w-0 truncate">
@@ -234,13 +243,22 @@ function FontWeightRow({
 				isEdited ? "bg-bv-orange/5" : ""
 			}`}
 		>
-			{/* Preview text */}
-			<span
-				className="w-8 text-[13px] text-bv-text shrink-0 leading-tight truncate"
-				style={{ fontWeight: Number(value) || 400 }}
+			{/* Icon */}
+			<svg
+				className="w-4 h-4 shrink-0 text-bv-text-mid"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="square"
+				strokeLinejoin="miter"
 			>
-				Aa
-			</span>
+				<title>Font weight</title>
+				<path d="M2.78 15H10.22" strokeLinecap="butt" />
+				<path d="M1.5 19L5.94 5H7.06L11.5 19" />
+				<path d="M22.98 15.56C21.98 17.87 19.94 18.97 18.03 19 16.69 19.02 15.3 18.18 15.04 16.71 14.81 15.44 15.55 13.94 17.31 13.43 19.23 12.88 23 13.02 23 13.02" strokeLinecap="butt" />
+				<path d="M23 19V11.74C23 9.67 21.33 8 19.26 8 18.29 8 17.36 8.38 16.66 9.05L16 9.69" />
+			</svg>
 
 			{/* Token name */}
 			<span className="text-[11px] text-bv-text flex-1 min-w-0 truncate">

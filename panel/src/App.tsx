@@ -43,6 +43,8 @@ interface ElementData {
 	classes: string;
 	parsedClasses: ParsedToken[];
 	tailwindConfig: any;
+	textContent?: string;
+	hasEditableText?: boolean;
 }
 
 export function App() {
@@ -125,9 +127,24 @@ function InspectorApp() {
 					classes: msg.classes,
 					parsedClasses: parseTokens(msg.classes, TAILWIND_PARSERS),
 					tailwindConfig: msg.tailwindConfig,
+					textContent: msg.textContent,
+					hasEditableText: msg.hasEditableText,
 				});
 				setSelectionId((prev) => prev + 1);
 				setSelectModeActive(false);
+			} else if (msg.type === "TEXT_EDIT_END") {
+				setElementData((current) => {
+					if (current) {
+						patchManager.stageTextChange(
+							msg.originalText,
+							msg.newText,
+							current.componentName,
+						);
+					}
+					return current;
+				});
+			} else if (msg.type === "TEXT_EDIT_CANCEL") {
+				// No action needed — overlay already reverted the text
 			} else if (msg.type === "SELECT_MODE_CHANGED") {
 				setSelectModeActive(!!msg.active);
 			} else if (msg.type === "QUEUE_UPDATE") {
@@ -503,6 +520,22 @@ function InspectorApp() {
 								{elementData.instanceCount !== 1 ? "s" : ""}
 							</span>
 						</div>
+						{elementData.hasEditableText && (
+							<button
+								type="button"
+								title="Edit text content"
+								onClick={() => sendTo("overlay", { type: "TEXT_EDIT_START" })}
+								className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-bv-text-mid hover:text-bv-text hover:bg-bv-surface-hi transition-colors"
+							>
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+									<title>Edit text</title>
+									<path d="M6 4H18" /><path d="M6 20H18" /><path d="M20 6L20 18" /><path d="M4 6L4 18" />
+									<rect x="2" y="2" width="4" height="4" /><rect x="2" y="18" width="4" height="4" />
+									<rect x="18" y="2" width="4" height="4" /><rect x="18" y="18" width="4" height="4" />
+									<path d="M12 16V9" /><path d="M9 9H15" />
+								</svg>
+							</button>
+						)}
 					</div>
 					<ContainerSwitcher />
 				</div>

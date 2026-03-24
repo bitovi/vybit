@@ -28,7 +28,7 @@ export interface CanvasComponent {
   height: number;
 }
 
-export type PatchKind = 'class-change' | 'message' | 'design' | 'component-drop';
+export type PatchKind = 'class-change' | 'message' | 'design' | 'component-drop' | 'text-change';
 
 export type PatchStatus = 'staged' | 'committed' | 'implementing' | 'implemented' | 'error';
 
@@ -64,6 +64,9 @@ export interface Patch {
   parentComponent?: { name: string }; // React component that contains the drop target
   targetPatchId?: string;    // If target is a ghost from an earlier drop, references that patch
   targetComponentName?: string; // Name of the ghost component being referenced
+  // Text-change fields (used when kind === 'text-change'):
+  originalText?: string;     // text before edit
+  newText?: string;          // text after edit
   // Commit reference:
   commitId?: string;         // Set when committed into a Commit
 }
@@ -97,6 +100,9 @@ export interface PatchSummary {
   parentComponent?: { name: string };
   targetComponentName?: string;
   targetPatchId?: string;
+  // Text-change display fields:
+  originalText?: string;
+  newText?: string;
 }
 
 export interface CommitSummary {
@@ -123,6 +129,10 @@ export interface ElementSelectedMessage {
   instanceCount: number;
   classes: string;
   tailwindConfig: any;
+  /** Direct text content of the element (text nodes only, no child element text) */
+  textContent?: string;
+  /** True when the element contains only text nodes (no child elements), safe for contentEditable */
+  hasEditableText?: boolean;
 }
 
 export interface ClearHighlightsMessage {
@@ -330,6 +340,26 @@ export interface ResetSelectionMessage {
   type: 'RESET_SELECTION';
 }
 
+/** Panel → Overlay: enter contentEditable text editing on the selected element */
+export interface TextEditStartMessage {
+  type: 'TEXT_EDIT_START';
+  to: 'overlay';
+}
+
+/** Overlay → Panel: text editing completed, new text captured */
+export interface TextEditEndMessage {
+  type: 'TEXT_EDIT_END';
+  to: 'panel';
+  originalText: string;
+  newText: string;
+}
+
+/** Overlay → Panel: text editing cancelled (Escape) */
+export interface TextEditCancelMessage {
+  type: 'TEXT_EDIT_CANCEL';
+  to: 'panel';
+}
+
 /** Panel → Overlay: preview theme color overrides via CSS custom properties */
 export interface ThemePreviewMessage {
   type: 'THEME_PREVIEW';
@@ -374,7 +404,7 @@ export interface ComponentDroppedMessage {
 // Union types
 // ---------------------------------------------------------------------------
 
-export type OverlayToPanel = ElementSelectedMessage;
+export type OverlayToPanel = ElementSelectedMessage | TextEditEndMessage | TextEditCancelMessage;
 export type PanelToOverlay =
   | PatchPreviewMessage
   | PatchPreviewBatchMessage
@@ -387,7 +417,8 @@ export type PanelToOverlay =
   | ClosePanelMessage
   | ComponentArmMessage
   | ComponentDisarmMessage
-  | ThemePreviewMessage;
+  | ThemePreviewMessage
+  | TextEditStartMessage;
 export type OverlayToServer = PatchStagedMessage | ComponentDroppedMessage | ResetSelectionMessage;
 export type PanelToServer = PatchCommitMessage | MessageStageMessage;
 export type ClientToServer =
@@ -436,5 +467,8 @@ export type AnyMessage =
   | ComponentDroppedMessage
   | ResetSelectionMessage
   | ThemePreviewMessage
+  | TextEditStartMessage
+  | TextEditEndMessage
+  | TextEditCancelMessage
   | PingMessage
   | PongMessage;

@@ -122,7 +122,7 @@ function renderSiblingNode(el: HTMLElement, indent: number, originalClassMap: Ma
   return `${pad}<${tag}${attrs} />`;
 }
 
-function getInnerText(el: HTMLElement): string {
+export function getInnerText(el: HTMLElement): string {
   let text = '';
   for (const node of Array.from(el.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -132,4 +132,12 @@ function getInnerText(el: HTMLElement): string {
   text = text.trim();
   if (text.length > 60) text = text.slice(0, 57) + '...';
   return text;
+}
+
+/** Returns true when the element contains only text nodes (no child elements). */
+export function hasOnlyTextChildren(el: HTMLElement): boolean {
+  for (const node of Array.from(el.childNodes)) {
+    if (node.nodeType === Node.ELEMENT_NODE) return false;
+  }
+  return el.childNodes.length > 0;
 }
