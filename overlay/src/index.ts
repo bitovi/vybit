@@ -1670,6 +1670,23 @@ function init(): void {
 	const wsUrl = SERVER_ORIGIN.replace(/^http/, "ws");
 	connect(wsUrl);
 
+	// ─── Theme preview: inject CSS custom property overrides ───────
+	const THEME_STYLE_ID = "vybit-theme-preview";
+	function applyThemePreview(overrides: Array<{ variable: string; value: string }>) {
+		let styleEl = document.getElementById(THEME_STYLE_ID) as HTMLStyleElement | null;
+		if (overrides.length === 0) {
+			if (styleEl) styleEl.remove();
+			return;
+		}
+		if (!styleEl) {
+			styleEl = document.createElement("style");
+			styleEl.id = THEME_STYLE_ID;
+			document.head.appendChild(styleEl);
+		}
+		const rules = overrides.map(o => `  ${o.variable}: ${o.value} !important;`).join("\n");
+		styleEl.textContent = `:root {\n${rules}\n}`;
+	}
+
 	// Handle messages from Panel via WS
 	onMessage((msg: any) => {
 		console.log("[vybit-overlay] WS message received:", msg.type);
@@ -1793,6 +1810,8 @@ function init(): void {
 					activeContainer = containers[newName];
 				}
 			}
+		} else if (msg.type === "THEME_PREVIEW") {
+			applyThemePreview(msg.overrides ?? []);
 		} else if (msg.type === "INSERT_DESIGN_CANVAS") {
 			injectDesignCanvas(msg.insertMode as InsertMode);
 		} else if (msg.type === "CAPTURE_SCREENSHOT") {

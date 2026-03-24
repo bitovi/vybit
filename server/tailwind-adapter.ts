@@ -3,6 +3,7 @@
 // the server code is version-agnostic.
 
 export interface TailwindThemeSubset {
+  tailwindVersion?: 3 | 4;
   spacing: Record<string, string>;
   colors: Record<string, unknown>;
   fontSize: Record<string, unknown>;
