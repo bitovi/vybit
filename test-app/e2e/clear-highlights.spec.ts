@@ -23,8 +23,8 @@ test.describe('Clear highlights on class chip click', () => {
 
     await expect.poll(() => getHighlightCount(page)).toBeGreaterThan(0);
 
-    // Get the panel iframe and click a class chip (e.g. "px-4")
-    const chip = frame.locator('div.cursor-pointer').first();
+    // Get the panel iframe and click a ScaleScrubber chip (e.g. "text-sm")
+    const chip = frame.locator('.cursor-ew-resize').first();
     await chip.waitFor({ timeout: 5000 });
     await chip.click();
 
@@ -51,8 +51,8 @@ test.describe('Clear highlights on class chip click', () => {
 
     const frame = await openAndSelectElement(page, page.locator('button:has-text("Primary")').first());
 
-    // Get the panel iframe and click a class chip
-    const chip = frame.locator('div.cursor-pointer').first();
+    // Get the panel iframe and click a ScaleScrubber chip
+    const chip = frame.locator('.cursor-ew-resize').first();
     await chip.waitFor({ timeout: 5000 });
     await chip.click();
 

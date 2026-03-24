@@ -39,6 +39,14 @@ async function selectElementAndWaitForPanel(
   // Small buffer for the REGISTER message to be processed
   await page.waitForTimeout(500);
 
+  // Activate select mode in the panel before clicking the target element
+  await frame.waitForSelector('button[title*="Select an element"]', { timeout: 5000 });
+  await frame.evaluate(() => {
+    const btn = document.querySelector('button[title*="Select an element"]') as HTMLButtonElement | null;
+    if (!btn) throw new Error('SelectElementButton not found');
+    btn.click();
+  });
+
   await locator.click();
 
   // Wait for the panel to render box-model slots or scrubber chips
@@ -120,9 +128,9 @@ test.describe('Tailwind v3 — Value change and commit', () => {
       page.locator('button:has-text("Primary")').first(),
     );
 
-    // Check staged count starts at 0
-    const stagedBefore = await getFooterCount(frame, 'staged');
-    expect(stagedBefore).toBe(0);
+    // Check draft count starts at 0
+    const draftBefore = await getFooterCount(frame, 'draft');
+    expect(draftBefore).toBe(0);
 
     // Click a padding slot to open the mini-dropdown
     const slot = frame.locator('[data-layer="padding"] .bm-slot', { hasText: 'x-4' }).first();
@@ -134,8 +142,8 @@ test.describe('Tailwind v3 — Value change and commit', () => {
     await dropdownItem.waitFor({ timeout: 3000 });
     await dropdownItem.click();
 
-    // Staged count should now be 1
-    await expect.poll(async () => getFooterCount(frame, 'staged')).toBeGreaterThan(0);
+    // Draft count should now be 1
+    await expect.poll(async () => getFooterCount(frame, 'draft')).toBeGreaterThan(0);
   });
 
   test('committing a staged change increments the committed count', async ({ page }) => {
@@ -160,13 +168,13 @@ test.describe('Tailwind v3 — Value change and commit', () => {
     await dropdownItem.waitFor({ timeout: 3000 });
     await dropdownItem.click();
 
-    // Wait for staged count > 0
-    await expect.poll(async () => getFooterCount(frame, 'staged')).toBeGreaterThan(0);
+    // Wait for draft count > 0
+    await expect.poll(async () => getFooterCount(frame, 'draft')).toBeGreaterThan(0);
 
-    // Click "staged" button to open popover, then "Commit All"
-    const stagedButton = frame.getByRole('button', { name: /[1-9]\d* staged/ }).first();
-    await stagedButton.waitFor({ timeout: 5000 });
-    await stagedButton.click();
+    // Click "draft" button to open popover, then "Commit All"
+    const draftButton = frame.getByRole('button', { name: /[1-9]\d* draft/ }).first();
+    await draftButton.waitFor({ timeout: 5000 });
+    await draftButton.click();
 
     const commitAllButton = frame.getByRole('button', { name: 'Commit All' });
     await commitAllButton.waitFor({ timeout: 3000 });

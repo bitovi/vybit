@@ -183,12 +183,12 @@ test.describe('Draw Canvas', () => {
 
     // Get the design frame and click cancel/close
     const designFrame = await getDesignFrame(page);
-    // Wait for the Cancel button to appear before clicking (avoids timing issues)
-    await designFrame.getByRole('button', { name: '✕ Cancel' }).waitFor({ timeout: 5000 });
+    // Wait for the Close button to appear before clicking (avoids timing issues)
+    await designFrame.getByRole('button', { name: '✕ Close' }).waitFor({ timeout: 5000 });
     await designFrame.evaluate(() => {
       const btn = Array.from(document.querySelectorAll('button'))
-        .find(b => b.textContent?.includes('Cancel')) as HTMLButtonElement | undefined;
-      if (!btn) throw new Error('"Cancel" button not found');
+        .find(b => b.textContent?.includes('Close')) as HTMLButtonElement | undefined;
+      if (!btn) throw new Error('"Close" button not found');
       btn.click();
     });
 

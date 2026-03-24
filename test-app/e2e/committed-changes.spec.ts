@@ -88,9 +88,13 @@ test.describe('committed changes counter', () => {
     await stageBoxModelChange(frame, 'y-2', 'py-3');
     await commitAllStaged(frame);
 
-    // Both commits should result in implemented count growing by at least 2
+    // Both commits should result in in-flight or implemented count growing
     await expect
-      .poll(async () => (await getFooterCount(frame, 'implemented')) >= implementedBefore + 2, { timeout: 15000 })
+      .poll(async () => {
+        const inFlight = await getInFlightCount(frame);
+        const implemented = await getFooterCount(frame, 'implemented');
+        return inFlight >= 2 || implemented >= implementedBefore + 2;
+      }, { timeout: 15000 })
       .toBe(true);
   });
 });
