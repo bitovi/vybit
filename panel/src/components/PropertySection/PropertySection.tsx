@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FocusTrapContainer } from "../FocusTrapContainer";
 import type { PropertySectionProps } from "./types";
 
@@ -11,7 +11,7 @@ export function PropertySection({
 	computedValues,
 	children,
 }: PropertySectionProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [collapsed, setCollapsed] = useState(isEmpty);
 	const prevIsEmptyRef = useRef(isEmpty);
 	const dropdownContainerRef = useRef<HTMLDivElement>(null);
@@ -27,12 +27,15 @@ export function PropertySection({
 	useEffect(() => {
 		if (!dropdownOpen) return;
 		function handleMouseDown(e: MouseEvent) {
-			if (dropdownContainerRef.current && !dropdownContainerRef.current.contains(e.target as Node)) {
+			if (
+				dropdownContainerRef.current &&
+				!dropdownContainerRef.current.contains(e.target as Node)
+			) {
 				setDropdownOpen(false);
 			}
 		}
-		document.addEventListener('mousedown', handleMouseDown);
-		return () => document.removeEventListener('mousedown', handleMouseDown);
+		document.addEventListener("mousedown", handleMouseDown);
+		return () => document.removeEventListener("mousedown", handleMouseDown);
 	}, [dropdownOpen]);
 
 	function handleSelect(prefix: string) {
@@ -53,7 +56,12 @@ export function PropertySection({
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+					<path
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						strokeWidth="2"
+						d="M9 5l7 7-7 7"
+					/>
 				</svg>
 				<span className="text-[10px] font-semibold text-bv-text">{label}</span>
 				{collapsed && classCount > 0 && (
@@ -71,7 +79,10 @@ export function PropertySection({
 									? "text-bv-text bg-bv-surface-hi"
 									: "text-bv-muted bg-transparent opacity-75 group-hover/sec:opacity-100 hover:text-bv-text hover:bg-bv-surface-hi"
 							}`}
-							onClick={(e) => { e.stopPropagation(); setDropdownOpen((o) => !o); }}
+							onClick={(e) => {
+								e.stopPropagation();
+								setDropdownOpen((o) => !o);
+							}}
 						>
 							<svg
 								className="w-3.5 h-3.5"
