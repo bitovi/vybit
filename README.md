@@ -155,7 +155,7 @@ Click it. It will open the Editor Panel.
 
 ### Using the Editor to make changes
 
-More on this later.  But in short, click an element, then you can adjust the desig of it, or insert a panel to draw out changes.  You can also add contextual messages.  These are all draft changes until you commit.
+More on this later.  But in short, click an element, then you can adjust the design of it, or insert a panel to draw out changes.  You can also add contextual messages.  These are all draft changes until you commit.
 
 ### Commiting changes
 
