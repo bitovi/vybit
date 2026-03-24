@@ -1,5 +1,12 @@
+import {
+	autoUpdate,
+	FloatingPortal,
+	flip,
+	offset,
+	shift,
+	useFloating,
+} from "@floating-ui/react";
 import { useEffect, useRef, useState } from "react";
-import { useFloating, offset, flip, shift, autoUpdate, FloatingPortal } from "@floating-ui/react";
 import { FocusTrapContainer } from "../FocusTrapContainer";
 import type { ScaleScrubberProps } from "./types";
 
@@ -115,29 +122,29 @@ export function ScaleScrubber({
 	const isScrubbing = scrubIndex !== null;
 
 	const chipStyle = isScrubbing
-		? "bg-bv-teal/9 text-bv-teal ring-1 ring-bv-teal"
+		? "bg-bv-teal/9 text-bv-teal border border-bv-teal"
 		: isThisLocked
-			? "bg-bv-surface-hi text-bv-text ring-1 ring-bv-border hover:bg-bv-teal/9 hover:text-bv-teal hover:ring-bv-teal"
+			? "bg-bv-surface-hi text-bv-text border border-bv-border hover:bg-bv-teal/9 hover:text-bv-teal hover:border-bv-teal"
 			: open
-				? "bg-bv-surface-hi text-bv-text ring-1 ring-bv-border"
+				? "bg-bv-surface-hi text-bv-text border border-bv-border"
 				: foreignLocked
-					? "bg-bv-surface text-bv-text-mid"
+					? "bg-bv-surface text-bv-text-mid border border-transparent"
 					: ghost
 						? "border border-dashed border-bv-border text-bv-muted bg-transparent hover:border-bv-teal hover:text-bv-teal"
-						: "bg-bv-surface text-bv-text-mid hover:bg-bv-surface-hi hover:text-bv-text";
+						: "bg-[rgba(255,255,255,0.04)] text-bv-text-mid border border-[rgba(255,255,255,0.10)] hover:border-bv-teal hover:text-bv-teal hover:bg-bv-teal/10";
 
 	return (
-		<div ref={containerRef} className="relative inline-block">
+		<div ref={containerRef} className="relative w-full">
 			<div
 				ref={refs.setReference}
-				className={`group select-none px-2 py-0.5 rounded-md text-[11px] font-mono transition-colors ${foreignLocked ? "cursor-default" : "cursor-ew-resize"} ${chipStyle}`}
+				className={`group relative select-none px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors w-full text-center ${foreignLocked ? "cursor-default" : "cursor-ew-resize"} ${chipStyle}`}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
 			>
 				{!foreignLocked && (
 					<span
-						className={`inline-block mr-0.5 text-[9px] transition-opacity ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
+						className={`absolute left-0.5 top-1/2 -translate-y-1/2 text-[9px] transition-opacity pointer-events-none ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
 					>
 						‹
 					</span>
@@ -145,7 +152,7 @@ export function ScaleScrubber({
 				{displayValue}
 				{!foreignLocked && (
 					<span
-						className={`inline-block ml-0.5 text-[9px] transition-opacity ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
+						className={`absolute right-0.5 top-1/2 -translate-y-1/2 text-[9px] transition-opacity pointer-events-none ${isScrubbing ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
 					>
 						›
 					</span>
@@ -157,8 +164,8 @@ export function ScaleScrubber({
 					<FocusTrapContainer
 						ref={refs.setFloating}
 						style={floatingStyles}
-						className="z-50 max-h-52 overflow-y-auto bg-bv-bg border border-bv-border rounded-md shadow-md min-w-[5rem]"
-						onPointerDown={e => e.stopPropagation()}
+						className="z-50 max-h-52 overflow-y-auto bg-bv-bg border border-bv-border rounded shadow-lg shadow-black/30 min-w-20"
+						onPointerDown={(e) => e.stopPropagation()}
 						onMouseLeave={onLeave}
 						onClose={() => {
 							setOpen(false);
@@ -167,7 +174,7 @@ export function ScaleScrubber({
 					>
 						{onRemove && (
 							<div
-								className={`flex items-center gap-1.5 px-2.5 py-[3px] text-[11px] font-mono cursor-pointer border-b border-bv-border text-bv-muted hover:text-red-400 ${
+								className={`flex items-center gap-1.5 px-2.5 py-0.75 text-[11px] font-mono cursor-pointer border-b border-bv-border text-bv-muted hover:text-red-400 ${
 									currentValue === "" || lockedValue === ""
 										? "text-bv-orange"
 										: ""
@@ -179,7 +186,17 @@ export function ScaleScrubber({
 									setOpen(false);
 								}}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 12 12"
+									fill="none"
+									stroke="currentColor"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className="shrink-0 opacity-70"
+								>
 									<circle cx="6" cy="6" r="5.5" />
 									<line x1="4" y1="4" x2="8" y2="8" />
 									<line x1="8" y1="4" x2="4" y2="8" />
@@ -196,7 +213,7 @@ export function ScaleScrubber({
 								<div
 									key={val}
 									ref={isActive ? activeItemRef : undefined}
-									className={`px-2.5 py-[3px] text-[11px] font-mono cursor-pointer ${itemStyle}`}
+									className={`px-2.5 py-0.75 text-[11px] font-mono cursor-pointer ${itemStyle}`}
 									onMouseEnter={() => onHover(val)}
 									onClick={(e) => {
 										e.stopPropagation();
