@@ -25,6 +25,7 @@ const DesignMode = lazy(() =>
 // URL param routing: ?mode=design renders the drawing canvas instead of the Picker
 const urlParams = new URLSearchParams(window.location.search);
 const appMode = urlParams.get("mode");
+const isEmbeddedInStorybook = urlParams.get("embedded") === "storybook";
 
 const TABS: Tab[] = [
 	{ id: "design", label: "Design" },
@@ -66,13 +67,16 @@ function InspectorApp() {
 			setWsConnected(true);
 			// Sync stored container preference to the overlay on every (re)connect,
 			// since the overlay and panel run on different origins (different localStorage).
-			try {
-				const stored = localStorage.getItem("tw-panel-container");
-				if (stored && stored !== "popover") {
-					sendTo("overlay", { type: "SWITCH_CONTAINER", container: stored });
+			// Skip in Storybook — the panel is embedded in SB's addon panel, not a container.
+			if (!isEmbeddedInStorybook) {
+				try {
+					const stored = localStorage.getItem("tw-panel-container");
+					if (stored && stored !== "popover") {
+						sendTo("overlay", { type: "SWITCH_CONTAINER", container: stored });
+					}
+				} catch {
+					/* ignore */
 				}
-			} catch {
-				/* ignore */
 			}
 		});
 		const offDisconnect = onDisconnect(() => setWsConnected(false));
@@ -338,7 +342,7 @@ function InspectorApp() {
 								</span>
 							)}
 						</div>
-						<ContainerSwitcher />
+					{!isEmbeddedInStorybook && <ContainerSwitcher />}
 					</div>
 				</div>
 				<TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
@@ -452,7 +456,7 @@ function InspectorApp() {
 							</span>
 						</div>
 					</div>
-					<ContainerSwitcher />
+				{!isEmbeddedInStorybook && <ContainerSwitcher />}
 				</div>
 			</div>
 			<TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
