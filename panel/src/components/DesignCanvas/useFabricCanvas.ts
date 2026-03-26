@@ -167,6 +167,7 @@ export function useFabricCanvas({ onSubmit, backgroundImage, armedComponent, onC
     canvas.isDrawingMode = false;
     canvas.selection = true;
     canvas.defaultCursor = 'default';
+    canvas.setCursor('default');
 
     // Restore interactivity on all objects (in case we're leaving a drawing mode)
     canvas.getObjects().forEach(obj => {
@@ -229,6 +230,18 @@ export function useFabricCanvas({ onSubmit, backgroundImage, armedComponent, onC
         text.enterEditing();
         text.selectAll();
         saveState();
+        // Reset cursor immediately
+        canvas.defaultCursor = 'default';
+        canvas.setCursor('default');
+        // Switch to select — the mouse:down listener is removed, so clicking elsewhere
+        // won't create new textboxes. Fabric still keeps the textbox in editing mode.
+        setActiveTool('select');
+        // When the user finishes editing (clicks away / Escape), reset the cursor.
+        // This is safe here because the canvas mouse:down listener is already gone.
+        text.once('editing:exited', () => {
+          canvas.defaultCursor = 'default';
+          canvas.setCursor('default');
+        });
       });
     } else if (['rectangle', 'circle', 'line', 'arrow'].includes(activeTool)) {
       canvas.selection = false;

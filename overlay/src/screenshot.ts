@@ -27,7 +27,7 @@ export async function captureRegion(nodes: HTMLElement[]): Promise<{ dataUrl: st
     const width  = Math.round(rect.width);
     const height = Math.round(rect.height);
 
-    const dataUrl = await toPng(nodes[0], { skipFonts: true, width, height });
+    const dataUrl = await toPng(nodes[0], { skipFonts: true, width, height, pixelRatio: 1 });
     return { dataUrl, width, height };
   }
 
@@ -64,7 +64,7 @@ export async function captureRegion(nodes: HTMLElement[]): Promise<{ dataUrl: st
   document.body.appendChild(ghost);
 
   try {
-    const dataUrl = await toPng(ghost, { skipFonts: true, width, height });
+    const dataUrl = await toPng(ghost, { skipFonts: true, width, height, pixelRatio: 1 });
     return { dataUrl, width, height };
   } finally {
     ghost.remove();

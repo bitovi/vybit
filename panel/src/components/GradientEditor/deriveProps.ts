@@ -51,16 +51,11 @@ export function parsedClassesToGradientEditorProps(
   const allBgClasses = Array.from(effectiveClasses.keys()).filter(c => c.startsWith('bg-') && !c.startsWith('bg-gradient-to-'));
   const solidColorName = allBgClasses[0]?.replace('bg-', '') ?? null;
   
-  console.log(`[deriveProps] allBgClasses:`, allBgClasses, `solidColorName:`, solidColorName);
-  console.log(`[deriveProps] available color keys:`, Object.keys(colors).join(', '));
-
   // Strip opacity suffix (e.g. 'blue-500/50' → 'blue-500') for hex resolution only
   const solidColorNameBase = solidColorName?.split('/')[0] ?? null;
-  console.log(`[deriveProps] solidColorNameBase:`, solidColorNameBase);
   const solidColorHex = solidColorNameBase
     ? resolveColorHex(solidColorNameBase, colors)
     : null;
-  console.log(`[deriveProps] solidColorHex resolved to:`, solidColorHex);
 
   // Gradient stops (extract from any from-, via-, to- in effective classes)
   const allStops = Array.from(effectiveClasses.keys());

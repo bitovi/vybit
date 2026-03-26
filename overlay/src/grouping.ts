@@ -97,8 +97,6 @@ export function findExactMatches(
   const fiber = getFiber(clickedEl);
   const boundary = fiber ? findComponentBoundary(fiber) : null;
   const componentName = boundary?.componentName ?? null;
-  console.log('[grouping] findExactMatches — fiber:', !!fiber, 'boundary:', boundary?.componentName ?? '(none)', 'tag:', tag);
-
   let exactMatches: HTMLElement[];
 
   if (boundary) {

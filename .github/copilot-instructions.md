@@ -1,4 +1,4 @@
-# Tailwind Inspector MCP — Copilot Instructions
+# VyBit MCP — Copilot Instructions
 
 ## Project Overview
 

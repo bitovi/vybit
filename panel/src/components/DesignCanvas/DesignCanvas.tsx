@@ -45,7 +45,7 @@ export function DesignCanvas({ onSubmit, onClose, backgroundImage, armedComponen
 
       <div
         ref={containerRef}
-        className={`bg-white overflow-hidden relative ${isArmed ? 'cursor-crosshair' : 'cursor-crosshair'}`}
+        className={`bg-white overflow-hidden relative ${isArmed ? 'cursor-crosshair' : ''}`}
         style={lockedHeight !== null ? { height: lockedHeight } : { flex: 1 }}
       >
         <canvas ref={canvasElRef} />
