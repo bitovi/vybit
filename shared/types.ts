@@ -28,7 +28,7 @@ export interface CanvasComponent {
   height: number;
 }
 
-export type PatchKind = 'class-change' | 'message' | 'design' | 'component-drop';
+export type PatchKind = 'class-change' | 'message' | 'design' | 'component-drop' | 'text-change';
 
 export type PatchStatus = 'staged' | 'committed' | 'implementing' | 'implemented' | 'error';
 
@@ -60,6 +60,9 @@ export interface Patch {
   ghostHtml?: string;        // HTML of the dropped component (overlay preview only — stripped from MCP response)
   componentStoryId?: string; // Storybook story ID
   componentPath?: string;    // Source file of the component, e.g. './src/components/Button.tsx'
+  // Text-change fields (used when kind === 'text-change'):
+  originalHtml?: string;     // HTML before text edit
+  newHtml?: string;          // HTML after text edit
   componentArgs?: Record<string, unknown>; // Props the user configured before dropping
   parentComponent?: { name: string }; // React component that contains the drop target
   targetPatchId?: string;    // If target is a ghost from an earlier drop, references that patch
@@ -97,6 +100,9 @@ export interface PatchSummary {
   parentComponent?: { name: string };
   targetComponentName?: string;
   targetPatchId?: string;
+  // Text-change display fields:
+  originalHtml?: string;
+  newHtml?: string;
 }
 
 export interface CommitSummary {
@@ -343,6 +349,7 @@ export interface ComponentArmMessage {
   ghostHtml: string;
   componentPath?: string;  // Source file path from Storybook index, e.g. './src/components/Button.tsx'
   args?: Record<string, unknown>; // Current prop values from ArgsForm
+  insertMode?: 'replace';  // When 'replace', arms element-select if no element is selected
 }
 
 /** Panel → Overlay: user cancelled the armed state (panel click or escape) */
@@ -354,6 +361,41 @@ export interface ComponentDisarmMessage {
 /** Overlay → Panel: overlay has disarmed (user placed or pressed Escape in app) */
 export interface ComponentDisarmedMessage {
   type: 'COMPONENT_DISARMED';
+  to: 'panel';
+}
+
+// ---------------------------------------------------------------------------
+// Mode sync messages
+// ---------------------------------------------------------------------------
+
+export type AppMode = 'select' | 'insert' | null;
+export type SelectTab = 'design' | 'replace';
+export type InsertTab = 'place';
+export type PanelTab = SelectTab | InsertTab;
+
+/** Bidirectional: panel ↔ overlay mode change */
+export interface ModeChangedMessage {
+  type: 'MODE_CHANGED';
+  to: 'overlay' | 'panel';
+  mode: AppMode;
+}
+
+/** Bidirectional: panel ↔ overlay tab change */
+export interface TabChangedMessage {
+  type: 'TAB_CHANGED';
+  to: 'overlay' | 'panel';
+  tab: PanelTab;
+}
+
+/** Overlay → Panel: text editing started on an element */
+export interface TextEditActiveMessage {
+  type: 'TEXT_EDIT_ACTIVE';
+  to: 'panel';
+}
+
+/** Overlay → Panel: text editing ended */
+export interface TextEditDoneMessage {
+  type: 'TEXT_EDIT_DONE';
   to: 'panel';
 }
 
@@ -379,7 +421,9 @@ export type PanelToOverlay =
   | CaptureScreenshotMessage
   | ClosePanelMessage
   | ComponentArmMessage
-  | ComponentDisarmMessage;
+  | ComponentDisarmMessage
+  | ModeChangedMessage
+  | TabChangedMessage;
 export type OverlayToServer = PatchStagedMessage | ComponentDroppedMessage | ResetSelectionMessage;
 export type PanelToServer = PatchCommitMessage | MessageStageMessage;
 export type ClientToServer =
@@ -427,5 +471,9 @@ export type AnyMessage =
   | ComponentDisarmedMessage
   | ComponentDroppedMessage
   | ResetSelectionMessage
+  | ModeChangedMessage
+  | TabChangedMessage
+  | TextEditActiveMessage
+  | TextEditDoneMessage
   | PingMessage
   | PongMessage;

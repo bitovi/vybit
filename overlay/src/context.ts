@@ -20,15 +20,33 @@ export function buildContext(
   }
   ancestors.reverse(); // body → ... → target
 
-  return buildLevel(ancestors, 0, target, oldClass, newClass, originalClassMap, 0);
+  return buildLevel(ancestors, 0, target, `change ${oldClass} → ${newClass}`, originalClassMap, 0);
+}
+
+/**
+ * Build context for a text-change patch. Same structure as buildContext but
+ * annotates the target with "text changed" instead of a class swap.
+ */
+export function buildTextContext(
+  target: HTMLElement,
+  originalClassMap: Map<HTMLElement, string>,
+): string {
+  const ancestors: HTMLElement[] = [];
+  let current: HTMLElement | null = target;
+  while (current && current !== document.documentElement) {
+    ancestors.push(current);
+    current = current.parentElement;
+  }
+  ancestors.reverse();
+
+  return buildLevel(ancestors, 0, target, 'text changed', originalClassMap, 0);
 }
 
 function buildLevel(
   ancestors: HTMLElement[],
   ancestorIndex: number,
   target: HTMLElement,
-  oldClass: string,
-  newClass: string,
+  annotation: string,
   originalClassMap: Map<HTMLElement, string>,
   indent: number,
 ): string {
@@ -53,7 +71,7 @@ function buildLevel(
   if (isTarget) {
     const text = getInnerText(el);
     const textNode = text ? `\n${pad}  ${text}` : '';
-    return `${pad}<${tag}${attrs}> <!-- TARGET: change ${oldClass} → ${newClass} -->${textNode}\n${pad}</${tag}>`;
+    return `${pad}<${tag}${attrs}> <!-- TARGET: ${annotation} -->${textNode}\n${pad}</${tag}>`;
   }
 
   if (ancestorIndex >= ancestors.length - 1) {
@@ -67,7 +85,7 @@ function buildLevel(
   let inner = '';
 
   if (relevantIndex === -1) {
-    inner = buildLevel(ancestors, ancestorIndex + 1, target, oldClass, newClass, originalClassMap, indent + 1);
+    inner = buildLevel(ancestors, ancestorIndex + 1, target, annotation, originalClassMap, indent + 1);
   } else {
     const start = Math.max(0, relevantIndex - 3);
     const end = Math.min(children.length - 1, relevantIndex + 3);
@@ -78,7 +96,7 @@ function buildLevel(
 
     for (let i = start; i <= end; i++) {
       if (i === relevantIndex) {
-        inner += buildLevel(ancestors, ancestorIndex + 1, target, oldClass, newClass, originalClassMap, indent + 1) + '\n';
+        inner += buildLevel(ancestors, ancestorIndex + 1, target, annotation, originalClassMap, indent + 1) + '\n';
       } else {
         inner += renderSiblingNode(children[i], indent + 1, originalClassMap) + '\n';
       }

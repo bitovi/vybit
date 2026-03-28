@@ -11,8 +11,8 @@ import {
 async function clickAddGroupButton(page: Page) {
   await page.evaluate(() => {
     const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.el-add-btn') as HTMLButtonElement;
-    if (!btn) throw new Error('.el-add-btn not found');
+    const btn = host.shadowRoot!.querySelector('.tb-adjunct') as HTMLButtonElement;
+    if (!btn) throw new Error('.tb-adjunct not found');
     btn.click();
   });
 }
@@ -21,8 +21,8 @@ async function clickAddGroupButton(page: Page) {
 async function getCountBadgeText(page: Page): Promise<string> {
   return page.evaluate(() => {
     const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
-    const btn = host.shadowRoot!.querySelector('.el-add-btn') as HTMLElement;
-    return btn?.textContent?.trim() ?? '';
+    const btn = host.shadowRoot!.querySelector('.tb-adjunct') as HTMLElement;
+    return btn?.textContent?.trim().replace(/\s+/g, ' ') ?? '';
   });
 }
 

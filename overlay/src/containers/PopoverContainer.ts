@@ -1,4 +1,5 @@
 import type { IContainer } from './IContainer';
+import { css, CONTAINER_HOST, PANEL_SHADOW, IFRAME_FILL } from '../styles';
 
 export class PopoverContainer implements IContainer {
   readonly name = 'popover' as const;
@@ -11,22 +12,19 @@ export class PopoverContainer implements IContainer {
 
     const host = document.createElement('div');
     host.className = 'container-popover';
-    host.style.cssText = `
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 400px;
-      height: 100vh;
-      z-index: 999999;
-      background: #1e1e2e;
-      box-shadow: -4px 0 24px rgba(0,0,0,0.3);
-      pointer-events: auto;
-    `;
+    host.style.cssText = css({
+      ...CONTAINER_HOST,
+      ...PANEL_SHADOW,
+      top: '0',
+      right: '0',
+      width: '400px',
+      height: '100vh',
+    });
 
     const iframe = document.createElement('iframe');
     iframe.src = panelUrl;
     iframe.allow = 'microphone';
-    iframe.style.cssText = 'width:100%; height:100%; border:none;';
+    iframe.style.cssText = css(IFRAME_FILL);
     host.appendChild(iframe);
 
     this.shadowRoot.appendChild(host);

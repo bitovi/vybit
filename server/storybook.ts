@@ -80,7 +80,10 @@ export async function loadStoryArgTypes(
  */
 export async function detectStorybookUrl(): Promise<string | null> {
   if (process.env.STORYBOOK_URL) {
-    return process.env.STORYBOOK_URL;
+    if (await probeStorybookUrl(process.env.STORYBOOK_URL)) {
+      return process.env.STORYBOOK_URL;
+    }
+    // Env var URL is not reachable — fall through to port scan
   }
 
   for (const port of SCAN_PORTS) {

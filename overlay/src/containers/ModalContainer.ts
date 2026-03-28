@@ -1,4 +1,5 @@
 import type { IContainer } from './IContainer';
+import { css, CONTAINER_HOST, DRAG_HANDLE, IFRAME_FLEX, CORNER_GRIPPER } from '../styles';
 
 const STORAGE_KEY = 'tw-modal-bounds';
 
@@ -36,28 +37,21 @@ export class ModalContainer implements IContainer {
     const host = document.createElement('div');
     host.className = 'container-modal';
     this.applyBounds(host);
-    host.style.position = 'fixed';
-    host.style.zIndex = '999999';
-    host.style.background = '#1e1e2e';
-    host.style.borderRadius = '8px';
-    host.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)';
-    host.style.display = 'flex';
-    host.style.flexDirection = 'column';
-    host.style.overflow = 'hidden';
-    host.style.pointerEvents = 'auto';
+    Object.assign(host.style, {
+      position: CONTAINER_HOST.position,
+      zIndex: CONTAINER_HOST.zIndex,
+      background: CONTAINER_HOST.background,
+      borderRadius: '8px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      pointerEvents: CONTAINER_HOST.pointerEvents,
+    });
 
     // Drag handle
     const handle = document.createElement('div');
-    handle.style.cssText = `
-      height: 28px;
-      background: #181825;
-      cursor: move;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      user-select: none;
-    `;
+    handle.style.cssText = css(DRAG_HANDLE);
     handle.innerHTML = `<svg width="32" height="6" viewBox="0 0 32 6" fill="none"><rect x="0" y="0" width="32" height="2" rx="1" fill="#585b70"/><rect x="0" y="4" width="32" height="2" rx="1" fill="#585b70"/></svg>`;
     this.setupDrag(handle, host);
     host.appendChild(handle);
@@ -66,19 +60,12 @@ export class ModalContainer implements IContainer {
     const iframe = document.createElement('iframe');
     iframe.src = panelUrl;
     iframe.allow = 'microphone';
-    iframe.style.cssText = 'flex:1; border:none; width:100%;';
+    iframe.style.cssText = css({ ...IFRAME_FLEX, width: '100%' });
     host.appendChild(iframe);
 
     // Resize gripper
     const gripper = document.createElement('div');
-    gripper.style.cssText = `
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      width: 16px;
-      height: 16px;
-      cursor: nwse-resize;
-    `;
+    gripper.style.cssText = css(CORNER_GRIPPER);
     gripper.innerHTML = '<span style="position:absolute;bottom:2px;right:4px;color:#585b70;font-size:10px;">◢</span>';
     this.setupResize(gripper, host, iframe);
     host.appendChild(gripper);

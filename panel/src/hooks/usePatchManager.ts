@@ -197,6 +197,7 @@ export function usePatchManager(): PatchManager {
   const handleQueueUpdate = useCallback((data: {
     draftCount: number; committedCount: number; implementingCount: number;
     implementedCount: number; partialCount: number; errorCount: number;
+    agentWaiting?: boolean;
     draft: PatchSummary[]; commits: CommitSummary[];
   }) => {
     setServerCounts({

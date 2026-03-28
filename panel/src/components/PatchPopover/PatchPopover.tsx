@@ -33,6 +33,12 @@ function describeComponentDrop(item: PatchItem): string {
 	}
 }
 
+/** Strip HTML tags and collapse whitespace, then truncate. */
+function stripHtml(html: string, maxLen: number): string {
+	const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+	return text.length > maxLen ? text.slice(0, maxLen) + "…" : text;
+}
+
 interface PatchPopoverProps {
 	label: string;
 	count: number;
@@ -152,13 +158,14 @@ export function PatchPopover({
 								const isMessage = "kind" in item && item.kind === "message";
 								const isDesign = "kind" in item && item.kind === "design";
 								const isComponentDrop = "kind" in item && item.kind === "component-drop";
+								const isTextChange = "kind" in item && item.kind === "text-change";
 								return (
 									<div
 										key={item.id}
 										className="flex items-center gap-1.5 px-3 py-1.5 border-b border-bv-border last:border-b-0 group"
 									>
 										<div className="flex-1 min-w-0">
-											{!isMessage && !isDesign && !isComponentDrop && item.component?.name && (
+											{!isMessage && !isDesign && !isComponentDrop && !isTextChange && item.component?.name && (
 												<div className="text-[10px] text-bv-muted truncate">
 													{item.component.name}
 												</div>
@@ -190,6 +197,25 @@ export function PatchPopover({
 												<div className="text-[11px] text-bv-text truncate">
 													<span className="mr-1">💬</span>"
 													{("message" in item && item.message) || ""}"
+												</div>
+											) : isTextChange ? (
+												<div className="text-[11px] text-bv-text">
+													<div className="flex items-center gap-1.5">
+														<span>✏️</span>
+														<span className="truncate">
+															Text edit
+															{item.component?.name
+																? ` in ${item.component.name}`
+																: ""}
+														</span>
+													</div>
+													{"originalHtml" in item && item.originalHtml && "newHtml" in item && item.newHtml && (
+														<div className="mt-0.5 text-[10px] font-mono text-bv-muted break-words">
+															<span className="line-through">{stripHtml(item.originalHtml as string, 30)}</span>
+															{" → "}
+															<span className="text-bv-teal">{stripHtml(item.newHtml as string, 30)}</span>
+														</div>
+													)}
 												</div>
 											) : (
 												<div className="text-[11px] font-mono text-bv-text truncate">

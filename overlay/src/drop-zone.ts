@@ -7,8 +7,15 @@ import { send, sendTo } from './ws';
 import { buildContext } from './context';
 import { getFiber, findComponentBoundary } from './fiber';
 import type { Patch } from '../../shared/types';
+import { css, TEAL, TEAL_06, Z_LOCKED, FIXED_OVERLAY, CURSOR_LABEL, INDICATOR_BASE, DASHED_BORDER, ARROW_BASE, LINE_BASE } from './styles';
 
 type DropPosition = 'before' | 'after' | 'first-child' | 'last-child';
+
+// Callback for generic insertion (used by canvas insertion)
+type InsertCallback = (target: HTMLElement, position: DropPosition) => void;
+
+// Callback for element-select arming (used by replace mode)
+type ElementSelectCallback = (target: HTMLElement) => void;
 
 // ── State ────────────────────────────────────────────────────────────────
 
@@ -27,7 +34,22 @@ let currentTarget: HTMLElement | null = null;
 let currentPosition: DropPosition | null = null;
 let overlayHost: HTMLElement | null = null;
 
-const TEAL = '#00848B';
+// When set, onClick calls this instead of the component-drop flow
+let insertCallback: InsertCallback | null = null;
+
+// Element-select mode — shows hover outline, click picks an element (no position)
+let elementSelectMode = false;
+let elementSelectCallback: ElementSelectCallback | null = null;
+let elementSelectOutlineEl: HTMLElement | null = null;
+
+// Browse mode — shows indicators, click locks a position
+let browseMode = false;
+let browseOnLocked: ((target: HTMLElement, position: DropPosition) => void) | null = null;
+let lockedTarget: HTMLElement | null = null;
+let lockedPosition: DropPosition | null = null;
+let lockedIndicatorEl: HTMLElement | null = null;
+let lockedArrowLeft: HTMLElement | null = null;
+let lockedArrowRight: HTMLElement | null = null;
 
 // ── Public API ───────────────────────────────────────────────────────────
 
@@ -49,18 +71,13 @@ export function armInsert(
 
   // Floating cursor label — teal pill that follows the cursor
   cursorLabelEl = document.createElement('div');
-  cursorLabelEl.style.cssText =
-    'position:fixed;pointer-events:none;z-index:2147483647;' +
-    `background:${TEAL};color:#fff;font-size:11px;font-family:system-ui,sans-serif;` +
-    'padding:3px 8px;border-radius:4px;white-space:nowrap;opacity:0;' +
-    'box-shadow:0 2px 6px rgba(0,0,0,0.3);transition:opacity 0.1s;';
+  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
   cursorLabelEl.textContent = `Place: ${componentName}`;
   document.body.appendChild(cursorLabelEl);
 
   // Drop indicator (reused and repositioned on each move)
   indicatorEl = document.createElement('div');
-  indicatorEl.style.cssText =
-    'position:fixed;pointer-events:none;z-index:2147483645;display:none;';
+  indicatorEl.style.cssText = css(INDICATOR_BASE);
   document.body.appendChild(indicatorEl);
 
   document.addEventListener('mousemove', onMouseMove);
@@ -73,8 +90,126 @@ export function cancelInsert(): void {
   cleanup();
 }
 
+/**
+ * Arm a generic insertion — shows drop-zone indicators, and on click calls the
+ * provided callback with the target element and position. Used for canvas insertion.
+ */
+export function armGenericInsert(
+  label: string,
+  shadowHost: HTMLElement,
+  callback: InsertCallback,
+): void {
+  if (active) cleanup();
+  active = true;
+  insertCallback = callback;
+  overlayHost = shadowHost;
+
+  document.documentElement.style.cursor = 'crosshair';
+
+  cursorLabelEl = document.createElement('div');
+  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
+  cursorLabelEl.textContent = label;
+  document.body.appendChild(cursorLabelEl);
+
+  indicatorEl = document.createElement('div');
+  indicatorEl.style.cssText = css(INDICATOR_BASE);
+  document.body.appendChild(indicatorEl);
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.documentElement.addEventListener('mouseleave', onMouseLeave);
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('keydown', onKeyDown);
+}
+
+/**
+ * Arm element-select mode — shows a hover outline around elements.
+ * On click, calls the provided callback with the target element (no position).
+ * Used for replace-mode canvas/component placement where we need to pick an
+ * element rather than a drop position.
+ */
+export function armElementSelect(
+  label: string,
+  shadowHost: HTMLElement,
+  callback: ElementSelectCallback,
+): void {
+  if (active) cleanup();
+  active = true;
+  elementSelectMode = true;
+  elementSelectCallback = callback;
+  overlayHost = shadowHost;
+
+  document.documentElement.style.cursor = 'crosshair';
+
+  cursorLabelEl = document.createElement('div');
+  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
+  cursorLabelEl.textContent = label;
+  document.body.appendChild(cursorLabelEl);
+
+  // Outline element (teal dashed border) instead of drop-position indicator
+  elementSelectOutlineEl = document.createElement('div');
+  elementSelectOutlineEl.style.cssText = css({ ...INDICATOR_BASE, ...DASHED_BORDER });
+  document.body.appendChild(elementSelectOutlineEl);
+
+  document.addEventListener('mousemove', onMouseMoveElementSelect);
+  document.documentElement.addEventListener('mouseleave', onMouseLeaveElementSelect);
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('keydown', onKeyDown);
+}
+
 export function isActive(): boolean {
   return active;
+}
+
+/**
+ * Start browse mode — shows drop-zone indicators as the user hovers.
+ * Clicking locks a target+position (persistent indicator). The locked position
+ * can be retrieved with getLockedInsert() for later use (e.g. canvas placement).
+ */
+export function startBrowse(
+  shadowHost: HTMLElement,
+  onLocked?: (target: HTMLElement, position: DropPosition) => void,
+): void {
+  if (active) cleanup();
+  clearLockedInsert();
+  active = true;
+  browseMode = true;
+  browseOnLocked = onLocked ?? null;
+  overlayHost = shadowHost;
+
+  document.documentElement.style.cursor = 'crosshair';
+
+  cursorLabelEl = document.createElement('div');
+  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
+  cursorLabelEl.textContent = 'Pick insertion point';
+  document.body.appendChild(cursorLabelEl);
+
+  indicatorEl = document.createElement('div');
+  indicatorEl.style.cssText = css(INDICATOR_BASE);
+  document.body.appendChild(indicatorEl);
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.documentElement.addEventListener('mouseleave', onMouseLeave);
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('keydown', onKeyDown);
+}
+
+/**
+ * Get the locked insertion point (target + position) from browse mode.
+ */
+export function getLockedInsert(): { target: HTMLElement; position: DropPosition } | null {
+  if (!lockedTarget || !lockedPosition) return null;
+  return { target: lockedTarget, position: lockedPosition };
+}
+
+/**
+ * Clear the locked insertion point and remove its indicator.
+ */
+export function clearLockedInsert(): void {
+  lockedTarget = null;
+  lockedPosition = null;
+  if (lockedIndicatorEl) { lockedIndicatorEl.remove(); lockedIndicatorEl = null; }
+  if (lockedArrowLeft) { lockedArrowLeft.remove(); lockedArrowLeft = null; }
+  if (lockedArrowRight) { lockedArrowRight.remove(); lockedArrowRight = null; }
 }
 
 // ── Drop position computation (matches Phase 1 useDropZone logic) ────────
@@ -119,41 +254,66 @@ function findTarget(x: number, y: number): HTMLElement | null {
   return el as HTMLElement;
 }
 
-// ── Indicator rendering (teal variant) ───────────────────────────────────
+// ── Pulse animation (injected once into document.head) ───────────────────
 
-function showIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
-  if (!indicatorEl) return;
-  const rect = target.getBoundingClientRect();
+function ensurePulseStyle(): void {
+  if (document.getElementById('tw-drop-pulse-style')) return;
+  const style = document.createElement('style');
+  style.id = 'tw-drop-pulse-style';
+  style.textContent = `
+    @keyframes tw-drop-pulse {
+      0%, 100% { filter: hue-rotate(0deg); }
+      50%      { filter: hue-rotate(189deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ── Shared indicator rendering ───────────────────────────────────────────
+
+interface RenderIndicatorOpts {
+  zIndex: number;
+  bgTint?: string;
+  animate?: boolean;
+}
+
+function renderIndicator(
+  container: HTMLElement,
+  position: DropPosition,
+  axis: 'vertical' | 'horizontal',
+  rect: DOMRect,
+  opts: RenderIndicatorOpts,
+): { arrowLeft: HTMLElement | null; arrowRight: HTMLElement | null } {
   const isInside = position === 'first-child' || position === 'last-child';
 
-  // Remove old arrows
-  if (arrowLeftEl) { arrowLeftEl.remove(); arrowLeftEl = null; }
-  if (arrowRightEl) { arrowRightEl.remove(); arrowRightEl = null; }
-
   if (isInside) {
-    // Border highlight mode
-    indicatorEl.style.cssText =
-      `position:fixed;pointer-events:none;z-index:2147483645;` +
-      `top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;` +
-      `border:2px dashed ${TEAL};border-radius:4px;box-sizing:border-box;display:block;background:none;`;
+    container.style.cssText = css({
+      ...FIXED_OVERLAY,
+      ...DASHED_BORDER,
+      zIndex: `${opts.zIndex}`,
+      display: 'block',
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      background: opts.bgTint ?? 'none',
+      ...(opts.animate ? { animation: 'tw-drop-pulse 2s ease-in-out infinite' } : {}),
+    });
 
-    // Directional arrow inside the border
     const arrow = document.createElement('div');
-    arrow.style.cssText = 'position:absolute;width:0;height:0;border-style:solid;';
+    arrow.style.cssText = css(ARROW_BASE);
 
     const size = 6;
     const isVertical = axis === 'vertical';
 
     if (position === 'first-child') {
       if (isVertical) {
-        // Arrow pointing down at top edge
         arrow.style.top = '4px';
         arrow.style.left = '50%';
         arrow.style.transform = 'translateX(-50%)';
         arrow.style.borderWidth = `${size}px ${size}px 0 ${size}px`;
         arrow.style.borderColor = `${TEAL} transparent transparent transparent`;
       } else {
-        // Arrow pointing right at left edge
         arrow.style.left = '4px';
         arrow.style.top = '50%';
         arrow.style.transform = 'translateY(-50%)';
@@ -162,14 +322,12 @@ function showIndicator(target: HTMLElement, position: DropPosition, axis: 'verti
       }
     } else {
       if (isVertical) {
-        // Arrow pointing up at bottom edge
         arrow.style.bottom = '4px';
         arrow.style.left = '50%';
         arrow.style.transform = 'translateX(-50%)';
         arrow.style.borderWidth = `0 ${size}px ${size}px ${size}px`;
         arrow.style.borderColor = `transparent transparent ${TEAL} transparent`;
       } else {
-        // Arrow pointing left at right edge
         arrow.style.right = '4px';
         arrow.style.top = '50%';
         arrow.style.transform = 'translateY(-50%)';
@@ -177,67 +335,90 @@ function showIndicator(target: HTMLElement, position: DropPosition, axis: 'verti
         arrow.style.borderColor = `transparent ${TEAL} transparent transparent`;
       }
     }
-    indicatorEl.appendChild(arrow);
-    arrowLeftEl = arrow; // reuse reference for cleanup
-  } else {
-    // Line mode (before/after)
-    const lineWidth = 3;
-    const isHorizontalLine = axis === 'vertical'; // vertical layout → horizontal line
-
-    if (isHorizontalLine) {
-      const y = position === 'before' ? rect.top : rect.bottom;
-      indicatorEl.style.cssText =
-        `position:fixed;pointer-events:none;z-index:2147483645;display:block;` +
-        `top:${y - lineWidth / 2}px;left:${rect.left}px;width:${rect.width}px;height:${lineWidth}px;` +
-        `background:${TEAL};border-radius:${lineWidth}px;`;
-    } else {
-      const x = position === 'before' ? rect.left : rect.right;
-      indicatorEl.style.cssText =
-        `position:fixed;pointer-events:none;z-index:2147483645;display:block;` +
-        `top:${rect.top}px;left:${x - lineWidth / 2}px;width:${lineWidth}px;height:${rect.height}px;` +
-        `background:${TEAL};border-radius:${lineWidth}px;`;
-    }
-
-    // Inward-pointing arrow end-caps (>———<)
-    const arrowSize = 5;
-    const inset = -2;
-
-    arrowLeftEl = document.createElement('div');
-    arrowLeftEl.style.cssText = 'position:absolute;width:0;height:0;border-style:solid;';
-    arrowRightEl = document.createElement('div');
-    arrowRightEl.style.cssText = 'position:absolute;width:0;height:0;border-style:solid;';
-
-    if (isHorizontalLine) {
-      // Left arrow: > pointing right, positioned at left end
-      arrowLeftEl.style.top = '50%';
-      arrowLeftEl.style.left = `${inset}px`;
-      arrowLeftEl.style.transform = 'translateY(-50%)';
-      arrowLeftEl.style.borderWidth = `${arrowSize}px 0 ${arrowSize}px ${arrowSize}px`;
-      arrowLeftEl.style.borderColor = `transparent transparent transparent ${TEAL}`;
-      // Right arrow: < pointing left, positioned at right end
-      arrowRightEl.style.top = '50%';
-      arrowRightEl.style.right = `${inset}px`;
-      arrowRightEl.style.transform = 'translateY(-50%)';
-      arrowRightEl.style.borderWidth = `${arrowSize}px ${arrowSize}px ${arrowSize}px 0`;
-      arrowRightEl.style.borderColor = `transparent ${TEAL} transparent transparent`;
-    } else {
-      // Top arrow: v pointing down, positioned at top end
-      arrowLeftEl.style.left = '50%';
-      arrowLeftEl.style.top = `${inset}px`;
-      arrowLeftEl.style.transform = 'translateX(-50%)';
-      arrowLeftEl.style.borderWidth = `${arrowSize}px ${arrowSize}px 0 ${arrowSize}px`;
-      arrowLeftEl.style.borderColor = `${TEAL} transparent transparent transparent`;
-      // Bottom arrow: ^ pointing up, positioned at bottom end
-      arrowRightEl.style.left = '50%';
-      arrowRightEl.style.bottom = `${inset}px`;
-      arrowRightEl.style.transform = 'translateX(-50%)';
-      arrowRightEl.style.borderWidth = `0 ${arrowSize}px ${arrowSize}px ${arrowSize}px`;
-      arrowRightEl.style.borderColor = `transparent transparent ${TEAL} transparent`;
-    }
-
-    indicatorEl.appendChild(arrowLeftEl);
-    indicatorEl.appendChild(arrowRightEl);
+    container.appendChild(arrow);
+    return { arrowLeft: arrow, arrowRight: null };
   }
+
+  // Line mode (before/after)
+  const lineWidth = 3;
+  const isHorizontalLine = axis === 'vertical';
+
+  if (isHorizontalLine) {
+    const y = position === 'before' ? rect.top : rect.bottom;
+    container.style.cssText = css({
+      ...LINE_BASE,
+      zIndex: `${opts.zIndex}`,
+      top: `${y - lineWidth / 2}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${lineWidth}px`,
+      borderRadius: `${lineWidth}px`,
+      ...(opts.animate ? { animation: 'tw-drop-pulse 2s ease-in-out infinite' } : {}),
+    });
+  } else {
+    const x = position === 'before' ? rect.left : rect.right;
+    container.style.cssText = css({
+      ...LINE_BASE,
+      zIndex: `${opts.zIndex}`,
+      top: `${rect.top}px`,
+      left: `${x - lineWidth / 2}px`,
+      width: `${lineWidth}px`,
+      height: `${rect.height}px`,
+      borderRadius: `${lineWidth}px`,
+      ...(opts.animate ? { animation: 'tw-drop-pulse 2s ease-in-out infinite' } : {}),
+    });
+  }
+
+  // Inward-pointing arrow end-caps (>———<)
+  const arrowSize = 5;
+  const inset = -2;
+
+  const arrowLeft = document.createElement('div');
+  arrowLeft.style.cssText = css(ARROW_BASE);
+  const arrowRight = document.createElement('div');
+  arrowRight.style.cssText = css(ARROW_BASE);
+
+  if (isHorizontalLine) {
+    arrowLeft.style.top = '50%';
+    arrowLeft.style.left = `${inset}px`;
+    arrowLeft.style.transform = 'translateY(-50%)';
+    arrowLeft.style.borderWidth = `${arrowSize}px 0 ${arrowSize}px ${arrowSize}px`;
+    arrowLeft.style.borderColor = `transparent transparent transparent ${TEAL}`;
+    arrowRight.style.top = '50%';
+    arrowRight.style.right = `${inset}px`;
+    arrowRight.style.transform = 'translateY(-50%)';
+    arrowRight.style.borderWidth = `${arrowSize}px ${arrowSize}px ${arrowSize}px 0`;
+    arrowRight.style.borderColor = `transparent ${TEAL} transparent transparent`;
+  } else {
+    arrowLeft.style.left = '50%';
+    arrowLeft.style.top = `${inset}px`;
+    arrowLeft.style.transform = 'translateX(-50%)';
+    arrowLeft.style.borderWidth = `${arrowSize}px ${arrowSize}px 0 ${arrowSize}px`;
+    arrowLeft.style.borderColor = `${TEAL} transparent transparent transparent`;
+    arrowRight.style.left = '50%';
+    arrowRight.style.bottom = `${inset}px`;
+    arrowRight.style.transform = 'translateX(-50%)';
+    arrowRight.style.borderWidth = `0 ${arrowSize}px ${arrowSize}px ${arrowSize}px`;
+    arrowRight.style.borderColor = `transparent transparent ${TEAL} transparent`;
+  }
+
+  container.appendChild(arrowLeft);
+  container.appendChild(arrowRight);
+  return { arrowLeft, arrowRight };
+}
+
+// ── Indicator rendering (hover — no animation) ──────────────────────────
+
+function showIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
+  if (!indicatorEl) return;
+
+  if (arrowLeftEl) { arrowLeftEl.remove(); arrowLeftEl = null; }
+  if (arrowRightEl) { arrowRightEl.remove(); arrowRightEl = null; }
+
+  const rect = target.getBoundingClientRect();
+  const arrows = renderIndicator(indicatorEl, position, axis, rect, { zIndex: 2147483645 });
+  arrowLeftEl = arrows.arrowLeft;
+  arrowRightEl = arrows.arrowRight;
 }
 
 function hideIndicator(): void {
@@ -285,9 +466,69 @@ function onMouseLeave(): void {
   if (cursorLabelEl) cursorLabelEl.style.opacity = '0';
 }
 
+// ── Element-select mouse handlers ────────────────────────────────────────
+
+function onMouseMoveElementSelect(e: MouseEvent): void {
+  if (!active || !elementSelectMode) return;
+
+  if (cursorLabelEl) {
+    cursorLabelEl.style.left = `${e.clientX + 14}px`;
+    cursorLabelEl.style.top = `${e.clientY - 28}px`;
+    cursorLabelEl.style.opacity = '1';
+  }
+
+  const target = findTarget(e.clientX, e.clientY);
+  if (!target) {
+    hideElementSelectOutline();
+    currentTarget = null;
+    return;
+  }
+
+  currentTarget = target;
+  showElementSelectOutline(target);
+}
+
+function onMouseLeaveElementSelect(): void {
+  hideElementSelectOutline();
+  currentTarget = null;
+  if (cursorLabelEl) cursorLabelEl.style.opacity = '0';
+}
+
+function showElementSelectOutline(target: HTMLElement): void {
+  if (!elementSelectOutlineEl) return;
+  const rect = target.getBoundingClientRect();
+  elementSelectOutlineEl.style.top = `${rect.top}px`;
+  elementSelectOutlineEl.style.left = `${rect.left}px`;
+  elementSelectOutlineEl.style.width = `${rect.width}px`;
+  elementSelectOutlineEl.style.height = `${rect.height}px`;
+  elementSelectOutlineEl.style.display = 'block';
+}
+
+function hideElementSelectOutline(): void {
+  if (elementSelectOutlineEl) elementSelectOutlineEl.style.display = 'none';
+}
+
 function onClick(e: MouseEvent): void {
   if (!active) return;
+
+  // Element-select mode — pick the element, no position needed
+  if (elementSelectMode) {
+    if (!currentTarget) return; // clicked empty area, keep waiting
+    e.preventDefault();
+    e.stopPropagation();
+    const target = currentTarget;
+    const cb = elementSelectCallback;
+    cleanup();
+    sendTo('panel', { type: 'COMPONENT_DISARMED' });
+    if (cb) cb(target);
+    return;
+  }
+
   if (!currentTarget || !currentPosition) {
+    if (browseMode) {
+      // Clicked in empty area during browse — just ignore, keep browsing
+      return;
+    }
     cleanup();
     sendTo('panel', { type: 'COMPONENT_DISARMED' });
     return;
@@ -295,6 +536,53 @@ function onClick(e: MouseEvent): void {
 
   e.preventDefault();
   e.stopPropagation();
+
+  // Browse mode — lock the position and keep a persistent indicator
+  if (browseMode) {
+    clearLockedInsert();
+    lockedTarget = currentTarget;
+    lockedPosition = currentPosition;
+
+    // Create a persistent indicator at the locked position
+    const parentAxis = currentTarget.parentElement ? getAxis(currentTarget.parentElement) : 'vertical';
+    lockedIndicatorEl = document.createElement('div');
+    lockedIndicatorEl.style.cssText = css({ ...FIXED_OVERLAY, zIndex: Z_LOCKED });
+    document.body.appendChild(lockedIndicatorEl);
+    showLockedIndicator(currentTarget, currentPosition, parentAxis);
+
+    // Resolve target component name for the panel label
+    const fiber = getFiber(currentTarget);
+    const boundary = fiber ? findComponentBoundary(fiber) : null;
+    const targetName = boundary?.componentName ?? currentTarget.tagName.toLowerCase();
+
+    // Notify panel of the locked insertion point
+    sendTo('panel', {
+      type: 'INSERT_POINT_LOCKED',
+      position: currentPosition,
+      targetName,
+      targetTag: currentTarget.tagName.toLowerCase(),
+    });
+
+    // End browse mode (stop tracking mouse) but keep the locked indicator
+    const lockedEl = currentTarget;
+    const lockedPos = currentPosition;
+    const cb = browseOnLocked;
+    cleanup();
+
+    // Notify callback so the overlay can show toolbar at the locked target
+    if (cb) cb(lockedEl, lockedPos);
+    return;
+  }
+
+  // Generic insertion mode (e.g. canvas) — delegate to callback
+  if (insertCallback) {
+    const target = currentTarget;
+    const position = currentPosition;
+    const cb = insertCallback;
+    cleanup();
+    cb(target, position);
+    return;
+  }
 
   // Insert the component HTML directly (no wrapper div — preserves inline flow)
   const template = document.createElement('template');
@@ -394,6 +682,25 @@ function onKeyDown(e: KeyboardEvent): void {
   }
 }
 
+// ── Locked indicator (persistent, pulsing, used by browse mode) ──────────
+
+function showLockedIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
+  if (!lockedIndicatorEl) return;
+  ensurePulseStyle();
+
+  if (lockedArrowLeft) { lockedArrowLeft.remove(); lockedArrowLeft = null; }
+  if (lockedArrowRight) { lockedArrowRight.remove(); lockedArrowRight = null; }
+
+  const rect = target.getBoundingClientRect();
+  const arrows = renderIndicator(lockedIndicatorEl, position, axis, rect, {
+    zIndex: 2147483644,
+    bgTint: TEAL_06,
+    animate: true,
+  });
+  lockedArrowLeft = arrows.arrowLeft;
+  lockedArrowRight = arrows.arrowRight;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 function findGhostAncestor(el: HTMLElement): HTMLElement | null {
@@ -413,15 +720,28 @@ function buildSelector(el: HTMLElement): string {
 }
 
 function cleanup(): void {
+  const wasElementSelect = elementSelectMode;
   active = false;
+  browseMode = false;
+  browseOnLocked = null;
+  insertCallback = null;
+  elementSelectMode = false;
+  elementSelectCallback = null;
   document.documentElement.style.cursor = '';
-  document.removeEventListener('mousemove', onMouseMove);
-  document.documentElement.removeEventListener('mouseleave', onMouseLeave);
+
+  if (wasElementSelect) {
+    document.removeEventListener('mousemove', onMouseMoveElementSelect);
+    document.documentElement.removeEventListener('mouseleave', onMouseLeaveElementSelect);
+  } else {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.documentElement.removeEventListener('mouseleave', onMouseLeave);
+  }
   document.removeEventListener('click', onClick, true);
   document.removeEventListener('keydown', onKeyDown);
 
   if (cursorLabelEl) { cursorLabelEl.remove(); cursorLabelEl = null; }
   if (indicatorEl) { indicatorEl.remove(); indicatorEl = null; }
+  if (elementSelectOutlineEl) { elementSelectOutlineEl.remove(); elementSelectOutlineEl = null; }
   arrowLeftEl = null;
   arrowRightEl = null;
   currentTarget = null;

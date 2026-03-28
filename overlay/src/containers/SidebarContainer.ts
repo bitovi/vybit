@@ -1,4 +1,5 @@
 import type { IContainer } from './IContainer';
+import { css, CONTAINER_HOST, PANEL_SHADOW, IFRAME_FLEX, RESIZE_HANDLE_H } from '../styles';
 
 export class SidebarContainer implements IContainer {
   readonly name = 'sidebar' as const;
@@ -19,17 +20,17 @@ export class SidebarContainer implements IContainer {
     this.originalBodyOverflow = document.body.style.overflow;
     const wrapper = document.createElement('div');
     wrapper.id = 'tw-page-wrapper';
-    wrapper.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: ${this.width}px;
-      bottom: 0;
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
-      background: transparent;
-      z-index: 0;
-    `;
+    wrapper.style.cssText = css({
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      right: `${this.width}px`,
+      bottom: '0',
+      overflow: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      background: 'transparent',
+      zIndex: '0',
+    });
 
     // Move existing body children (except the overlay host) into the wrapper.
     const bodyChildren = Array.from(document.body.childNodes);
@@ -52,27 +53,19 @@ export class SidebarContainer implements IContainer {
 
     const host = document.createElement('div');
     host.className = 'container-sidebar';
-    host.style.cssText = `
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: ${this.width}px;
-      height: 100vh;
-      z-index: 999999;
-      background: #1e1e2e;
-      box-shadow: -4px 0 24px rgba(0,0,0,0.3);
-      display: flex;
-      pointer-events: auto;
-    `;
+    host.style.cssText = css({
+      ...CONTAINER_HOST,
+      ...PANEL_SHADOW,
+      top: '0',
+      right: '0',
+      width: `${this.width}px`,
+      height: '100vh',
+      display: 'flex',
+    });
 
     // Resize handle on left edge
     const resizeHandle = document.createElement('div');
-    resizeHandle.style.cssText = `
-      width: 6px;
-      cursor: ew-resize;
-      background: transparent;
-      flex-shrink: 0;
-    `;
+    resizeHandle.style.cssText = css(RESIZE_HANDLE_H);
     resizeHandle.addEventListener('mouseenter', () => { resizeHandle.style.background = '#45475a'; });
     resizeHandle.addEventListener('mouseleave', () => { resizeHandle.style.background = 'transparent'; });
     this.setupResize(resizeHandle, host);
@@ -81,7 +74,7 @@ export class SidebarContainer implements IContainer {
     const iframe = document.createElement('iframe');
     iframe.src = panelUrl;
     iframe.allow = 'microphone';
-    iframe.style.cssText = 'flex:1; border:none; height:100%;';
+    iframe.style.cssText = css({ ...IFRAME_FLEX, height: '100%' });
     host.appendChild(iframe);
 
     this.shadowRoot.appendChild(host);
