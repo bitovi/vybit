@@ -87,6 +87,7 @@ export class AdaptiveIframe extends HTMLElement {
 
   connectedCallback() {
     document.body.appendChild(this.hiddenIframe);
+    this.syncIframeWidth();
     this.triggerLoad();
   }
 
@@ -97,7 +98,19 @@ export class AdaptiveIframe extends HTMLElement {
   }
 
   attributeChangedCallback() {
-    if (this.isConnected) this.triggerLoad();
+    if (this.isConnected) {
+      this.syncIframeWidth();
+      this.triggerLoad();
+    }
+  }
+
+  /** Sync the hidden iframe width to the host element's container width so
+   *  the story renders at the correct size from the start. */
+  private syncIframeWidth() {
+    const hostWidth = this.clientWidth;
+    if (hostWidth > 0) {
+      this.hiddenIframe.style.width = hostWidth + 'px';
+    }
   }
 
   private triggerLoad() {
@@ -182,6 +195,11 @@ export class AdaptiveIframe extends HTMLElement {
       }),
       '*',
     );
+    // Re-extract after Storybook re-renders with updated args
+    setTimeout(() => {
+      const doc = this.hiddenIframe.contentDocument;
+      if (doc) this.extractAndApply(doc);
+    }, 300);
   }
 
   /**
@@ -195,22 +213,26 @@ export class AdaptiveIframe extends HTMLElement {
     this.observer?.disconnect();
 
     let extracted = false;
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20; // ~10 seconds at 500ms intervals
 
     const tryExtract = () => {
       const root = this.findStoryRoot(doc);
       if (root) {
         extracted = true;
         this.extractAndApply(doc);
+        // Done — disconnect the observer
+        if (this.observer) {
+          this.observer.disconnect();
+          this.observer = null;
+        }
         return true;
       }
       return false;
     };
 
     // Check if content is already there
-    if (tryExtract()) {
-      // Keep observing for future DOM mutations (args updates)
-    }
+    if (tryExtract()) return;
 
     // Observe #storybook-root (or body as fallback) for child changes
     const storybookRoot = doc.querySelector('#storybook-root');
@@ -218,19 +240,16 @@ export class AdaptiveIframe extends HTMLElement {
     if (!target) return;
 
     const observer = new MutationObserver(() => {
-      const root = this.findStoryRoot(doc);
       if (!extracted) {
-        // Initial extraction — run immediately
-        tryExtract();
-      } else {
-        // Subsequent mutations (e.g. args update) — wait for CSS transitions to finish
-        // before extracting, so computed colors are fully resolved.
-        if (debounceTimer) clearTimeout(debounceTimer);
-        const transitionMs = root
-          ? parseFloat((root.ownerDocument.defaultView ?? window).getComputedStyle(root).transitionDuration) * 1000
-          : 0;
-        const waitMs = Math.ceil(transitionMs) + 50;
-        debounceTimer = setTimeout(() => tryExtract(), waitMs);
+        attempts++;
+        if (tryExtract()) return;
+        // Give up after MAX_ATTEMPTS mutations without finding content
+        if (attempts >= MAX_ATTEMPTS) {
+          observer.disconnect();
+          this.observer = null;
+          console.error(`[AdaptiveIframe] gave up after ${attempts} mutations — story never appeared. src=${this.getAttribute('src')}`);
+          this.reportError('Story did not render — component may not exist or Storybook story file has an error');
+        }
       }
     });
     this.observer = observer;
@@ -238,36 +257,19 @@ export class AdaptiveIframe extends HTMLElement {
       childList: true,
       subtree: true,
       characterData: true,
-      attributes: true,
     });
 
     // Also observe body for portal-rendered content (e.g. Radix dialogs)
-    // that mounts outside #storybook-root directly on document.body.
-    // Only watch childList (not subtree/attributes) to avoid animation spam.
     if (storybookRoot && doc.body && storybookRoot !== doc.body) {
-      observer.observe(doc.body, {
-        childList: true,
-      });
+      observer.observe(doc.body, { childList: true });
     }
 
-    // Safety timeout: only disconnect the observer created in THIS call.
-    // Guards against stories that never render (broken/missing).
-    // After extraction the observer stays alive for args-update re-extraction.
+    // Safety timeout — disconnect if story never renders
     setTimeout(() => {
       if (!extracted && this.observer === observer) {
         this.observer.disconnect();
         this.observer = null;
-        const sbRoot = doc.querySelector('#storybook-root');
         console.error(`[AdaptiveIframe] 20s timeout — story never rendered. src=${this.getAttribute('src')}`);
-        console.error(`[AdaptiveIframe]   #storybook-root exists=${!!sbRoot}, children=${sbRoot?.children.length ?? 0}`);
-        if (sbRoot) {
-          console.error(`[AdaptiveIframe]   #storybook-root innerHTML (first 500)=${sbRoot.innerHTML.slice(0, 500)}`);
-        }
-        console.error(`[AdaptiveIframe]   body innerHTML (first 500)=${doc.body?.innerHTML.slice(0, 500)}`);
-        const errorEl = doc.querySelector('#error-message, .sb-errordisplay, [id*="error"]');
-        if (errorEl) {
-          console.error(`[AdaptiveIframe]   error element found: ${errorEl.textContent?.slice(0, 300)}`);
-        }
         this.reportError('Story did not render — component may not exist or Storybook story file has an error');
       }
     }, 20000);
@@ -281,13 +283,20 @@ export class AdaptiveIframe extends HTMLElement {
   private findStoryRoot(doc: Document): Element | null {
     const storybookRoot = doc.querySelector('#storybook-root');
     if (storybookRoot) {
-      // Skip elements that are the Storybook loading spinner
+      // Log all children once per load cycle for debugging
+      const childSummary = Array.from(storybookRoot.children).map(
+        (c, i) => `[${i}] <${c.tagName.toLowerCase()} id="${c.id}" class="${(c.className || '').toString().slice(0, 50)}">`
+      ).join('\n  ');
+      this.logOnce('children', `[AdaptiveIframe] findStoryRoot — #storybook-root has ${storybookRoot.children.length} children:\n  ${childSummary}`);
+
+      // Skip Storybook infrastructure elements (spinner, highlights addon, etc.)
       for (const child of storybookRoot.children) {
-        if (!child.classList.contains('sb-loader')) {
-          this.logOnce('root', `[AdaptiveIframe] found story root in #storybook-root: <${child.tagName.toLowerCase()}>`);
-          return child;
-        }
+        if (child.classList.contains('sb-loader')) continue;
+        if (child.id && (child.id.startsWith('storybook-') || child.id.startsWith('sb-'))) continue;
+        this.logOnce('root', `[AdaptiveIframe] SELECTED story root: <${child.tagName.toLowerCase()} id="${child.id}" class="${(child.className || '').toString().slice(0, 80)}">`);
+        return child;
       }
+      this.logOnce('no-root-filtered', `[AdaptiveIframe] NO story root found after filtering ${storybookRoot.children.length} children`);
 
       // #storybook-root is empty — check for portaled content that renders
       // as a direct child of body outside of #storybook-root.
@@ -335,6 +344,8 @@ export class AdaptiveIframe extends HTMLElement {
     for (const child of doc.body.children) {
       if (AdaptiveIframe.INFRA_TAGS.has(child.tagName)) continue;
       if (child.id && AdaptiveIframe.INFRA_IDS.has(child.id)) continue;
+      // Skip any element whose ID starts with storybook- or sb- (addons, highlights, etc.)
+      if (child.id && (child.id.startsWith('storybook-') || child.id.startsWith('sb-'))) continue;
 
       // Skip Storybook infrastructure elements (sb-preparing-story, sb-wrapper, etc.)
       if (child.className && typeof child.className === 'string') {
@@ -385,17 +396,6 @@ export class AdaptiveIframe extends HTMLElement {
     const win = root ? (root.ownerDocument.defaultView ?? window) : window;
     if (!root) return;
     this.logOnce('extract', `[AdaptiveIframe] extractAndApply: root=<${root.tagName.toLowerCase()}>, src=${this.getAttribute('src')}`);
-
-    // Sync hidden iframe width to the host element's actual width so that
-    // block-level content auto-expands to the correct size.  Fall back to
-    // 800 px if the host hasn't been laid out yet.
-    // Width is only set once (first extraction) to avoid a feedback loop where
-    // re-extraction → smaller host width → narrower iframe → even smaller
-    // extracted width → repeat until content collapses (e.g. portal dialogs).
-    if (!this._loadedDispatched) {
-      const hostWidth = this.clientWidth || 800;
-      this.hiddenIframe.style.width = hostWidth + 'px';
-    }
 
     // Extract computed styles and apply to host (drives layout flow)
     const styles = extractStyles(root);

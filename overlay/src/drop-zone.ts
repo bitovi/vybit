@@ -91,6 +91,79 @@ export function cancelInsert(): void {
 }
 
 /**
+ * Directly replace a target element with a component — no hover/click needed.
+ * Used by replace mode after element-select picks the target.
+ */
+export function replaceElement(
+  target: HTMLElement,
+  msg: { componentName: string; storyId: string; ghostHtml: string; componentPath?: string; args?: Record<string, unknown> },
+): HTMLElement | null {
+  const template = document.createElement('template');
+  template.innerHTML = msg.ghostHtml.trim();
+  const inserted = template.content.firstElementChild as HTMLElement | null;
+  if (!inserted) return null;
+  inserted.dataset.twDroppedComponent = msg.componentName;
+
+  // Replace: insert the ghost before the target, then hide the target
+  target.insertAdjacentElement('beforebegin', inserted);
+  target.style.display = 'none';
+
+  const targetSelector = buildSelector(target);
+
+  const isGhostTarget = !!target.dataset.twDroppedComponent;
+  const ghostTargetPatchId = target.dataset.twDroppedPatchId;
+  const ghostTargetName = target.dataset.twDroppedComponent;
+  const ghostAncestor = !isGhostTarget ? findGhostAncestor(target) : null;
+  const effectiveGhostName = isGhostTarget ? ghostTargetName : ghostAncestor?.dataset.twDroppedComponent;
+  const effectiveGhostPatchId = isGhostTarget ? ghostTargetPatchId : ghostAncestor?.dataset.twDroppedPatchId;
+
+  const context = effectiveGhostName
+    ? `Replace the <${effectiveGhostName} /> component (pending insertion from an earlier drop) with "${msg.componentName}"`
+    : buildContext(target, '', '', new Map());
+
+  let parentComponent: { name: string } | undefined;
+  const fiber = getFiber(target);
+  if (fiber) {
+    const boundary = findComponentBoundary(fiber);
+    if (boundary) parentComponent = { name: boundary.componentName };
+  }
+
+  const patch: Patch = {
+    id: crypto.randomUUID(),
+    kind: 'component-drop',
+    elementKey: targetSelector,
+    status: 'staged',
+    originalClass: '',
+    newClass: '',
+    property: 'component-drop',
+    timestamp: new Date().toISOString(),
+    component: { name: msg.componentName },
+    target: isGhostTarget
+      ? { tag: ghostTargetName?.toLowerCase() ?? 'unknown', classes: '', innerText: '' }
+      : {
+          tag: target.tagName.toLowerCase(),
+          classes: target.className,
+          innerText: target.innerText.slice(0, 100),
+        },
+    ghostHtml: msg.ghostHtml,
+    componentStoryId: msg.storyId,
+    componentPath: msg.componentPath || undefined,
+    componentArgs: Object.keys(msg.args ?? {}).length > 0 ? msg.args : undefined,
+    parentComponent,
+    insertMode: 'replace',
+    context,
+    ...(effectiveGhostPatchId ? { targetPatchId: effectiveGhostPatchId, targetComponentName: effectiveGhostName } : {}),
+  };
+
+  inserted.dataset.twDroppedPatchId = patch.id;
+
+  send({ type: 'COMPONENT_DROPPED', patch });
+  sendTo('panel', { type: 'COMPONENT_DISARMED' });
+
+  return inserted;
+}
+
+/**
  * Arm a generic insertion — shows drop-zone indicators, and on click calls the
  * provided callback with the target element and position. Used for canvas insertion.
  */

@@ -49,11 +49,28 @@ const CHILD_STYLE_PROPERTIES = [
 export { STYLE_PROPERTIES, CHILD_STYLE_PROPERTIES };
 
 /**
+ * Inherited CSS properties that must always be extracted even if they match
+ * the baseline.  The baseline element inherits from the source document
+ * (e.g. Storybook's white-background page) but the host renders in a
+ * different context (the dark-themed panel), so inherited values would be
+ * wrong if omitted.
+ */
+const ALWAYS_EXTRACT = new Set([
+  'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+  'line-height', 'letter-spacing', 'text-align', 'text-transform',
+  'text-decoration',
+]);
+
+/**
  * Extract only the non-default computed styles from an element by comparing
  * against a bare baseline element of the same tag.  This captures every
  * property that was explicitly set (by stylesheets, inheritance from styled
  * ancestors, etc.) without needing a hand-maintained allowlist, and produces
  * a minimal set of inline styles.
+ *
+ * Inherited properties in ALWAYS_EXTRACT are included even if they match
+ * the baseline, because the host element lives in a different document
+ * context where inherited values differ.
  */
 export function extractStyles(el: Element): Record<string, string> {
   const win = el.ownerDocument.defaultView ?? window;
@@ -73,7 +90,7 @@ export function extractStyles(el: Element): Record<string, string> {
   for (let i = 0; i < computed.length; i++) {
     const prop = computed[i];
     const value = computed.getPropertyValue(prop);
-    if (value !== baselineComputed.getPropertyValue(prop)) {
+    if (ALWAYS_EXTRACT.has(prop) || value !== baselineComputed.getPropertyValue(prop)) {
       styles[prop] = value;
     }
   }
@@ -97,12 +114,15 @@ export function applyStylesToHost(
   containerWidth?: number,
 ): void {
   for (const [prop, value] of Object.entries(styles)) {
-    if (prop === 'height') continue;
-    if (prop === 'width' && containerWidth != null) {
+    // Skip height / block-size so ghost content drives height naturally
+    if (prop === 'height' || prop === 'block-size') continue;
+    // Skip width / inline-size when the element simply filled its container
+    if ((prop === 'width' || prop === 'inline-size') && containerWidth != null) {
       const px = parseFloat(value);
-      // Skip if the element simply filled its container (auto width)
       if (!isNaN(px) && Math.abs(px - containerWidth) < 1) continue;
     }
+    // Skip geometry-derived properties that cause style thrashing
+    if (prop === 'perspective-origin' || prop === 'transform-origin') continue;
     host.style.setProperty(prop, value);
   }
 }
@@ -116,6 +136,13 @@ export function applyStylesToHost(
  * Caches baseline computed styles per tag name to avoid creating a
  * new baseline element for every node in the tree.
  */
+/** Properties to always skip on child elements — they should size naturally
+ *  in the host context, and geometry-derived values cause thrashing. */
+const SKIP_CHILD_PROPS = new Set([
+  'width', 'height', 'inline-size', 'block-size',
+  'perspective-origin', 'transform-origin',
+]);
+
 export function injectChildStyles(
   sourceEl: Element | null,
   cloneEl: Element | null,
@@ -158,8 +185,8 @@ export function injectChildStyles(
       const baseline = getBaseline(source.tagName.toLowerCase());
       for (let i = 0; i < computed.length; i++) {
         const prop = computed[i];
-        // Skip width/height on children — they should size naturally
-        if (prop === 'width' || prop === 'height') continue;
+        // Skip sizing props on children — they should size naturally
+        if (SKIP_CHILD_PROPS.has(prop)) continue;
         const value = computed.getPropertyValue(prop);
         if (value !== (baseline.get(prop) ?? '')) {
           cloneHtml.style.setProperty(prop, value);

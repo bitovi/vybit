@@ -46,7 +46,7 @@ export function DesignCanvas({ onSubmit, onClose, backgroundImage, armedComponen
       <div
         ref={containerRef}
         className={`bg-white overflow-hidden relative ${isArmed ? 'cursor-crosshair' : ''}`}
-        style={lockedHeight !== null ? { height: lockedHeight } : { flex: 1 }}
+        style={{ flex: 1 }}
       >
         <canvas ref={canvasElRef} />
         {/* Ghost HTML preview following cursor when a component is armed */}

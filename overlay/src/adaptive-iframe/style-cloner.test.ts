@@ -59,7 +59,7 @@ describe('extractStyles', () => {
     }
   });
 
-  test('skips properties that match the baseline', () => {
+  test('skips properties that match the baseline (except always-extract)', () => {
     const el = document.createElement('div');
     const props = ['display', 'color'];
     // Mock: both source and baseline return the same values
@@ -73,8 +73,10 @@ describe('extractStyles', () => {
 
     const result = extractStyles(el);
 
-    // display=block is the default for a div, so it should be skipped
-    expect(result).toEqual({});
+    // display=block matches baseline and is not in ALWAYS_EXTRACT → skipped
+    expect(result['display']).toBeUndefined();
+    // color is in ALWAYS_EXTRACT → always included even if it matches baseline
+    expect(result['color']).toBe('');
   });
 
   test('returns empty object when no computed properties', () => {
@@ -160,6 +162,50 @@ describe('applyStylesToHost', () => {
 
     expect(host.style.getPropertyValue('display')).toBe('flex');
   });
+
+  test('skips block-size so ghost content drives height naturally', () => {
+    const host = document.createElement('div');
+    applyStylesToHost(host, { 'block-size': '106px', 'inline-size': '200px' });
+
+    expect(host.style.getPropertyValue('block-size')).toBe('');
+    expect(host.style.getPropertyValue('inline-size')).toBe('200px');
+  });
+
+  test('skips inline-size when it matches containerWidth (auto-fill)', () => {
+    const host = document.createElement('div');
+    applyStylesToHost(host, { 'inline-size': '800px', 'background-color': 'red' }, 800);
+
+    expect(host.style.getPropertyValue('inline-size')).toBe('');
+    expect(host.style.getPropertyValue('background-color')).toBe('red');
+  });
+
+  test('skips width when it matches containerWidth (auto-fill)', () => {
+    const host = document.createElement('div');
+    applyStylesToHost(host, { width: '800px', 'background-color': 'red' }, 800);
+
+    expect(host.style.getPropertyValue('width')).toBe('');
+    expect(host.style.getPropertyValue('background-color')).toBe('red');
+  });
+
+  test('preserves inline-size when it differs from containerWidth', () => {
+    const host = document.createElement('div');
+    applyStylesToHost(host, { 'inline-size': '240px' }, 800);
+
+    expect(host.style.getPropertyValue('inline-size')).toBe('240px');
+  });
+
+  test('skips perspective-origin and transform-origin (geometry-derived)', () => {
+    const host = document.createElement('div');
+    applyStylesToHost(host, {
+      'perspective-origin': '400px 53px',
+      'transform-origin': '400px 53px',
+      'background-color': 'red',
+    });
+
+    expect(host.style.getPropertyValue('perspective-origin')).toBe('');
+    expect(host.style.getPropertyValue('transform-origin')).toBe('');
+    expect(host.style.getPropertyValue('background-color')).toBe('red');
+  });
 });
 
 describe('injectChildStyles', () => {
@@ -233,6 +279,10 @@ describe('injectChildStyles', () => {
     const mockStyles: Record<string, string> = {
       width: '200px',
       height: '100px',
+      'inline-size': '750px',
+      'block-size': '24px',
+      'perspective-origin': '375px 12px',
+      'transform-origin': '375px 12px',
       color: 'rgb(255, 0, 0)',
     };
     mockComputedStyleFor(source, mockStyles);
@@ -241,6 +291,10 @@ describe('injectChildStyles', () => {
 
     expect(clone.style.getPropertyValue('width')).toBe('');
     expect(clone.style.getPropertyValue('height')).toBe('');
+    expect(clone.style.getPropertyValue('inline-size')).toBe('');
+    expect(clone.style.getPropertyValue('block-size')).toBe('');
+    expect(clone.style.getPropertyValue('perspective-origin')).toBe('');
+    expect(clone.style.getPropertyValue('transform-origin')).toBe('');
     expect(clone.style.getPropertyValue('color')).toBe('rgb(255, 0, 0)');
 
     document.body.removeChild(source);

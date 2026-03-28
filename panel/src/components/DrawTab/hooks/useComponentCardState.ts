@@ -71,7 +71,7 @@ export function cardReducer(state: CardState, action: CardAction): CardState {
 
     // ── Probing ────────────────────────────────────────────────────────
     case 'PROBE_COMPLETE': {
-      if (state.phase !== 'probing') return state;
+      if (state.phase !== 'probing' && state.phase !== 'cached') return state;
       return {
         ...state,
         phase: 'probe-done',
@@ -82,7 +82,7 @@ export function cardReducer(state: CardState, action: CardAction): CardState {
       };
     }
     case 'PROBE_FALLBACK': {
-      if (state.phase !== 'probing') return state;
+      if (state.phase !== 'probing' && state.phase !== 'cached') return state;
       return {
         ...state,
         phase: 'probe-done',
