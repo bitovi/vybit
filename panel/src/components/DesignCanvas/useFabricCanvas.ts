@@ -42,21 +42,25 @@ export function useFabricCanvas({ onSubmit, backgroundImage, armedComponent, onC
 
     fabricRef.current = canvas;
 
-    // Fit to container — skip if a screenshot background has locked the dimensions
+    // Fit canvas to container
     const resize = () => {
-      if (!containerRef.current || hasBackgroundRef.current) return;
+      if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
       canvas.setDimensions({ width, height });
     };
     resize();
     const observer = new ResizeObserver(resize);
     if (containerRef.current) observer.observe(containerRef.current);
+    // Also listen for window resize — handles iframe viewport changes that
+    // ResizeObserver may not catch (e.g. parent page resizing the iframe element)
+    window.addEventListener('resize', resize);
 
     // Save initial state
     setUndoStack([JSON.stringify(canvas.toJSON())]);
 
     return () => {
       observer.disconnect();
+      window.removeEventListener('resize', resize);
       canvas.dispose();
       fabricRef.current = null;
     };
@@ -112,10 +116,7 @@ export function useFabricCanvas({ onSubmit, backgroundImage, armedComponent, onC
 
     FabricImage.fromURL(backgroundImage).then((img) => {
       if (!img.width || !img.height) return;
-      // Resize canvas to match the screenshot exactly and lock out the ResizeObserver
       hasBackgroundRef.current = true;
-      canvas.setDimensions({ width: img.width, height: img.height });
-      setLockedHeight(img.height);
       img.set({ selectable: false, evented: false, hasBorders: false, hasControls: false });
       canvas.backgroundImage = img;
       canvas.requestRenderAll();

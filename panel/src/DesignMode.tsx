@@ -78,7 +78,7 @@ export function DesignMode() {
   }, []);
 
   return (
-    <div className="h-screen w-screen flex flex-col">
+    <div className="h-full w-full flex flex-col">
       <div className="flex-1 overflow-hidden">
         <DesignCanvas
           onSubmit={handleSubmit}

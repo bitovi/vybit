@@ -68,7 +68,7 @@ export function ComponentGroupItem({ group, isArmed, onArm, onDisarm, cachedGhos
 
   // Bridge: probe results → reducer
   useEffect(() => {
-    if (!probing && bestStory && state.phase === 'probing') {
+    if (!probing && bestStory && (state.phase === 'probing' || state.phase === 'cached')) {
       if (Object.keys(argTypes).length > 0) {
         dispatch({ type: 'PROBE_COMPLETE', bestStory, argTypes, defaultArgs });
       } else {

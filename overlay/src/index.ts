@@ -1,4 +1,4 @@
-import { armInsert, armGenericInsert, armElementSelect, cancelInsert, startBrowse, getLockedInsert, clearLockedInsert, isActive as isDropZoneActive } from "./drop-zone";
+import { armInsert, armGenericInsert, armElementSelect, cancelInsert, replaceElement, startBrowse, getLockedInsert, clearLockedInsert, isActive as isDropZoneActive } from "./drop-zone";
 import { computePosition, flip, offset } from "@floating-ui/dom";
 import { parseClasses } from "./tailwind/class-parser";
 import { startTextEdit, endTextEdit, isTextEditing } from "./text-edit";
@@ -19,7 +19,9 @@ import {
 	getRootFiber,
 	resolvePathToDOM,
 } from "./fiber";
-import { css, TEAL, DESIGN_CANVAS, DESIGN_CANVAS_IFRAME, CANVAS_RESIZE_HANDLE, CANVAS_RESIZE_BAR, CANVAS_CORNER_HANDLE, CANVAS_CORNER_DECO, SHADOW_HOST, SUBMITTED_IMAGE } from './styles';
+import './design-canvas/index';
+import type { VbDesignCanvas } from './design-canvas/vb-design-canvas';
+import { css, TEAL, SHADOW_HOST, SUBMITTED_IMAGE } from './styles';
 import type { ElementGroup } from "./grouping";
 import { computeNearGroups, findExactMatches } from "./grouping";
 import type { InsertMode } from "./messages";
@@ -1213,6 +1215,9 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 	const composed = e.composedPath();
 	if (composed.some((el) => el === shadowHost)) { return; }
 
+	// Ignore clicks while the drop-zone is handling element-select (e.g. replace mode)
+	if (isDropZoneActive()) return;
+
 	// Ignore clicks inside an active design canvas wrapper
 	if (
 		composed.some(
@@ -1358,91 +1363,10 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 
 	const targetEl = currentTargetEl;
 
-	// Create the wrapper div inserted into the DOM flow based on insertMode
-	const wrapper = document.createElement("div");
-	wrapper.setAttribute("data-tw-design-canvas", "true");
-	wrapper.style.cssText = css({
-		...DESIGN_CANVAS,
-		width: '100%',
-		height: '400px',
-		minHeight: '200px',
-	});
-
-	// Create iframe for the design canvas
-	const iframe = document.createElement("iframe");
-	iframe.src = `${SERVER_ORIGIN}/panel/?mode=design`;
-	iframe.allow = "microphone";
-	iframe.style.cssText = css(DESIGN_CANVAS_IFRAME);
-
-	wrapper.appendChild(iframe);
-
-	// Add resize handle at bottom
-	const resizeHandle = document.createElement("div");
-	resizeHandle.style.cssText = css(CANVAS_RESIZE_HANDLE);
-	const resizeBar = document.createElement("div");
-	resizeBar.style.cssText = css(CANVAS_RESIZE_BAR);
-	resizeHandle.appendChild(resizeBar);
-	wrapper.appendChild(resizeHandle);
-
-	// Resize logic (vertical)
-	let startY = 0;
-	let startHeight = 0;
-	const onResizeMove = (e: MouseEvent) => {
-		const delta = e.clientY - startY;
-		const newHeight = Math.max(150, startHeight + delta);
-		wrapper.style.height = `${newHeight}px`;
-	};
-	const onResizeUp = () => {
-		iframe.style.pointerEvents = "";
-		document.removeEventListener("mousemove", onResizeMove);
-		document.removeEventListener("mouseup", onResizeUp);
-		document.documentElement.style.cursor = "";
-	};
-	resizeHandle.addEventListener("mousedown", (e) => {
-		e.preventDefault();
-		iframe.style.pointerEvents = "none";
-		startY = e.clientY;
-		startHeight = wrapper.offsetHeight;
-		document.documentElement.style.cursor = "ns-resize";
-		document.addEventListener("mousemove", onResizeMove);
-		document.addEventListener("mouseup", onResizeUp);
-	});
-
-	// Add corner resize handle (both axes)
-	const cornerHandle = document.createElement("div");
-	cornerHandle.style.cssText = css(CANVAS_CORNER_HANDLE);
-	const cornerDeco = document.createElement("div");
-	cornerDeco.style.cssText = css(CANVAS_CORNER_DECO);
-	cornerHandle.appendChild(cornerDeco);
-	wrapper.appendChild(cornerHandle);
-
-	let cornerStartX = 0;
-	let cornerStartY = 0;
-	let cornerStartWidth = 0;
-	let cornerStartHeight = 0;
-	const onCornerMove = (e: MouseEvent) => {
-		const dw = e.clientX - cornerStartX;
-		const dh = e.clientY - cornerStartY;
-		wrapper.style.width = `${Math.max(200, cornerStartWidth + dw)}px`;
-		wrapper.style.height = `${Math.max(150, cornerStartHeight + dh)}px`;
-	};
-	const onCornerUp = () => {
-		iframe.style.pointerEvents = "";
-		document.removeEventListener("mousemove", onCornerMove);
-		document.removeEventListener("mouseup", onCornerUp);
-		document.documentElement.style.cursor = "";
-	};
-	cornerHandle.addEventListener("mousedown", (e) => {
-		e.preventDefault();
-		iframe.style.pointerEvents = "none";
-		cornerStartX = e.clientX;
-		cornerStartY = e.clientY;
-		cornerStartWidth = wrapper.offsetWidth;
-		cornerStartHeight = wrapper.offsetHeight;
-		document.documentElement.style.cursor = "nwse-resize";
-		document.addEventListener("mousemove", onCornerMove);
-		document.addEventListener("mouseup", onCornerUp);
-	});
+	// Create design canvas element
+	const canvas = document.createElement('vb-design-canvas') as VbDesignCanvas;
+	canvas.setAttribute('src', `${SERVER_ORIGIN}/panel/?mode=design`);
+	const wrapper = canvas.getWrapper();
 
 	// Insert into the DOM based on insertMode
 	let replacedNodes: HTMLElement[] | null = null;
@@ -1453,36 +1377,36 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 		case "replace": {
 			// Replace: insert canvas before the target, then hide the target
 			replacedParent = targetEl.parentElement;
-			targetEl.insertAdjacentElement("beforebegin", wrapper);
-			replacedAnchor = wrapper.nextSibling;
+			targetEl.insertAdjacentElement("beforebegin", canvas);
+			replacedAnchor = canvas.nextSibling;
 			replacedNodes = [targetEl];
 			targetEl.style.display = "none";
 			break;
 		}
 		case "before":
-			targetEl.insertAdjacentElement("beforebegin", wrapper);
+			targetEl.insertAdjacentElement("beforebegin", canvas);
 			break;
 		case "after":
-			targetEl.insertAdjacentElement("afterend", wrapper);
+			targetEl.insertAdjacentElement("afterend", canvas);
 			break;
 		case "first-child":
-			targetEl.insertAdjacentElement("afterbegin", wrapper);
+			targetEl.insertAdjacentElement("afterbegin", canvas);
 			break;
 		case "last-child":
-			targetEl.appendChild(wrapper);
+			targetEl.appendChild(canvas);
 			break;
 		default:
-			targetEl.insertAdjacentElement("beforebegin", wrapper);
+			targetEl.insertAdjacentElement("beforebegin", canvas);
 	}
 
 	designCanvasWrappers.push({
-		wrapper,
+		wrapper: canvas as unknown as HTMLElement,
 		replacedNodes,
 		parent: replacedParent,
 		anchor: replacedAnchor,
 	});
 	// Use a short delay to allow the iframe's WS client to connect and register
-	iframe.addEventListener("load", () => {
+	canvas.addEventListener('vb-canvas-ready', () => {
 		const contextMsg = {
 			type: "ELEMENT_CONTEXT",
 			componentName: currentBoundary?.componentName ?? "",
@@ -1573,30 +1497,24 @@ async function handleCaptureScreenshot(): Promise<void> {
 	// toolbar ~40px = no footer now
 	const PANEL_CHROME_HEIGHT = 40;
 
-	// Build wrapper + iframe (same structure as injectDesignCanvas)
-	const wrapper = document.createElement("div");
-	wrapper.setAttribute("data-tw-design-canvas", "true");
-	wrapper.style.cssText = css({
-		...DESIGN_CANVAS,
-		width: `${screenshotWidth}px`,
-		height: `${screenshotHeight + PANEL_CHROME_HEIGHT}px`,
-		marginTop: marginTop,
-		marginBottom: marginBottom,
-		marginLeft: marginLeft,
-		marginRight: marginRight,
-	});
-
-	const iframe = document.createElement("iframe");
-	iframe.src = `${SERVER_ORIGIN}/panel/?mode=design`;
-	iframe.style.cssText = css(DESIGN_CANVAS_IFRAME);
-	wrapper.appendChild(iframe);
+	// Build canvas element (same structure as injectDesignCanvas)
+	const canvas = document.createElement('vb-design-canvas') as VbDesignCanvas;
+	canvas.setAttribute('src', `${SERVER_ORIGIN}/panel/?mode=design`);
+	canvas.setAttribute('width', `${screenshotWidth}px`);
+	canvas.setAttribute('height', `${screenshotHeight + PANEL_CHROME_HEIGHT}px`);
+	canvas.setAttribute('min-height', '0');
+	const wrapper = canvas.getWrapper();
+	wrapper.style.marginTop = marginTop;
+	wrapper.style.marginBottom = marginBottom;
+	wrapper.style.marginLeft = marginLeft;
+	wrapper.style.marginRight = marginRight;
 
 	// Insert at original position, then remove marker
-	parent.insertBefore(wrapper, marker);
+	parent.insertBefore(canvas, marker);
 	marker.remove();
 
-	designCanvasWrappers.push({ wrapper, replacedNodes, parent, anchor: wrapper.nextSibling });
-	iframe.addEventListener("load", () => {
+	designCanvasWrappers.push({ wrapper: canvas as unknown as HTMLElement, replacedNodes, parent, anchor: canvas.nextSibling });
+	canvas.addEventListener('vb-canvas-ready', () => {
 		const contextMsg = {
 			type: "ELEMENT_CONTEXT",
 			componentName: boundary.componentName,
@@ -1938,16 +1856,24 @@ function init(): void {
 		} else if (msg.type === "CLOSE_PANEL") {
 			if (active) toggleInspect(btn);
 		} else if (msg.type === "COMPONENT_ARM") {
-			if (msg.insertMode === 'replace' && !currentTargetEl) {
-				// Replace mode with no element selected — arm element-select
+			if (msg.insertMode === 'replace') {
+				// Replace mode — arm element-select to pick the target element
 				armElementSelect(`Replace: ${msg.componentName}`, shadowHost, (target) => {
 					const result = findExactMatches(target, shadowHost);
 					const componentName = result.componentName ?? target.tagName.toLowerCase();
-					currentTargetEl = target;
-					currentBoundary = { componentName };
-					currentEquivalentNodes = result.exactMatch;
-					// Now arm the component insertion at the selected element
-					armInsert(msg, shadowHost);
+					// Directly replace — no second click needed
+					const ghost = replaceElement(target, msg);
+					// Retarget selection onto the ghost element so highlights/toolbar attach correctly
+					const selectionTarget = ghost ?? target;
+					currentTargetEl = selectionTarget;
+					currentBoundary = { componentName: msg.componentName };
+					currentEquivalentNodes = [selectionTarget];
+					// Wait one frame for the browser to lay out the ghost before positioning UI
+					requestAnimationFrame(() => {
+						clearHighlights();
+						highlightElement(selectionTarget);
+						showDrawButton(selectionTarget);
+					});
 				});
 			} else {
 				armInsert(msg, shadowHost);
