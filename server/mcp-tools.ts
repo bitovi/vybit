@@ -55,6 +55,7 @@ function buildJsx(componentName: string, args?: Record<string, unknown>): string
 
 function buildCommitInstructions(commit: Commit, remainingCount: number): string {
   const classChanges = commit.patches.filter(p => p.kind === 'class-change');
+  const textChanges = commit.patches.filter(p => p.kind === 'text-change');
   const messages = commit.patches.filter(p => p.kind === 'message');
   const designs = commit.patches.filter(p => p.kind === 'design');
   const componentDrops = commit.patches.filter(p => p.kind === 'component-drop');
@@ -150,6 +151,23 @@ ${context ? `- **Context HTML:**\n\`\`\`html\n${context}\n\`\`\`\n` : ''}
 ⚠️ Do NOT paste rendered HTML. Import and render the React component with the props shown above.
 
 `;
+    } else if (patch.kind === 'text-change') {
+      const comp = patch.component?.name ?? 'unknown component';
+      const tag = patch.target?.tag ?? 'element';
+      const context = patch.context ?? '';
+      patchList += `### ${stepNum}. Text change \`${patch.id}\`
+- **Component:** \`${comp}\`
+- **Element:** \`<${tag}>\`
+- **Original HTML:**
+\`\`\`html
+${patch.originalHtml ?? ''}
+\`\`\`
+- **New HTML:**
+\`\`\`html
+${patch.newHtml ?? ''}
+\`\`\`
+${context ? `- **Context HTML:**\n\`\`\`html\n${context}\n\`\`\`\n` : ''}
+`;
     }
     stepNum++;
   }
@@ -157,21 +175,26 @@ ${context ? `- **Context HTML:**\n\`\`\`html\n${context}\n\`\`\`\n` : ''}
   // Build summary parts
   const summaryParts: string[] = [];
   if (classChanges.length) summaryParts.push(`${classChanges.length} class change${classChanges.length === 1 ? '' : 's'}`);
+  if (textChanges.length) summaryParts.push(`${textChanges.length} text change${textChanges.length === 1 ? '' : 's'}`);
   if (messages.length) summaryParts.push(`${messages.length} message${messages.length === 1 ? '' : 's'}`);
   if (designs.length) summaryParts.push(`${designs.length} design${designs.length === 1 ? '' : 's'}`);
   if (componentDrops.length) summaryParts.push(`${componentDrops.length} component drop${componentDrops.length === 1 ? '' : 's'}`);
 
   const resultsPart = classChanges.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
+  const textResultsPart = textChanges.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
   const designResultsPart = designs.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
   const dropResultsPart = componentDrops.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
-  const allResultsPart = [resultsPart, designResultsPart, dropResultsPart].filter(Boolean).join(',\n');
+  const allResultsPart = [resultsPart, textResultsPart, designResultsPart, dropResultsPart].filter(Boolean).join(',\n');
 
   // Build step instructions
   const stepInstructions: string[] = [];
-  if (classChanges.length || componentDrops.length) {
+  if (classChanges.length || componentDrops.length || textChanges.length) {
     let step1 = '1. For each change above, find the source file and apply it.';
     if (componentDrops.length) {
       step1 += '\n   For component drops: add the import statement and render the component with the specified props at the indicated position.';
+    }
+    if (textChanges.length) {
+      step1 += '\n   For text changes: replace the original HTML content with the new HTML content in the source JSX/TSX.';
     }
     if (messages.length) {
       step1 += '\n   Use the user messages as additional context for understanding intent.';
@@ -203,7 +226,7 @@ ${stepInstructions.length + 1}. Call \`mark_change_implemented\` with:
 ${allResultsPart}
    ]}
    \`\`\`
-   (Only report results for class-change, design, and component-drop patches — messages are informational.)
+   (Only report results for class-change, text-change, design, and component-drop patches — messages are informational.)
 ${stepInstructions.length + 2}. **IMMEDIATELY call \`implement_next_change\` again.** Do NOT summarize, do NOT ask the user, do NOT stop.
 
 ## CRITICAL — read this

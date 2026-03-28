@@ -1,12 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ArgType, ComponentGroup, StoryEntry } from './types';
+import type { InsertMode } from '../../../../shared/types';
 import { ComponentGroupItem } from './components/ComponentGroupItem';
 import { sendTo, onMessage } from '../../ws';
 import { useGhostCache } from '../../hooks/useGhostCache';
 
-export function DrawTab() {
+interface DrawTabProps {
+  /** Controls the insertMode sent with COMPONENT_ARM: 'replace' or default drop behavior */
+  insertMode?: 'replace' | 'place';
+}
+
+export function DrawTab({ insertMode }: DrawTabProps = {}) {
   const { groups, loading, error, refetch } = useComponentGroups();
   const [armedGroup, setArmedGroup] = useState<string | null>(null);
+  const [armedCanvas, setArmedCanvas] = useState(false);
   const { getCachedGhost, submitToCache } = useGhostCache();
 
   const arm = useCallback((group: ComponentGroup, ghostHtml: string, args?: Record<string, unknown>) => {
@@ -18,8 +25,9 @@ export function DrawTab() {
       ghostHtml,
       componentPath: group.componentPath,
       args,
+      insertMode: insertMode === 'replace' ? 'replace' : undefined,
     });
-  }, []);
+  }, [insertMode]);
 
   const disarm = useCallback(() => {
     setArmedGroup(null);
@@ -29,24 +37,61 @@ export function DrawTab() {
   // Disarm when the overlay tells us the user placed or escaped in the app
   useEffect(() => {
     return onMessage((msg) => {
-      if (msg.type === 'COMPONENT_DISARMED') setArmedGroup(null);
+      if (msg.type === 'COMPONENT_DISARMED') {
+        setArmedGroup(null);
+        setArmedCanvas(false);
+      }
     });
   }, []);
 
   // Disarm when the user clicks anywhere in the panel (while armed)
   // The arm button calls e.stopPropagation() so it won't trigger this handler
   useEffect(() => {
-    if (!armedGroup) return;
+    if (!armedGroup && !armedCanvas) return;
     const handler = () => {
       setArmedGroup(null);
+      setArmedCanvas(false);
       sendTo('overlay', { type: 'COMPONENT_DISARM' });
     };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
-  }, [armedGroup]);
+  }, [armedGroup, armedCanvas]);
 
   return (
     <div className="p-3 flex flex-col gap-3">
+      {/* Canvas button — triggers design canvas on the overlay */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (armedCanvas) {
+            // Already armed — disarm
+            setArmedCanvas(false);
+            sendTo('overlay', { type: 'COMPONENT_DISARM' });
+            return;
+          }
+          setArmedCanvas(true);
+          const mode: InsertMode = insertMode === 'replace' ? 'replace' : 'after';
+          sendTo('overlay', { type: 'INSERT_DESIGN_CANVAS', insertMode: mode });
+        }}
+        className={`flex items-center gap-2.5 px-3 py-2 rounded-md border transition-all cursor-pointer text-left ${
+          armedCanvas
+            ? 'border-bv-teal bg-bv-teal/10 ring-1 ring-bv-teal'
+            : 'border-bv-border bg-bv-surface hover:border-bv-teal hover:bg-bv-teal/5'
+        }`}
+      >
+        <div className="w-8 h-8 rounded bg-bv-teal/10 text-bv-teal flex items-center justify-center shrink-0">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M15 1H1v14h14V1ZM0 0h16v16H0V0Z" />
+            <path d="M4 8h8M8 4v8" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-medium text-bv-text">Draw / Screenshot Canvas</span>
+          <span className="text-[10px] text-bv-muted">Freehand drawing or annotate a screenshot</span>
+        </div>
+      </button>
+
       <div className="flex flex-col gap-1.5">
         {loading && (
           <div className="text-[11px] text-bv-muted">Loading components…</div>
@@ -206,8 +251,6 @@ function groupByComponent(
     if (entry.type === 'docs' || entry.id.endsWith('--docs')) continue;
     // title: "Components/Button" → component name: "Button"
     const name = entry.title.split('/').at(-1) ?? entry.title;
-    // DEBUG: temporarily limit to HoverCard only
-    if (!name.toLowerCase().includes('hovercard')) continue;
     if (!map.has(name)) map.set(name, []);
     map.get(name)!.push(entry);
   }

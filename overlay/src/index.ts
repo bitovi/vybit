@@ -1,6 +1,8 @@
-import { armInsert, cancelInsert } from "./drop-zone";
+import { armInsert, armGenericInsert, armElementSelect, cancelInsert, startBrowse, getLockedInsert, clearLockedInsert, isActive as isDropZoneActive } from "./drop-zone";
 import { computePosition, flip, offset } from "@floating-ui/dom";
 import { parseClasses } from "./tailwind/class-parser";
+import { startTextEdit, endTextEdit, isTextEditing } from "./text-edit";
+import { buildTextContext } from "./context";
 import type { ContainerName, IContainer } from "./containers/IContainer";
 import { ModalContainer } from "./containers/ModalContainer";
 import { PopoverContainer } from "./containers/PopoverContainer";
@@ -17,6 +19,7 @@ import {
 	getRootFiber,
 	resolvePathToDOM,
 } from "./fiber";
+import { css, TEAL, DESIGN_CANVAS, DESIGN_CANVAS_IFRAME, CANVAS_RESIZE_HANDLE, CANVAS_RESIZE_BAR, CANVAS_CORNER_HANDLE, CANVAS_CORNER_DECO, SHADOW_HOST, SUBMITTED_IMAGE } from './styles';
 import type { ElementGroup } from "./grouping";
 import { computeNearGroups, findExactMatches } from "./grouping";
 import type { InsertMode } from "./messages";
@@ -51,6 +54,18 @@ let hoverOutlineEl: HTMLElement | null = null;
 let hoverTooltipEl: HTMLElement | null = null;
 let lastHoveredEl: Element | null = null;
 let lastMoveTime = 0;
+
+// Current app mode ('select' | 'insert') — synced with panel
+let currentMode: 'select' | 'insert' = 'select';
+let currentTab: string = 'design';
+let tabPreference: 'design' | 'component' = 'design';
+let selectModeOn = false;
+
+/** Derive the concrete tab ID from the current mode + tab preference */
+function resolveTab(): string {
+	if (currentMode === 'insert') return 'place';
+	return tabPreference === 'component' ? 'replace' : 'design';
+}
 
 // Container management
 let containers: Record<ContainerName, IContainer>;
@@ -162,54 +177,174 @@ const OVERLAY_CSS = `
     text-overflow: ellipsis;
   }
   .hover-tooltip .ht-dim { opacity: 0.55; }
-  /* ── Element toolbar — single connected dark bar ── */
+  /* ── Element toolbar — 3f unified bar ── */
   .el-toolbar {
     position: fixed;
     z-index: 999999;
     display: flex;
-    align-items: stretch;
-    background: #003D40;
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+    align-items: center;
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 3px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
     pointer-events: auto;
-    height: 30px;
+    gap: 1px;
   }
+  .el-toolbar .tb {
+    height: 28px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 120ms ease-out;
+    position: relative;
+    flex-shrink: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    padding: 0;
+  }
+  .el-toolbar .tb:hover { background: #333; color: white; }
+  .el-toolbar .tb.active { background: #00464A; color: #5fd4da; }
+  .el-toolbar .tb svg { width: 14px; height: 14px; }
+  .el-toolbar .tb-icon { width: 28px; }
+  .el-toolbar .tb-combo {
+    gap: 4px;
+    padding: 0 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .el-toolbar .tb-combo svg { width: 12px; height: 12px; }
+  .el-toolbar .tb-adjunct {
+    padding: 0 6px;
+    font-size: 10px;
+    font-weight: 700;
+    background: transparent;
+    border-radius: 0;
+  }
+  .el-toolbar .mode-group {
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    overflow: hidden;
+    transition: opacity 120ms ease-out;
+  }
+  .el-toolbar .mode-group.ring {
+    box-shadow: inset 0 0 0 1.5px #00848B;
+  }
+  .el-toolbar .mode-group.dim { opacity: 0.4; }
+  .el-toolbar .mode-group .mode-sep {
+    width: 1px;
+    height: 14px;
+    background: rgba(0,132,139,0.5);
+    flex-shrink: 0;
+  }
+  .el-toolbar .tb-sep {
+    width: 1px;
+    height: 16px;
+    background: #3a3a3a;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+  /* ── Message row ── */
+  .msg-row {
+    position: fixed;
+    z-index: 999999;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 3px 4px 3px 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+    pointer-events: auto;
+  }
+  .msg-row textarea {
+    width: 260px;
+    border: none;
+    background: #2a2a2a;
+    color: #e5e5e5;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 4px 8px;
+    border-radius: 5px;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    height: 26px;
+    box-sizing: border-box;
+    margin: 0;
+  }
+  .msg-row textarea::placeholder { color: #888; }
+  .msg-send {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    border: none;
+    background: #00848B;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .msg-send svg { width: 12px; height: 12px; }
+
+  /* ── Text editing action bar ── */
+  .text-action-bar {
+    position: fixed;
+    z-index: 999999;
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    pointer-events: auto;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .text-action-confirm {
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid #00848B;
+    background: #00848B;
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .text-action-confirm:hover { background: #006E74; }
+  .text-action-cancel {
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent;
+    color: #ccc;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.12s;
+  }
+  .text-action-cancel:hover {
+    border-color: #F5532D;
+    color: #F5532D;
+    background: rgba(245,83,45,0.1);
+  }
+
   .el-toolbar-sep {
     width: 1px;
     background: rgba(255,255,255,0.15);
     flex-shrink: 0;
     align-self: stretch;
-  }
-  /* Base style for all buttons inside the toolbar */
-  .draw-btn, .el-reselect-btn, .el-pick-btn, .el-add-btn {
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    color: #E0F5F6;
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    padding: 0 10px;
-    height: 30px;
-    white-space: nowrap;
-    transition: background 0.12s;
-    pointer-events: auto;
-  }
-  .draw-btn { padding: 0 9px; }
-  .el-pick-btn { gap: 3px; padding: 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; }
-  .el-pick-btn svg { opacity: 0.7; flex-shrink: 0; }
-  .el-add-btn { padding: 0 10px; font-size: 15px; font-weight: 400; }
-  .el-reselect-btn { padding: 0 9px; }
-  .draw-btn:hover, .el-reselect-btn:hover, .el-pick-btn:hover, .el-add-btn:hover,
-  .el-pick-btn.open {
-    background: rgba(255,255,255,0.12);
   }
   /* ── Hover preview highlight (dashed, for group hover) ── */
   .highlight-preview {
@@ -401,72 +536,6 @@ const OVERLAY_CSS = `
     transition: background 0.15s;
   }
   .el-picker-apply:hover { background: #006E74; }
-  .draw-popover {
-    position: fixed;
-    z-index: 999999;
-    background: #fff;
-    border: 1px solid #DFE2E2;
-    border-radius: 10px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    padding: 6px 0;
-    min-width: 210px;
-    font-family: 'Inter', system-ui, sans-serif;
-    pointer-events: auto;
-  }
-  .draw-popover-header {
-    padding: 6px 14px 4px;
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #687879;
-  }
-  .draw-popover-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 14px;
-    font-size: 13px;
-    color: #1a2b2c;
-    cursor: pointer;
-    transition: background 0.1s;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-    font-family: inherit;
-  }
-  .draw-popover-item:hover {
-    background: rgba(0, 132, 139, 0.06);
-  }
-  .draw-popover-item:hover .draw-popover-icon {
-    color: #00848B;
-    background: rgba(0, 132, 139, 0.08);
-    border-color: #00848B;
-  }
-  .draw-popover-icon {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    border: 1px solid #DFE2E2;
-    background: #F4F5F5;
-    color: #687879;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    transition: all 0.1s;
-    flex-shrink: 0;
-  }
-  .draw-popover-label {
-    flex: 1;
-    font-weight: 500;
-  }
-  .draw-popover-hint {
-    font-size: 10px;
-    color: #9DAAAB;
-    font-weight: 400;
-  }
 `;
 
 function highlightElement(el: HTMLElement): void {
@@ -480,6 +549,19 @@ function highlightElement(el: HTMLElement): void {
 	shadowRoot.appendChild(overlay);
 }
 
+/** Callback for startBrowse — when user locks an insertion point, set it as current target and show toolbar */
+function onBrowseLocked(target: HTMLElement): void {
+	currentTargetEl = target;
+	currentEquivalentNodes = [target];
+	const fiber = getFiber(target);
+	const boundary = fiber ? findComponentBoundary(fiber) : null;
+	currentBoundary = boundary
+		? { componentName: boundary.componentName }
+		: { componentName: target.tagName.toLowerCase() };
+	cachedNearGroups = null;
+	showDrawButton(target);
+}
+
 function clearHighlights(): void {
 	shadowRoot
 		.querySelectorAll(".highlight-overlay")
@@ -489,15 +571,15 @@ function clearHighlights(): void {
 
 // Element toolbar (wraps draw button + matching controls) shown on selected element
 let toolbarEl: HTMLElement | null = null;
-let drawPopoverEl: HTMLElement | null = null;
+let msgRowEl: HTMLElement | null = null;
 let pickerEl: HTMLElement | null = null;
 let pickerCloseHandler: ((e: MouseEvent) => void) | null = null;
 
 function removeDrawButton(): void {
 	toolbarEl?.remove();
 	toolbarEl = null;
-	drawPopoverEl?.remove();
-	drawPopoverEl = null;
+	msgRowEl?.remove();
+	msgRowEl = null;
 	pickerEl?.remove();
 	pickerEl = null;
 }
@@ -583,6 +665,18 @@ const CHEVRON_SVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none"
 
 const RESELECT_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>`;
 
+const SELECT_SVG = RESELECT_SVG;
+
+const INSERT_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>`;
+
+const DESIGN_SVG = PENCIL_SVG;
+
+const TEXT_SVG = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>`;
+
+const REPLACE_SVG = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>`;
+
+const SEND_SVG = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>`;
+
 async function positionWithFlip(
 	anchor: HTMLElement,
 	floating: HTMLElement,
@@ -601,7 +695,7 @@ function showDrawButton(targetEl: HTMLElement): void {
 
 	const instanceCount = currentEquivalentNodes.length;
 
-	// ── Build toolbar ──────────────────────────────────────────
+	// ── Build 3f unified toolbar ──────────────────────────────
 	const toolbar = document.createElement("div");
 	toolbar.className = "el-toolbar";
 	toolbar.style.left = "0px";
@@ -609,73 +703,224 @@ function showDrawButton(targetEl: HTMLElement): void {
 	shadowRoot.appendChild(toolbar);
 	toolbarEl = toolbar;
 
-	// Re-select button — activates crosshair to pick a new element
-	const reselectBtn = document.createElement("button");
-	reselectBtn.className = "el-reselect-btn";
-	reselectBtn.innerHTML = RESELECT_SVG;
-	reselectBtn.title = "Re-select element";
-	toolbar.appendChild(reselectBtn);
+	// ── Select mode group (ring when active) or standalone Select button ──
+	if (currentMode === 'select') {
+		// Full group: Select + separator + N+
+		const selectGroup = document.createElement("div");
+		selectGroup.className = 'mode-group ring';
 
-	reselectBtn.addEventListener("click", (e) => {
+		const selectBtn = document.createElement("button");
+		selectBtn.className = 'tb tb-combo tb-select';
+		selectBtn.innerHTML = `${SELECT_SVG} Select`;
+		selectBtn.style.cssText = 'color: #5fd4da; border-radius: 0;';
+		selectBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			cancelInsert();
+			clearLockedInsert();
+			revertPreview();
+			clearHighlights();
+			currentEquivalentNodes = [];
+			currentTargetEl = null;
+			currentBoundary = null;
+			cachedNearGroups = null;
+			currentMode = 'select';
+			currentTab = resolveTab();
+			sendTo("panel", { type: "MODE_CHANGED", mode: "select" });
+			setSelectMode(true);
+		});
+		selectGroup.appendChild(selectBtn);
+
+		const innerSep = document.createElement("div");
+		innerSep.className = "mode-sep";
+		selectGroup.appendChild(innerSep);
+
+		const addGroupBtn = document.createElement("button");
+		addGroupBtn.className = "tb tb-adjunct";
+		addGroupBtn.innerHTML = `${instanceCount} <span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span>`;
+		addGroupBtn.style.cssText = 'color: #5fd4da; border-radius: 0;';
+		addGroupBtn.title = `${instanceCount} matching element${instanceCount !== 1 ? "s" : ""} selected — click to add similar`;
+		addGroupBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			if (pickerEl) {
+				pickerEl.remove();
+				pickerEl = null;
+			} else {
+				showGroupPicker(
+					addGroupBtn,
+					() => {},
+					(totalCount) => {
+						addGroupBtn.innerHTML = `${totalCount} <span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span>`;
+						addGroupBtn.title = `${totalCount} matching element${totalCount !== 1 ? "s" : ""} selected — click to add similar`;
+					},
+				);
+			}
+		});
+		selectGroup.appendChild(addGroupBtn);
+		toolbar.appendChild(selectGroup);
+	} else {
+		// Insert mode: standalone Select button (no N+ group)
+		const selectBtn = document.createElement("button");
+		selectBtn.className = 'tb tb-combo tb-select';
+		selectBtn.innerHTML = `${SELECT_SVG} Select`;
+		selectBtn.style.cssText = 'opacity: 0.4;';
+		selectBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			cancelInsert();
+			clearLockedInsert();
+			revertPreview();
+			clearHighlights();
+			currentEquivalentNodes = [];
+			currentTargetEl = null;
+			currentBoundary = null;
+			cachedNearGroups = null;
+			currentMode = 'select';
+			currentTab = resolveTab();
+			sendTo("panel", { type: "MODE_CHANGED", mode: "select" });
+			setSelectMode(true);
+		});
+		toolbar.appendChild(selectBtn);
+	}
+
+	// ── Insert button (separate, ring when active) ──
+	const insertBtn = document.createElement("button");
+	insertBtn.className = `tb tb-combo`;
+	insertBtn.innerHTML = `${INSERT_SVG} Insert`;
+	if (currentMode === 'insert') {
+		insertBtn.style.cssText = `box-shadow: inset 0 0 0 1.5px #00848B; color: #5fd4da;`;
+	} else {
+		insertBtn.style.cssText = `opacity: 0.4;`;
+	}
+	insertBtn.addEventListener("click", (e) => {
 		e.stopPropagation();
+		// Always clear selection and restart insert browse mode
+		cancelInsert();
+		clearLockedInsert();
+		revertPreview();
 		clearHighlights();
-		setSelectMode(true);
+		currentEquivalentNodes = [];
+		currentTargetEl = null;
+		currentBoundary = null;
+		cachedNearGroups = null;
+		currentMode = 'insert';
+		if (tabPreference === 'design') tabPreference = 'component';
+		currentTab = resolveTab();
+		sendTo("panel", { type: "MODE_CHANGED", mode: "insert" });
+		startBrowse(shadowHost, onBrowseLocked);
 	});
+	toolbar.appendChild(insertBtn);
 
-	// Draw button
-	const drawBtn = document.createElement("button");
-	drawBtn.className = "draw-btn";
-	drawBtn.innerHTML = PENCIL_SVG;
-	drawBtn.title = "Insert drawing canvas";
-	toolbar.appendChild(drawBtn);
-
-	drawBtn.addEventListener("click", (e) => {
-		e.stopPropagation();
-		pickerEl?.remove();
-		pickerEl = null;
-		if (drawPopoverEl) {
-			drawPopoverEl.remove();
-			drawPopoverEl = null;
-		} else {
-			showDrawPopover(drawBtn);
-		}
-	});
-
-	// Separator
+	// ── Separator ──
 	const sep = document.createElement("div");
-	sep.className = "el-toolbar-sep";
+	sep.className = "tb-sep";
 	toolbar.appendChild(sep);
 
-	// Combined "N +" button — shows count and opens group dropdown
-	const addGroupBtn = document.createElement("button");
-	addGroupBtn.className = "el-add-btn";
-	addGroupBtn.textContent = `${instanceCount} +`;
-	addGroupBtn.title = `${instanceCount} matching element${instanceCount !== 1 ? "s" : ""} selected — click to add similar`;
-	toolbar.appendChild(addGroupBtn);
-
-	addGroupBtn.addEventListener("click", (e) => {
-		e.stopPropagation();
-		drawPopoverEl?.remove();
-		drawPopoverEl = null;
-		if (pickerEl) {
-			pickerEl.remove();
-			pickerEl = null;
-			addGroupBtn.classList.remove("open");
-		} else {
-			addGroupBtn.classList.add("open");
-			showGroupPicker(
-				addGroupBtn,
-				() => addGroupBtn.classList.remove("open"),
-				(totalCount) => {
-					addGroupBtn.textContent = `${totalCount} +`;
-					addGroupBtn.title = `${totalCount} matching element${totalCount !== 1 ? "s" : ""} selected — click to add similar`;
-				},
-			);
+	// ── Action buttons (mode-dependent) ──
+	if (currentMode === 'select') {
+		const actions = [
+			{ id: 'design', label: 'Design', svg: DESIGN_SVG },
+			{ id: 'text', label: 'Text', svg: TEXT_SVG },
+			{ id: 'replace', label: 'Replace', svg: REPLACE_SVG },
+		];
+		for (const action of actions) {
+			const btn = document.createElement("button");
+			btn.className = `tb tb-combo ${currentTab === action.id ? 'active' : ''}`;
+			btn.innerHTML = `${action.svg} ${action.label}`;
+			btn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				if (action.id === 'text') {
+					startTextEdit(targetEl, {
+						sendTo,
+						send,
+						currentBoundary,
+						currentTargetEl: targetEl,
+						currentEquivalentNodes,
+						buildTextContext,
+						positionToolbar: () => positionWithFlip(targetEl, toolbar),
+						shadowRoot,
+						onDone: () => showDrawButton(targetEl),
+					});
+					// Hide toolbar and message row — only the text action bar should be visible
+					removeDrawButton();
+					return;
+				}
+				currentTab = action.id;
+				tabPreference = (action.id === 'replace' || action.id === 'place') ? 'component' : 'design';
+				sendTo("panel", { type: "TAB_CHANGED", tab: action.id as any });
+				showDrawButton(targetEl);
+			});
+			toolbar.appendChild(btn);
 		}
-	});
+	} else {
+		const placeBtn = document.createElement("button");
+		placeBtn.className = "tb tb-combo active";
+		placeBtn.innerHTML = `Place`;
+		toolbar.appendChild(placeBtn);
+	}
 
 	// Position toolbar using @floating-ui/dom
 	positionWithFlip(targetEl, toolbar);
+
+	// ── Message row (below element) ──
+	const msgRow = document.createElement("div");
+	msgRow.className = "msg-row";
+	msgRow.style.left = "0px";
+	msgRow.style.top = "0px";
+	shadowRoot.appendChild(msgRow);
+	msgRowEl = msgRow;
+
+	const msgInput = document.createElement("textarea");
+	msgInput.rows = 1;
+	msgInput.placeholder = "add your message";
+	msgRow.appendChild(msgInput);
+
+	const msgSendBtn = document.createElement("button");
+	msgSendBtn.className = "msg-send";
+	msgSendBtn.innerHTML = SEND_SVG;
+	msgRow.appendChild(msgSendBtn);
+
+	function sendMessage() {
+		const text = msgInput.value.trim();
+		if (!text) return;
+		const id = crypto.randomUUID();
+		send({
+			type: "MESSAGE_STAGE",
+			id,
+			message: text,
+			elementKey: currentBoundary?.componentName ?? "",
+			component: currentBoundary ? { name: currentBoundary.componentName } : undefined,
+		});
+		msgInput.value = "";
+		msgInput.style.height = "auto";
+		positionWithFlip(targetEl, msgRow, "bottom-start");
+		showToast("Message staged");
+	}
+
+	msgSendBtn.addEventListener("click", (e) => {
+		e.stopPropagation();
+		sendMessage();
+	});
+
+	msgInput.addEventListener("keydown", (e) => {
+		if (e.key === "Enter" && !e.shiftKey) {
+			e.preventDefault();
+			sendMessage();
+		}
+		if (e.key === "Escape") {
+			msgInput.blur();
+		}
+	});
+
+	msgInput.addEventListener("input", () => {
+		msgInput.style.height = "auto";
+		msgInput.style.height = msgInput.scrollHeight + "px";
+		positionWithFlip(targetEl, msgRow, "bottom-start");
+	});
+
+	// Prevent clicks on the message row from triggering page click handlers
+	msgRow.addEventListener("click", (e) => e.stopPropagation());
+
+	// Position message row below the element
+	positionWithFlip(targetEl, msgRow, "bottom-start");
 }
 
 function showGroupPicker(
@@ -866,94 +1111,6 @@ function showGroupPicker(
 	}, 0);
 }
 
-function showDrawPopover(anchorBtn: HTMLElement): void {
-	drawPopoverEl?.remove();
-
-	const popover = document.createElement("div");
-	popover.className = "draw-popover";
-	popover.style.left = "0px";
-	popover.style.top = "0px";
-
-	const header = document.createElement("div");
-	header.className = "draw-popover-header";
-	header.textContent = "Insert Drawing Canvas";
-	popover.appendChild(header);
-
-	const items: {
-		mode: InsertMode;
-		icon: string;
-		label: string;
-		hint: string;
-	}[] = [
-		{ mode: "before", icon: "↑", label: "Before element", hint: "sibling" },
-		{ mode: "after", icon: "↓", label: "After element", hint: "sibling" },
-		{ mode: "first-child", icon: "⤒", label: "First child", hint: "child" },
-		{ mode: "last-child", icon: "⤓", label: "Last child", hint: "child" },
-	];
-
-	for (const item of items) {
-		const row = document.createElement("button");
-		row.className = "draw-popover-item";
-		row.innerHTML = `
-      <span class="draw-popover-icon">${item.icon}</span>
-      <span class="draw-popover-label">${item.label}</span>
-      <span class="draw-popover-hint">${item.hint}</span>
-    `;
-		row.addEventListener("click", (e) => {
-			e.stopPropagation();
-			drawPopoverEl?.remove();
-			drawPopoverEl = null;
-			injectDesignCanvas(item.mode);
-		});
-		popover.appendChild(row);
-	}
-
-	// Separator
-	const sep = document.createElement("div");
-	sep.style.cssText = "height:1px;background:#DFE2E2;margin:4px 0;";
-	popover.appendChild(sep);
-
-	// Screenshot & Annotate header
-	const screenshotHeader = document.createElement("div");
-	screenshotHeader.className = "draw-popover-header";
-	screenshotHeader.textContent = "Screenshot & Annotate";
-	popover.appendChild(screenshotHeader);
-
-	// Screenshot button
-	const screenshotRow = document.createElement("button");
-	screenshotRow.className = "draw-popover-item";
-	screenshotRow.innerHTML = `
-    <span class="draw-popover-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="4" width="8" height="8" rx="1" ry="1"/><path d="M2,2H6V0H2C.895,0,0,.895,0,2V6H2V2Z"/><path d="M14,0h-4V2h4V6h2V2c0-1.105-.895-2-2-2Z"/><path d="M14,14h-4v2h4c1.105,0,2-.895,2-2v-4h-2v4Z"/><path d="M2,10H0v4c0,1.105,.895,2,2,2H6v-2H2v-4Z"/></svg></span>
-    <span class="draw-popover-label">Screenshot & Annotate</span>
-  `;
-	screenshotRow.addEventListener("click", (e) => {
-		e.stopPropagation();
-		drawPopoverEl?.remove();
-		drawPopoverEl = null;
-		handleCaptureScreenshot();
-	});
-	popover.appendChild(screenshotRow);
-
-	drawPopoverEl = popover;
-	shadowRoot.appendChild(popover);
-
-	// Position to the right of the anchor, flipping if needed
-	positionWithFlip(anchorBtn, popover, "top-start");
-
-	// Close popover when clicking outside
-	const closeHandler = (e: MouseEvent) => {
-		const path = e.composedPath();
-		if (!path.includes(popover) && !path.includes(anchorBtn)) {
-			drawPopoverEl?.remove();
-			drawPopoverEl = null;
-			document.removeEventListener("click", closeHandler, { capture: true });
-		}
-	};
-	// Delay so the current click doesn't immediately close it
-	setTimeout(() => {
-		document.addEventListener("click", closeHandler, { capture: true });
-	}, 0);
-}
 function getServerOrigin(): string {
 	const scripts = document.querySelectorAll('script[src*="overlay.js"]');
 	for (const s of scripts) {
@@ -1126,6 +1283,7 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 }
 
 function setSelectMode(on: boolean): void {
+	selectModeOn = on;
 	if (on) {
 		document.documentElement.style.cursor = "crosshair";
 		document.addEventListener("click", clickHandler, { capture: true });
@@ -1203,55 +1361,26 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 	// Create the wrapper div inserted into the DOM flow based on insertMode
 	const wrapper = document.createElement("div");
 	wrapper.setAttribute("data-tw-design-canvas", "true");
-	wrapper.style.cssText = `
-    outline: 2px dashed #00848B;
-    outline-offset: 2px;
-    border-radius: 6px;
-    background: #FAFBFB;
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-    height: 400px;
-    min-width: 300px;
-    min-height: 200px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-    box-sizing: border-box;
-  `;
+	wrapper.style.cssText = css({
+		...DESIGN_CANVAS,
+		width: '100%',
+		height: '400px',
+		minHeight: '200px',
+	});
 
 	// Create iframe for the design canvas
 	const iframe = document.createElement("iframe");
 	iframe.src = `${SERVER_ORIGIN}/panel/?mode=design`;
 	iframe.allow = "microphone";
-	iframe.style.cssText = `
-    width: 100%;
-    height: 100%;
-    border: none;
-    display: block;
-  `;
+	iframe.style.cssText = css(DESIGN_CANVAS_IFRAME);
 
 	wrapper.appendChild(iframe);
 
 	// Add resize handle at bottom
 	const resizeHandle = document.createElement("div");
-	resizeHandle.style.cssText = `
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 8px;
-    cursor: ns-resize;
-    background: linear-gradient(transparent, rgba(0,132,139,0.06));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  `;
+	resizeHandle.style.cssText = css(CANVAS_RESIZE_HANDLE);
 	const resizeBar = document.createElement("div");
-	resizeBar.style.cssText = `
-    width: 32px;
-    height: 3px;
-    border-radius: 2px;
-    background: #DFE2E2;
-  `;
+	resizeBar.style.cssText = css(CANVAS_RESIZE_BAR);
 	resizeHandle.appendChild(resizeBar);
 	wrapper.appendChild(resizeHandle);
 
@@ -1281,25 +1410,9 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 
 	// Add corner resize handle (both axes)
 	const cornerHandle = document.createElement("div");
-	cornerHandle.style.cssText = `
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 14px;
-    height: 14px;
-    cursor: nwse-resize;
-    z-index: 5;
-  `;
+	cornerHandle.style.cssText = css(CANVAS_CORNER_HANDLE);
 	const cornerDeco = document.createElement("div");
-	cornerDeco.style.cssText = `
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 8px;
-    height: 8px;
-    border-right: 2px solid #DFE2E2;
-    border-bottom: 2px solid #DFE2E2;
-  `;
+	cornerDeco.style.cssText = css(CANVAS_CORNER_DECO);
 	cornerHandle.appendChild(cornerDeco);
 	wrapper.appendChild(cornerHandle);
 
@@ -1332,7 +1445,20 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 	});
 
 	// Insert into the DOM based on insertMode
+	let replacedNodes: HTMLElement[] | null = null;
+	let replacedParent: HTMLElement | null = null;
+	let replacedAnchor: ChildNode | null = null;
+
 	switch (insertMode) {
+		case "replace": {
+			// Replace: insert canvas before the target, then hide the target
+			replacedParent = targetEl.parentElement;
+			targetEl.insertAdjacentElement("beforebegin", wrapper);
+			replacedAnchor = wrapper.nextSibling;
+			replacedNodes = [targetEl];
+			targetEl.style.display = "none";
+			break;
+		}
 		case "before":
 			targetEl.insertAdjacentElement("beforebegin", wrapper);
 			break;
@@ -1351,9 +1477,9 @@ function injectDesignCanvas(insertMode: InsertMode): void {
 
 	designCanvasWrappers.push({
 		wrapper,
-		replacedNodes: null,
-		parent: null,
-		anchor: null,
+		replacedNodes,
+		parent: replacedParent,
+		anchor: replacedAnchor,
 	});
 	// Use a short delay to allow the iframe's WS client to connect and register
 	iframe.addEventListener("load", () => {
@@ -1439,9 +1565,9 @@ async function handleCaptureScreenshot(): Promise<void> {
 	// Remove selection highlights and draw button
 	clearHighlights();
 
-	// Remove all selected nodes from the DOM
+	// Hide all selected nodes so the canvas takes their place
 	for (const node of currentEquivalentNodes) {
-		node.remove();
+		node.style.display = "none";
 	}
 
 	// toolbar ~40px = no footer now
@@ -1450,32 +1576,19 @@ async function handleCaptureScreenshot(): Promise<void> {
 	// Build wrapper + iframe (same structure as injectDesignCanvas)
 	const wrapper = document.createElement("div");
 	wrapper.setAttribute("data-tw-design-canvas", "true");
-	wrapper.style.cssText = `
-    outline: 2px dashed #00848B;
-    outline-offset: 2px;
-    border-radius: 6px;
-    background: #FAFBFB;
-    position: relative;
-    overflow: hidden;
-    width: ${screenshotWidth}px;
-    height: ${screenshotHeight + PANEL_CHROME_HEIGHT}px;
-    min-width: 300px;
-    margin-top: ${marginTop};
-    margin-bottom: ${marginBottom};
-    margin-left: ${marginLeft};
-    margin-right: ${marginRight};
-    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-    box-sizing: border-box;
-  `;
+	wrapper.style.cssText = css({
+		...DESIGN_CANVAS,
+		width: `${screenshotWidth}px`,
+		height: `${screenshotHeight + PANEL_CHROME_HEIGHT}px`,
+		marginTop: marginTop,
+		marginBottom: marginBottom,
+		marginLeft: marginLeft,
+		marginRight: marginRight,
+	});
 
 	const iframe = document.createElement("iframe");
 	iframe.src = `${SERVER_ORIGIN}/panel/?mode=design`;
-	iframe.style.cssText = `
-    width: 100%;
-    height: 100%;
-    border: none;
-    display: block;
-  `;
+	iframe.style.cssText = css(DESIGN_CANVAS_IFRAME);
 	wrapper.appendChild(iframe);
 
 	// Insert at original position, then remove marker
@@ -1536,8 +1649,7 @@ function getDefaultContainer(): ContainerName {
 function init(): void {
 	shadowHost = document.createElement("div");
 	shadowHost.id = "tw-visual-editor-host";
-	shadowHost.style.cssText =
-		"position:fixed;z-index:2147483647;top:0;left:0;width:0;height:0;pointer-events:none;";
+	shadowHost.style.cssText = css(SHADOW_HOST);
 	document.body.appendChild(shadowHost);
 
 	shadowRoot = shadowHost.attachShadow({ mode: "open" });
@@ -1570,16 +1682,34 @@ function init(): void {
 	}
 	shadowRoot.appendChild(btn);
 
-	// Escape key — clear current selection
+	// Escape key — deselect element (keep mode), or deactivate mode if no element
 	document.addEventListener("keydown", (e) => {
-		if (e.key === "Escape" && currentTargetEl) {
-			revertPreview();
-			clearHighlights();
-			currentEquivalentNodes = [];
-			currentTargetEl = null;
-			currentBoundary = null;
-			cachedNearGroups = null;
-			sendTo("panel", { type: "RESET_SELECTION" });
+		if (e.key === "Escape") {
+			if (currentTargetEl) {
+				// Deselect element, stay in current mode
+				revertPreview();
+				clearHighlights();
+				currentEquivalentNodes = [];
+				currentTargetEl = null;
+				currentBoundary = null;
+				cachedNearGroups = null;
+				sendTo("panel", { type: "RESET_SELECTION" });
+				// Re-enter selection/browse mode
+				if (currentMode === 'select') {
+					setSelectMode(true);
+				} else if (currentMode === 'insert') {
+					startBrowse(shadowHost, onBrowseLocked);
+				}
+			} else if (selectModeOn) {
+				// No element, deactivate select mode → go to landing
+				setSelectMode(false);
+				sendTo("panel", { type: "MODE_CHANGED", mode: null });
+			} else if (isDropZoneActive()) {
+				// No element, cancel insert mode → go to landing
+				cancelInsert();
+				clearLockedInsert();
+				sendTo("panel", { type: "MODE_CHANGED", mode: null });
+			}
 		}
 	});
 
@@ -1600,9 +1730,40 @@ function init(): void {
 			} else {
 				setSelectMode(false);
 			}
+		} else if (msg.type === "MODE_CHANGED") {
+			// Clear current selection and toolbar
+			revertPreview();
+			clearHighlights();
+			cancelInsert();
+			clearLockedInsert();
+			currentEquivalentNodes = [];
+			currentTargetEl = null;
+			currentBoundary = null;
+			cachedNearGroups = null;
+
+			currentMode = msg.mode;
+			if (msg.mode === 'insert') {
+				if (tabPreference === 'design') tabPreference = 'component';
+				currentTab = resolveTab();
+				startBrowse(shadowHost, onBrowseLocked);
+			} else {
+				currentTab = resolveTab();
+				setSelectMode(true);
+			}
+		} else if (msg.type === "TAB_CHANGED") {
+			currentTab = msg.tab;
+			tabPreference = (msg.tab === 'replace' || msg.tab === 'place') ? 'component' : 'design';
+			// Rebuild toolbar to highlight the correct action button
+			if (currentTargetEl) showDrawButton(currentTargetEl);
+		} else if (msg.type === "CANCEL_MODE") {
+			// Panel sent Escape — deactivate select/insert mode
+			setSelectMode(false);
+			cancelInsert();
+			clearLockedInsert();
 		} else if (
 			msg.type === "PATCH_PREVIEW" &&
-			currentEquivalentNodes.length > 0
+			currentEquivalentNodes.length > 0 &&
+			!isTextEditing()
 		) {
 			applyPreview(
 				currentEquivalentNodes,
@@ -1612,10 +1773,11 @@ function init(): void {
 			);
 		} else if (
 			msg.type === "PATCH_PREVIEW_BATCH" &&
-			currentEquivalentNodes.length > 0
+			currentEquivalentNodes.length > 0 &&
+			!isTextEditing()
 		) {
 			applyPreviewBatch(currentEquivalentNodes, msg.pairs, SERVER_ORIGIN);
-		} else if (msg.type === "PATCH_REVERT") {
+		} else if (msg.type === "PATCH_REVERT" && !isTextEditing()) {
 			revertPreview();
 		} else if (msg.type === "PATCH_REVERT_STAGED" && currentEquivalentNodes.length > 0) {
 			// Undo a previously committed staged change: apply the reverse swap to the DOM
@@ -1625,7 +1787,8 @@ function init(): void {
 		} else if (
 			msg.type === "PATCH_STAGE" &&
 			currentTargetEl &&
-			currentBoundary
+			currentBoundary &&
+			!isTextEditing()
 		) {
 			// Build context and send PATCH_STAGED to server
 			const state = getPreviewState();
@@ -1686,6 +1849,8 @@ function init(): void {
 		} else if (msg.type === "CLEAR_HIGHLIGHTS") {
 			revertPreview();
 			clearHighlights();
+			cancelInsert();
+			clearLockedInsert();
 			if (msg.deselect) {
 				currentEquivalentNodes = [];
 				currentTargetEl = null;
@@ -1707,7 +1872,49 @@ function init(): void {
 				}
 			}
 		} else if (msg.type === "INSERT_DESIGN_CANVAS") {
-			injectDesignCanvas(msg.insertMode as InsertMode);
+			if (msg.insertMode === 'replace') {
+				if (currentTargetEl) {
+					// Element already selected — capture screenshot and replace
+					handleCaptureScreenshot();
+				} else {
+					// No element selected — arm element-select mode
+					armElementSelect('Replace: Canvas', shadowHost, (target) => {
+						const result = findExactMatches(target, shadowHost);
+						const componentName = result.componentName ?? target.tagName.toLowerCase();
+						currentTargetEl = target;
+						currentBoundary = { componentName };
+						currentEquivalentNodes = result.exactMatch;
+						handleCaptureScreenshot();
+					});
+				}
+			} else {
+				// Check for a locked insertion point from browse mode
+				const locked = getLockedInsert();
+				if (locked) {
+					// Use the locked position
+					currentTargetEl = locked.target;
+					const fiber = getFiber(locked.target);
+					const boundary = fiber ? findComponentBoundary(fiber) : null;
+					currentBoundary = boundary
+						? { componentName: boundary.componentName }
+						: { componentName: locked.target.tagName.toLowerCase() };
+					currentEquivalentNodes = [locked.target];
+					clearLockedInsert();
+					injectDesignCanvas(locked.position as InsertMode);
+				} else {
+					// No locked position — arm canvas drop-zone
+					armGenericInsert('Place: Canvas', shadowHost, (target, position) => {
+						currentTargetEl = target;
+						const fiber = getFiber(target);
+						const boundary = fiber ? findComponentBoundary(fiber) : null;
+						currentBoundary = boundary
+							? { componentName: boundary.componentName }
+							: { componentName: target.tagName.toLowerCase() };
+						currentEquivalentNodes = [target];
+						injectDesignCanvas(position as InsertMode);
+					});
+				}
+			}
 		} else if (msg.type === "CAPTURE_SCREENSHOT") {
 			handleCaptureScreenshot();
 		} else if (msg.type === "DESIGN_SUBMITTED") {
@@ -1719,12 +1926,7 @@ function init(): void {
 				if (iframe && msg.image) {
 					const img = document.createElement("img");
 					img.src = msg.image;
-					img.style.cssText = `
-            width: 100%;
-            height: auto;
-            display: block;
-            pointer-events: none;
-          `;
+					img.style.cssText = css(SUBMITTED_IMAGE);
 					// Remove all children (iframe, resize handles) and show just the image
 					last.innerHTML = "";
 					last.style.height = "auto";
@@ -1736,21 +1938,30 @@ function init(): void {
 		} else if (msg.type === "CLOSE_PANEL") {
 			if (active) toggleInspect(btn);
 		} else if (msg.type === "COMPONENT_ARM") {
-			armInsert(msg, shadowHost);
+			if (msg.insertMode === 'replace' && !currentTargetEl) {
+				// Replace mode with no element selected — arm element-select
+				armElementSelect(`Replace: ${msg.componentName}`, shadowHost, (target) => {
+					const result = findExactMatches(target, shadowHost);
+					const componentName = result.componentName ?? target.tagName.toLowerCase();
+					currentTargetEl = target;
+					currentBoundary = { componentName };
+					currentEquivalentNodes = result.exactMatch;
+					// Now arm the component insertion at the selected element
+					armInsert(msg, shadowHost);
+				});
+			} else {
+				armInsert(msg, shadowHost);
+			}
 		} else if (msg.type === "COMPONENT_DISARM") {
 			cancelInsert();
 		} else if (msg.type === "DESIGN_CLOSE") {
 			// Remove the most recently added canvas wrapper, restoring replaced nodes if any
 			const last = designCanvasWrappers.pop();
 			if (last) {
-				if (last.replacedNodes && last.parent) {
-					// Restore the original nodes at the same position
+				if (last.replacedNodes) {
+					// Restore the original nodes (unhide if hidden, or reinsert if removed)
 					for (const node of last.replacedNodes) {
-						if (last.anchor) {
-							last.parent.insertBefore(node, last.anchor);
-						} else {
-							last.parent.appendChild(node);
-						}
+						node.style.display = "";
 					}
 				}
 				last.wrapper.remove();

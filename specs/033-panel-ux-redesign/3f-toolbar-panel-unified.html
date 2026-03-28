@@ -724,7 +724,11 @@
   overlay toolbar and the panel header keeps them in sync. The panel tabs change with the active mode:<br>
   <strong>Select mode →</strong> tabs = <strong>Design</strong> | <strong>Replace</strong><br>
   <strong>Insert mode →</strong> tab = <strong>Place</strong><br>
-  The <strong>Replace</strong> and <strong>Place</strong> tabs share the same layout: a canvas option + Storybook component list.
+  The <strong>Replace</strong> and <strong>Place</strong> tabs share the same layout: a canvas option + Storybook component list.<br><br>
+  The toolbar also includes <strong>right-side action buttons</strong> after a separator that mirror panel tabs:
+  Select mode shows <strong>Design</strong> (filled = active tab) · <strong>Text</strong> · <strong>Replace</strong>.
+  Insert mode shows a single <strong>Place</strong> button.
+  Clicking these buttons switches the corresponding panel tab (or activates text editing for <strong>Text</strong> — see <code>specs/034-text-editing</code>).
 </p>
 
 
@@ -779,6 +783,22 @@
               <button class="tb tb-combo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
                 Insert
+              </button>
+              <div class="tb-sep"></div>
+              <!-- Design — filled teal active (mirrors active panel tab) -->
+              <button class="tb tb-combo active">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+                Design
+              </button>
+              <!-- Text — triggers inline text editing (spec 034) -->
+              <button class="tb tb-combo">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+                Text
+              </button>
+              <!-- Replace — switches panel to Replace tab -->
+              <button class="tb tb-combo">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+                Replace
               </button>
             </div>
 
@@ -889,7 +909,8 @@
 
 <div class="section-title">Select Mode — Replace Tab Active</div>
 <p class="section-subtitle">
-  User clicked the <strong>Replace</strong> tab to swap the selected element.
+  User clicked the <strong>Replace</strong> tab (or the Replace button in the overlay toolbar) to swap the selected element.
+  The toolbar now shows <strong>Replace</strong> filled teal (active) instead of Design.
   The tab shows: <strong>Canvas</strong> option (draw replacement from scratch)
   + <strong>Storybook Components</strong> list (pick a component to replace with).
 </p>
@@ -932,6 +953,22 @@
               <button class="tb tb-combo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
                 Insert
+              </button>
+              <div class="tb-sep"></div>
+              <!-- Design — dimmed (not active tab) -->
+              <button class="tb tb-combo">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+                Design
+              </button>
+              <!-- Text -->
+              <button class="tb tb-combo">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+                Text
+              </button>
+              <!-- Replace — filled teal active (mirrors active panel tab) -->
+              <button class="tb tb-combo active">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+                Replace
               </button>
             </div>
 
@@ -1029,6 +1066,7 @@
 <div class="section-title">Insert Mode — Place Tab</div>
 <p class="section-subtitle">
   User clicked <strong>Insert</strong>. The toolbar outlines Insert (temporary page mode).
+  Right-side collapses to a single <strong>Place</strong> button (filled teal).
   The panel shows a single <strong>Place</strong> tab — identical layout to <strong>Replace</strong>:
   canvas option + Storybook component list. Crosshair cursor + drop-line on the page.
 </p>
@@ -1071,6 +1109,12 @@
               <button class="tb tb-combo" style="box-shadow: inset 0 0 0 1.5px #00848B; color: #5fd4da; background: transparent;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" style="width:12px;height:12px;"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
                 Insert
+              </button>
+              <div class="tb-sep"></div>
+              <!-- Place — filled teal active (opens component picker in panel) -->
+              <button class="tb tb-combo" style="background: var(--teal-dark); color: #5fd4da;">
+                <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+                Place
               </button>
             </div>
 
@@ -1196,12 +1240,12 @@
     <tr style="border-bottom: 1px solid var(--border);">
       <td style="padding: 8px 16px; font-weight: 600;">Select</td>
       <td style="padding: 8px 16px;">Design · Replace</td>
-      <td style="padding: 8px 16px; color: var(--text-mid);">Design = property chips. Replace = canvas + components.</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Design = property chips. Replace = canvas + components.<br>Toolbar right side: <strong>Design</strong> · <strong>Text</strong> · <strong>Replace</strong></td>
     </tr>
     <tr style="border-bottom: 1px solid var(--border);">
       <td style="padding: 8px 16px; font-weight: 600;">Insert</td>
       <td style="padding: 8px 16px;">Place</td>
-      <td style="padding: 8px 16px; color: var(--text-mid);">Same layout as Replace (canvas + components). Single tab.</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Same layout as Replace (canvas + components). Single tab.<br>Toolbar right side: <strong>Place</strong></td>
     </tr>
   </tbody>
 </table>

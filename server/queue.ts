@@ -23,6 +23,8 @@ function toSummary(p: Patch): PatchSummary {
     parentComponent: p.parentComponent,
     targetComponentName: p.targetComponentName,
     targetPatchId: p.targetPatchId,
+    originalHtml: p.originalHtml,
+    newHtml: p.newHtml,
   };
 }
 
@@ -52,6 +54,14 @@ export function addPatch(patch: Patch): Patch {
     // Dedup: if a staged patch exists for the same elementKey+property, replace it
     const existingIdx = draftPatches.findIndex(
       p => p.kind === 'class-change' && p.elementKey === patch.elementKey && p.property === patch.property && p.status === 'staged'
+    );
+    if (existingIdx !== -1) {
+      draftPatches.splice(existingIdx, 1);
+    }
+  } else if (patch.kind === 'text-change') {
+    // Dedup: if a staged text-change exists for the same elementKey, replace it
+    const existingIdx = draftPatches.findIndex(
+      p => p.kind === 'text-change' && p.elementKey === patch.elementKey && p.status === 'staged'
     );
     if (existingIdx !== -1) {
       draftPatches.splice(existingIdx, 1);

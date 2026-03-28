@@ -40,12 +40,30 @@ async function selectElementAndWaitForPanel(
   await page.waitForTimeout(500);
 
   // Activate select mode in the panel before clicking the target element
-  await frame.waitForSelector('button[title*="Select an element"]', { timeout: 5000 });
-  await frame.evaluate(() => {
-    const btn = document.querySelector('button[title*="Select an element"]') as HTMLButtonElement | null;
-    if (!btn) throw new Error('SelectElementButton not found');
-    btn.click();
-  });
+  // Try the empty-state button first, then ModeToggle "Select" button
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const found = await frame.evaluate(() => {
+      // Empty-state button with title
+      const titleBtn = document.querySelector('button[title*="Select an element"]') as HTMLButtonElement | null;
+      if (titleBtn) { titleBtn.click(); return true; }
+      // Empty-state button by text
+      const textBtn = Array.from(document.querySelectorAll('button')).find(b =>
+        b.textContent?.includes('Select an element'),
+      ) as HTMLButtonElement | null;
+      if (textBtn) { textBtn.click(); return true; }
+      // ModeToggle "Select" button
+      const toggleBtns = document.querySelectorAll('button[aria-pressed]');
+      for (const b of toggleBtns) {
+        if (b.textContent?.trim() === 'Select') {
+          (b as HTMLButtonElement).click();
+          return true;
+        }
+      }
+      return false;
+    }).catch(() => false);
+    if (found) break;
+    await page.waitForTimeout(300);
+  }
 
   await locator.click();
 

@@ -49,17 +49,59 @@ export async function waitForPanelReady(frame: Frame): Promise<void> {
 }
 
 /**
- * Clicks the "Select an element" button in the panel header, activating crosshair mode.
- * Uses frame.evaluate to bypass Playwright pointer-event interception issues with
+ * Activates crosshair/select mode. Works in three scenarios:
+ * 1. Empty state: clicks the "Select an element" content button in the panel
+ * 2. Element selected: clicks ModeToggle's "Select" button (re-activates crosshair)
+ * 3. Fallback: clicks the overlay toolbar's Select button
+ * Uses evaluate to bypass Playwright pointer-event interception issues with
  * iframes nested inside shadow DOM.
  */
 export async function clickSelectElementButton(frame: Frame): Promise<void> {
-  await frame.waitForSelector('button[title*="Select an element"]', { timeout: 5000 });
-  await frame.evaluate(() => {
-    const btn = document.querySelector('button[title*="Select an element"]') as HTMLButtonElement | null;
-    if (!btn) throw new Error('SelectElementButton not found');
-    btn.click();
-  });
+  const page = frame.page();
+
+  // Retry a few times — UI may be briefly transitioning
+  for (let attempt = 0; attempt < 10; attempt++) {
+    // Try the panel's empty-state "Select an element" button
+    const foundContentBtn = await frame.evaluate(() => {
+      const btn =
+        document.querySelector('button[title*="Select an element"]') as HTMLButtonElement | null ??
+        Array.from(document.querySelectorAll('button')).find(b =>
+          b.textContent?.includes('Select an element'),
+        ) as HTMLButtonElement | null;
+      if (btn) { btn.click(); return true; }
+      return false;
+    }).catch(() => false);
+
+    if (foundContentBtn) return;
+
+    // Try ModeToggle's "Select" button (aria-pressed, exact text match)
+    const foundModeToggle = await frame.evaluate(() => {
+      const btns = document.querySelectorAll('button[aria-pressed]');
+      for (const b of btns) {
+        if (b.textContent?.trim() === 'Select') {
+          (b as HTMLButtonElement).click();
+          return true;
+        }
+      }
+      return false;
+    }).catch(() => false);
+
+    if (foundModeToggle) return;
+
+    // Try overlay toolbar's Select button
+    const foundInOverlay = await page.evaluate(() => {
+      const host = document.querySelector('#tw-visual-editor-host') as HTMLElement;
+      const btn = host?.shadowRoot?.querySelector('.tb-select') as HTMLButtonElement | null;
+      if (btn) { btn.click(); return true; }
+      return false;
+    }).catch(() => false);
+
+    if (foundInOverlay) return;
+
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error('No select button found in panel or overlay after retries');
 }
 
 /**
