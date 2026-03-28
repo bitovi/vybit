@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>033 · Approach 5 — Overlay Context Menu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1e1e1e;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 420px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 420px;
+      line-height: 1.5;
+      margin-bottom: 2px;
+    }
+
+    /* ─── MOCK PAGE ────────────────────────────────────────── */
+    .mock-page {
+      width: 420px;
+      height: 380px;
+      background: #f8fafc;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+      font-family: var(--font-ui);
+    }
+
+    .mock-header {
+      background: #0f172a;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mock-logo {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      background: var(--teal);
+    }
+
+    .mock-header-text {
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .mock-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mock-card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 12px;
+    }
+
+    .mock-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .mock-card-text {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .mock-textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #334155;
+      background: white;
+      resize: none;
+      height: 48px;
+      font-family: var(--font-ui);
+    }
+
+    /* ─── SELECTED ELEMENT HIGHLIGHT ───────────────────────── */
+    .selected-el {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+      position: relative;
+    }
+
+    /* ─── ELEMENT TOOLBAR (overlay) ────────────────────────── */
+    .el-toolbar {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      padding: 3px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+      z-index: 10;
+    }
+
+    .toolbar-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #bbb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all var(--t-fast);
+    }
+
+    .toolbar-btn:hover {
+      background: #333;
+      color: white;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 16px;
+      background: #444;
+      margin: 0 2px;
+    }
+
+    .toolbar-count {
+      font-size: 10px;
+      font-weight: 600;
+      color: #bbb;
+      padding: 0 6px;
+      cursor: pointer;
+    }
+
+    /* ─── CONTEXT MENU ─────────────────────────────────────── */
+    .context-menu {
+      position: absolute;
+      z-index: 20;
+      width: 220px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+      padding: 4px;
+      overflow: hidden;
+    }
+
+    .ctx-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+
+    .ctx-item:hover {
+      background: var(--teal-dim);
+    }
+
+    .ctx-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .ctx-icon.design   { background: rgba(0, 132, 139, 0.2); color: var(--teal); }
+    .ctx-icon.text     { background: rgba(99, 102, 241, 0.2); color: #818CF8; }
+    .ctx-icon.replace  { background: rgba(245, 83, 45, 0.2);  color: var(--orange); }
+    .ctx-icon.canvas   { background: rgba(168, 85, 247, 0.2); color: #A855F7; }
+    .ctx-icon.message  { background: rgba(234, 179, 8, 0.2);  color: #EAB308; }
+    .ctx-icon.insert   { background: rgba(16, 185, 129, 0.2); color: #10B981; }
+    .ctx-icon.group    { background: rgba(59, 130, 246, 0.2);  color: #3B82F6; }
+    .ctx-icon.explore  { background: rgba(251, 146, 60, 0.2);  color: #FB923C; }
+
+    .ctx-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .ctx-shortcut {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: #666;
+    }
+
+    .ctx-sep {
+      height: 1px;
+      background: #333;
+      margin: 3px 0;
+    }
+
+    .ctx-group-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #666;
+      padding: 6px 10px 2px;
+    }
+
+    /* ─── QUICK MESSAGE IN CONTEXT MENU ────────────────────── */
+    .ctx-message-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 4px;
+      padding: 7px 8px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 5px;
+    }
+
+    .ctx-message-bar input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .ctx-message-bar input::placeholder {
+      color: #666;
+    }
+
+    .ctx-send {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: none;
+      background: var(--teal);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ─── PANEL (now only a detail panel) ──────────────────── */
+    .panel {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .element-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .element-count {
+      font-family: var(--font-ui);
+      font-weight: 400;
+      color: var(--text-mid);
+    }
+
+    /* Detail panel becomes what was "drilled in" to */
+    .panel-mode-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-mid);
+    }
+
+    .panel-mode-label .mode-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+
+    .panel-mode-label strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .box-model-stub {
+      margin: 12px 10px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+    }
+
+    .prop-section { padding: 4px 12px; }
+    .prop-header { display: flex; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; }
+    .prop-caret { font-size: 10px; color: var(--muted); width: 12px; }
+    .prop-label { font-size: 10px; font-weight: 600; color: var(--text); flex: 1; }
+    .prop-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 999px; background: rgba(0, 132, 139, 0.2); color: var(--teal); }
+    .prop-add { width: 16px; height: 16px; border-radius: 3px; border: none; background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0; transition: opacity var(--t-fast); }
+    .prop-header:hover .prop-add { opacity: 1; }
+
+    .chip-row {
+      display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px 18px;
+    }
+
+    .chip {
+      padding: 3px 8px; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      color: var(--text-mid); background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    }
+
+    .chip.active {
+      background: var(--teal-dim); border-color: var(--teal); color: var(--teal);
+    }
+
+    .queue-footer {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 6px 12px; border-top: 1px solid var(--border); font-size: 10px; margin-top: auto;
+    }
+
+    .queue-item { display: flex; align-items: center; gap: 4px; }
+    .queue-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .queue-dot.draft       { background: #F59E0B; }
+    .queue-dot.committed   { background: var(--orange); }
+    .queue-dot.implementing{ background: #3B82F6; }
+    .queue-dot.implemented { background: var(--teal); }
+    .queue-count { color: var(--muted); }
+    .queue-count.active-draft { color: #F59E0B; }
+    .queue-count.active-implemented { color: var(--teal); }
+
+    /* ─── LAYOUT ───────────────────────────────────────────── */
+    .page-and-panel {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .annotation {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--teal);
+      background: rgba(0, 132, 139, 0.15);
+      padding: 2px 6px;
+      border-radius: 3px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">Approach 5 — Overlay Context Menu</h1>
+<p class="page-subtitle">
+  Move action selection <strong>into the overlay</strong> via a right-click/long-press context menu on the selected element.
+  The panel becomes a <strong>focused detail view</strong> that shows only the UI for whichever action was chosen.
+  Actions are right where the user is looking — at the element itself.
+</p>
+
+<div class="variations">
+
+  <!-- ────────── STATE A: Context menu open on selected element ────────── -->
+  <div class="col">
+    <span class="col-label">A · Right-click context menu on selected element</span>
+    <p class="col-description">User selects an element, then right-clicks (or long-presses, or clicks a "…" button in the toolbar). A context menu appears at the cursor with all available actions, plus an inline quick message field.</p>
+    <div class="page-and-panel">
+      <div class="mock-page">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+
+          <div class="mock-card selected-el" style="position: relative;">
+            <div class="mock-card-title">Comments</div>
+            <textarea class="mock-textarea" readonly>Add a comment…</textarea>
+
+            <!-- Element toolbar above -->
+            <div class="el-toolbar" style="top: -36px; left: 0;">
+              <button class="toolbar-btn" title="Re-select">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              </button>
+              <button class="toolbar-btn" title="Draw">✏️</button>
+              <div class="toolbar-sep"></div>
+              <span class="toolbar-count">2 +</span>
+            </div>
+
+            <!-- Context menu -->
+            <div class="context-menu" style="top: 20px; right: -230px;">
+              <div class="ctx-item">
+                <div class="ctx-icon design">🎨</div>
+                <span class="ctx-label">Edit Design</span>
+                <span class="ctx-shortcut">⏎</span>
+              </div>
+              <div class="ctx-item">
+                <div class="ctx-icon text">✏️</div>
+                <span class="ctx-label">Edit Text</span>
+              </div>
+              <div class="ctx-sep"></div>
+              <div class="ctx-item">
+                <div class="ctx-icon replace">🔄</div>
+                <span class="ctx-label">Replace with Component</span>
+              </div>
+              <div class="ctx-item">
+                <div class="ctx-icon canvas">🖼️</div>
+                <span class="ctx-label">Redraw (Canvas)</span>
+              </div>
+              <div class="ctx-item">
+                <div class="ctx-icon explore">✨</div>
+                <span class="ctx-label">Explore Designs</span>
+              </div>
+              <div class="ctx-sep"></div>
+              <div class="ctx-group-label">Insert</div>
+              <div class="ctx-item">
+                <div class="ctx-icon insert">📦</div>
+                <span class="ctx-label">Component…</span>
+              </div>
+              <div class="ctx-item">
+                <div class="ctx-icon canvas">✏️</div>
+                <span class="ctx-label">Drawing Canvas…</span>
+              </div>
+              <div class="ctx-sep"></div>
+              <div class="ctx-item">
+                <div class="ctx-icon group">⊕</div>
+                <span class="ctx-label">Select More</span>
+                <span class="ctx-shortcut">⇧click</span>
+              </div>
+              <div class="ctx-sep"></div>
+              <!-- Inline quick message -->
+              <div class="ctx-message-bar">
+                <input type="text" placeholder="Quick message…" />
+                <button class="ctx-send">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="annotation" style="bottom: -20px; right: 0;">right-click or •••</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE B: Panel as focused detail view ────────── -->
+  <div class="col">
+    <span class="col-label">B · Panel as focused detail view</span>
+    <p class="col-description">After choosing "Edit Design" from the context menu, the panel shows <em>only</em> the property editors — no tabs needed. A small breadcrumb shows what mode it's in. Selecting another action from the context menu replaces the panel content.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="element-name">Comments <span class="element-count">— 1 instance</span></div>
+      </div>
+      <div class="panel-mode-label">
+        <div class="mode-dot"></div>
+        <strong>Edit Design</strong>
+        <span style="margin-left: auto; cursor: pointer; color: var(--muted);">✕</span>
+      </div>
+
+      <div class="box-model-stub">margin → outline → border → padding</div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▾</span>
+          <span class="prop-label">Typography</span>
+          <span class="prop-badge">3</span>
+          <button class="prop-add">+</button>
+        </div>
+        <div class="chip-row">
+          <span class="chip active">text-sm</span>
+          <span class="chip">text-foreground</span>
+          <span class="chip">leading-[21px]</span>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Sizing</span>
+          <span class="prop-badge">2</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Layout</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Backgrounds</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Shadows</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Effects</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE C: Enhanced toolbar with ••• button ────────── -->
+  <div class="col">
+    <span class="col-label">C · Enhanced toolbar with ••• trigger</span>
+    <p class="col-description">The element toolbar gains a "•••" overflow button that opens the context menu. This is more discoverable than right-click alone. The toolbar also gets inline quick actions for the most common operations.</p>
+    <div class="mock-page" style="height: 200px;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">Case Management</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Case Description</div>
+          <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+
+          <!-- Enhanced toolbar -->
+          <div class="el-toolbar" style="top: -36px; left: 0;">
+            <button class="toolbar-btn" title="Re-select">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </button>
+            <button class="toolbar-btn" title="Edit Design" style="color: var(--teal);">🎨</button>
+            <button class="toolbar-btn" title="Draw">✏️</button>
+            <button class="toolbar-btn" title="Quick message">💬</button>
+            <div class="toolbar-sep"></div>
+            <span class="toolbar-count">2 +</span>
+            <div class="toolbar-sep"></div>
+            <button class="toolbar-btn" title="More actions" style="font-size: 14px; letter-spacing: 1px;">•••</button>
+          </div>
+
+          <div class="annotation" style="top: -56px; left: 120px;">← most common actions inline</div>
+          <div class="annotation" style="top: -56px; right: -40px;">overflow →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

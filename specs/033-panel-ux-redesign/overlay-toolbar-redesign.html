@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>033 · Overlay Toolbar Redesign Exploration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+      --toolbar-bg:   #1a1a1a;
+      --toolbar-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a1a;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px 40px 120px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 40px;
+      line-height: 1.7;
+      max-width: 800px;
+    }
+
+    .page-subtitle strong { color: var(--text-mid); }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 48px 0 32px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+      max-width: 700px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 460px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 460px;
+      line-height: 1.55;
+      margin-bottom: 6px;
+    }
+
+    /* ─── MOCK PAGE ─────────────────────────────────────── */
+    .mock-page {
+      width: 400px;
+      min-height: 300px;
+      background: #f8fafc;
+      border-radius: var(--radius-lg);
+      border: 1px solid #555;
+      overflow: visible;
+      position: relative;
+      font-family: var(--font-ui);
+    }
+
+    .mock-header {
+      background: #0f172a;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .mock-logo {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: var(--teal);
+    }
+
+    .mock-header-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .mock-content {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mock-card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 12px;
+    }
+
+    .mock-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .mock-card-text {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .mock-input-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .mock-input {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #94a3b8;
+      background: #f8fafc;
+    }
+
+    .mock-send-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #0f172a;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+    }
+
+    /* ─── SELECTED ELEMENT ──────────────────────────────── */
+    .selected-el {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+      position: relative;
+    }
+
+    /* ─── COMMON TOOLBAR PARTS ──────────────────────────── */
+    .toolbar {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      background: var(--toolbar-bg);
+      border-radius: 8px;
+      padding: 3px;
+      box-shadow: var(--toolbar-shadow);
+      z-index: 10;
+      gap: 1px;
+    }
+
+    .tb {
+      height: 28px;
+      border-radius: 5px;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .tb:hover {
+      background: #333;
+      color: white;
+    }
+
+    .tb.active {
+      background: var(--teal-dark);
+      color: #5fd4da;
+    }
+
+    .tb svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .tb-icon {
+      width: 28px;
+    }
+
+    .tb-text {
+      padding: 0 10px;
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .tb-text-sm {
+      padding: 0 7px;
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .tb-combo {
+      gap: 4px;
+      padding: 0 8px;
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .tb-combo svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .tb-sep {
+      width: 1px;
+      height: 16px;
+      background: #3a3a3a;
+      margin: 0 2px;
+      flex-shrink: 0;
+    }
+
+    .tb-count {
+      font-size: 10px;
+      font-weight: 700;
+      color: #aaa;
+      padding: 0 6px;
+      cursor: pointer;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      border-radius: 5px;
+      transition: all var(--t-fast);
+    }
+
+    .tb-count:hover {
+      background: #333;
+      color: white;
+    }
+
+    /* 1+ adjunct button hover — inside a coloured segmented group */
+    .tb-adjunct:hover,
+    .tb-adjunct-hovered {
+      background: rgba(255,255,255,0.14) !important;
+    }
+
+    /* Select half hover inside the same group */
+    .tb-select:hover,
+    .tb-select-hovered {
+      background: rgba(255,255,255,0.10) !important;
+    }
+
+    /* ─── MESSAGE ROW ───────────────────────────────────── */
+    .msg-row {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--toolbar-bg);
+      border-radius: 8px;
+      padding: 3px 4px 3px 8px;
+      box-shadow: var(--toolbar-shadow);
+      z-index: 10;
+    }
+
+    .msg-row input {
+      width: 190px;
+      border: none;
+      background: #2a2a2a;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 10px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    .msg-row input::placeholder { color: #888; }
+
+    .msg-send {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      border: none;
+      background: var(--teal);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .msg-send svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* ─── ANNOTATION ────────────────────────────────────── */
+    .note {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      color: var(--teal);
+      background: rgba(0, 132, 139, 0.12);
+      padding: 2px 6px;
+      border-radius: 3px;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 30;
+    }
+
+    .note.orange {
+      color: var(--orange);
+      background: rgba(245, 83, 45, 0.12);
+    }
+
+    /* ─── INLINE TOOLBAR (buttons + message fused) ──────── */
+    .toolbar-wide {
+      gap: 2px;
+    }
+
+    .toolbar-wide input {
+      width: 160px;
+      border: none;
+      background: #2a2a2a;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 10px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    .toolbar-wide input::placeholder { color: #888; }
+
+    /* ─── BADGE BUTTON ──────────────────────────────────── */
+    .badge-dot {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 5px;
+      height: 5px;
+      background: var(--teal);
+      border-radius: 50%;
+    }
+
+    /* ─── TOOLTIP ─────────────────────────────────────── */
+    .hint {
+      position: absolute;
+      background: #000;
+      color: #ccc;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 40;
+      opacity: 0;
+      transition: opacity 120ms;
+    }
+
+    .tb:hover + .hint,
+    .tb-count:hover + .hint {
+      opacity: 1;
+    }
+
+    /* ─── COMPACT TAG ───────────────────────────────────── */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: #888;
+      padding: 0 6px;
+      height: 28px;
+    }
+
+    .tag-el {
+      color: var(--teal);
+      font-weight: 500;
+    }
+
+    /* ───── ICON DEFINITIONS ────────────────────────────── */
+    /* Reusable as inline <svg> blocks below */
+
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">Overlay Toolbar — Redesign Exploration</h1>
+<p class="page-subtitle">
+  Focused on the <strong>Element Toolbar</strong> that floats near a selected element.
+  Six buttons: <strong>Select</strong> (re-select), <strong>Select More</strong> (1+), <strong>Insert</strong>, <strong>Design</strong> (default active),
+  <strong>Text</strong> (edit text), <strong>Replace</strong>. Plus a <strong>message input</strong> for adding context.
+  <br><br>
+  Exploring icon-only, text-only, and icon+label variants, with different arrangements
+  of the toolbar buttons and message form.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: ICON-BASED VARIANTS                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section-title">1 · Icon-Only Toolbar</div>
+<p class="section-subtitle">
+  Compact icon buttons. Semantically grouped: <strong>page interaction</strong> (Select, Select More, Insert) |
+  <strong>element editing</strong> (Design, Text, Replace).
+  Message row positioned separately near the element.
+</p>
+
+<div class="variations">
+
+  <!-- ─── 1A: Icons above, message below ─── -->
+  <div class="col">
+    <span class="col-label">1A · Buttons above, message below</span>
+    <p class="col-description">
+      Toolbar floats above the selected element. Message input sits below.
+      Keeps the message close to the element while buttons stay out of the way.
+      "Design" is active (teal highlight) by default.
+    </p>
+    <div class="mock-page" style="min-height: 330px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- TOOLBAR: above -->
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <!-- Select (re-select) — uses existing overlay cursor icon -->
+            <button class="tb tb-icon" title="Re-select element">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </button>
+
+            <!-- Select more -->
+            <button class="tb tb-icon" title="Select more elements">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+            </button>
+
+            <!-- Insert — dashed rect + inward arrows from approach-6 -->
+            <button class="tb tb-icon" title="Insert new element">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Design (active) -->
+            <button class="tb tb-icon active" title="Design">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+            </button>
+
+            <!-- Text editing -->
+            <button class="tb tb-icon" title="Edit text">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+            </button>
+
+            <!-- Replace -->
+            <button class="tb tb-icon" title="Replace element">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+            </button>
+          </div>
+
+          <!-- MESSAGE ROW: below -->
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card" style="margin-top: 36px;">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 1B: Everything below ─── -->
+  <div class="col">
+    <span class="col-label">1B · Buttons + message all below</span>
+    <p class="col-description">
+      Both toolbar and message sit below the element, stacked.
+      Nothing obscures the element above. Message input is always visible
+      right beneath the action buttons.
+    </p>
+    <div class="mock-page" style="min-height: 330px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- TOOLBAR: below element, row 1 -->
+          <div class="toolbar" style="top: calc(100% + 8px); left: 0;">
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-icon active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+            </button>
+          </div>
+
+          <!-- MESSAGE ROW: below toolbar -->
+          <div class="msg-row" style="top: calc(100% + 44px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card" style="margin-top: 72px;">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 1C: Unified single bar ─── -->
+  <div class="col">
+    <span class="col-label">1C · Unified bar — buttons + message in one row</span>
+    <p class="col-description">
+      Everything lives in a single toolbar above the element. The message input is
+      built into the right side of the toolbar, separated by a divider.
+      Very compact — one floating element instead of two.
+    </p>
+    <div class="mock-page" style="min-height: 330px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- UNIFIED TOOLBAR: above -->
+          <div class="toolbar toolbar-wide" style="bottom: calc(100% + 8px); left: 0;">
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-icon active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+            </button>
+            <div class="tb-sep"></div>
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send" style="width: 24px; height: 24px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 11px; height: 11px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: TEXT LABEL VARIANTS                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<hr class="divider">
+<div class="section-title">2 · Text Label Toolbar</div>
+<p class="section-subtitle">
+  Short word labels instead of icons. More immediately understandable for new users —
+  no guessing what an icon means. Trades compactness for clarity.
+</p>
+
+<div class="variations">
+
+  <!-- ─── 2A: Text above, message below ─── -->
+  <div class="col">
+    <span class="col-label">2A · Text labels above, message below</span>
+    <p class="col-description">
+      Each button is a terse word. Grouping via separators.
+      "Design" is highlighted as the active mode.
+      Wider than icons but instantly readable.
+    </p>
+    <div class="mock-page" style="min-height: 340px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- TEXT TOOLBAR: above -->
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <button class="tb tb-text">Select</button>
+            <button class="tb tb-text-sm" style="font-size: 10px;">
+              1<span style="font-size: 9px; margin-left: 1px; opacity: 0.5;">+</span>
+            </button>
+            <button class="tb tb-text">Insert</button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-text active">Design</button>
+            <button class="tb tb-text">Text</button>
+            <button class="tb tb-text">Replace</button>
+          </div>
+
+          <!-- MESSAGE ROW: below -->
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 12px; height: 12px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card" style="margin-top: 36px;">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 2B: Text, everything below ─── -->
+  <div class="col">
+    <span class="col-label">2B · Text labels + message all below</span>
+    <p class="col-description">
+      Both text toolbar and message float below the element.
+      Nothing above. Element content stays fully visible.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- TEXT TOOLBAR: below -->
+          <div class="toolbar" style="top: calc(100% + 8px); left: 0;">
+            <button class="tb tb-text">Select</button>
+            <button class="tb tb-text-sm">1<span style="font-size: 9px; margin-left: 1px; opacity: 0.5;">+</span></button>
+            <button class="tb tb-text">Insert</button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-text active">Design</button>
+            <button class="tb tb-text">Text</button>
+            <button class="tb tb-text">Replace</button>
+          </div>
+
+          <!-- MESSAGE ROW: below toolbar -->
+          <div class="msg-row" style="top: calc(100% + 44px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 12px; height: 12px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card" style="margin-top: 72px;">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 2C: Unified text bar ─── -->
+  <div class="col">
+    <span class="col-label">2C · Unified text bar — buttons + message in one row</span>
+    <p class="col-description">
+      Text buttons and message input share a single toolbar above the element.
+      Wider but only one floating element.
+    </p>
+    <div class="mock-page" style="min-height: 330px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- UNIFIED TEXT TOOLBAR -->
+          <div class="toolbar toolbar-wide" style="bottom: calc(100% + 8px); left: 0;">
+            <button class="tb tb-text">Select</button>
+            <button class="tb tb-text-sm">1<span style="font-size: 9px; margin-left: 1px; opacity: 0.5;">+</span></button>
+            <button class="tb tb-text">Insert</button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-text active">Design</button>
+            <button class="tb tb-text">Text</button>
+            <button class="tb tb-text">Replace</button>
+            <div class="tb-sep"></div>
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send" style="width: 24px; height: 24px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 11px; height: 11px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: ICON + MICRO-LABEL VARIANTS                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<hr class="divider">
+<div class="section-title">3 · Icon + Micro-Label Toolbar</div>
+<p class="section-subtitle">
+  Best of both: small icon with a tiny text label underneath or beside it.
+  Like a mobile tab bar — recognizable icon, reinforced by a word.
+  Slightly taller but extremely clear.
+</p>
+
+<div class="variations">
+
+  <!-- ─── 3A: Stacked icon+label, message below ─── -->
+  <div class="col">
+    <span class="col-label">3A · Stacked icon + label above, message below</span>
+    <p class="col-description">
+      Each button has an icon on top with a tiny label underneath.
+      Very discoverable — users know exactly what each button does.
+      The toolbar is taller (~40px) but still compact.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- STACKED ICON+LABEL TOOLBAR: above -->
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0; padding: 4px; gap: 1px;">
+
+            <button class="tb" style="width: auto; height: auto; padding: 4px 8px; flex-direction: column; gap: 1px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 13px; height: 13px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.3px;">Select</span>
+            </button>
+
+            <button class="tb" style="width: auto; height: auto; padding: 4px 8px; flex-direction: column; gap: 1px;">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 13px; height: 13px;"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+              <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.3px;">More</span>
+            </button>
+
+            <button class="tb" style="width: auto; height: auto; padding: 4px 8px; flex-direction: column; gap: 1px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" style="width: 13px; height: 13px;"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.3px;">Insert</span>
+            </button>
+
+            <div class="tb-sep" style="height: 32px;"></div>
+
+            <button class="tb active" style="width: auto; height: auto; padding: 4px 8px; flex-direction: column; gap: 1px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 13px; height: 13px;"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.3px;">Design</span>
+            </button>
+
+            <button class="tb" style="width: auto; height: auto; padding: 4px 8px; flex-direction: column; gap: 1px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 13px; height: 13px;"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.3px;">Text</span>
+            </button>
+
+            <button class="tb" style="width: auto; height: auto; padding: 4px 8px; flex-direction: column; gap: 1px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 13px; height: 13px;"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.3px;">Replace</span>
+            </button>
+          </div>
+
+          <!-- MESSAGE ROW: below -->
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 12px; height: 12px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card" style="margin-top: 36px;">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3B: Inline icon+label, message in row ─── -->
+  <div class="col">
+    <span class="col-label">3B · Inline icon + label, message inline</span>
+    <p class="col-description">
+      Icon sits to the left of each label, all in a single horizontal bar.
+      Message input integrated at the end. One row, one bar, highly readable.
+    </p>
+    <div class="mock-page" style="min-height: 330px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- INLINE ICON+LABEL TOOLBAR -->
+          <div class="toolbar toolbar-wide" style="bottom: calc(100% + 8px); left: 0;">
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              Select
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+              More
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-combo active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              Design
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              Text
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              Replace
+            </button>
+            <div class="tb-sep"></div>
+            <input type="text" placeholder="add your message" style="width: 130px;" />
+            <button class="msg-send" style="width: 24px; height: 24px;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 11px; height: 11px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3C: Inline icon+label, message below, Select active ─── -->
+  <div class="col">
+    <span class="col-label">3C · Inline icon + label, message below</span>
+    <p class="col-description">
+      Like 3B but "1+" instead of "More", message form below the element (not inline),
+      and both <strong>Select</strong> and <strong>Design</strong> shown active —
+      reflecting the state where the user is in select mode while the panel still shows Design.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- INLINE ICON+LABEL TOOLBAR — Select active -->
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <!-- Select + 1+ segmented group -->
+            <div style="display: flex; align-items: center; background: var(--teal-dark); border-radius: 5px; overflow: hidden;">
+              <button class="tb tb-combo tb-select" style="background: transparent; color: #5fd4da; border-radius: 0;">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                Select
+              </button>
+              <div style="width: 1px; height: 14px; background: rgba(255,255,255,0.15);"></div>
+              <button class="tb tb-adjunct" style="background: transparent; color: #5fd4da; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+              </button>
+            </div>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-combo active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              Design
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              Text
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              Replace
+            </button>
+          </div>
+
+          <!-- MESSAGE ROW: below element -->
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3D: Distinct active states — orange Select, teal Design ─── -->
+  <div class="col">
+    <span class="col-label">3D · Orange select, teal design — two active states</span>
+    <p class="col-description">
+      Addresses the "two things active at once" problem: <strong>Select</strong> gets an
+      <strong style="color: #F5532D;">orange</strong> highlight (page-interaction mode) while
+      <strong style="color: #5fd4da;">Design</strong> keeps teal (panel mode).
+      "1 +" is its own button — shows count of selected elements and opens a group picker.
+      Insert icon simplified to just the dashed rect.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <!-- Select + 1+ segmented group (orange page mode) -->
+            <div style="display: flex; align-items: center; background: #3d1a10; border-radius: 5px; overflow: hidden;">
+              <button class="tb tb-combo tb-select" style="background: transparent; color: #F5532D; border-radius: 0;">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                Select
+              </button>
+              <div style="width: 1px; height: 14px; background: rgba(245,83,45,0.3);"></div>
+              <button class="tb tb-adjunct" style="background: transparent; color: #F5532D; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+              </button>
+            </div>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+            <div class="tb-sep"></div>
+            <!-- Design — teal active (panel mode) -->
+            <button class="tb tb-combo active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              Design
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              Text
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              Replace
+            </button>
+          </div>
+
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3E: Outline active vs fill active ─── -->
+  <div class="col">
+    <span class="col-label">3E · Outline select vs filled design</span>
+    <p class="col-description">
+      Select uses a <strong>teal outline ring</strong> (temporary mode — "I'm about to click something")
+      while Design uses the standard <strong>filled teal</strong> (persistent panel state).
+      Select and "1+" form a segmented button group — visually joined, independently clickable.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <!-- Select + 1+ segmented group (outline ring) -->
+            <div style="display: flex; align-items: center; box-shadow: inset 0 0 0 1.5px #00848B; border-radius: 5px; overflow: hidden;">
+              <button class="tb tb-combo tb-select" style="background: transparent; color: #5fd4da; border-radius: 0;">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                Select
+              </button>
+              <div style="width: 1px; height: 14px; background: rgba(0,132,139,0.5);"></div>
+              <button class="tb tb-adjunct" style="background: transparent; color: #5fd4da; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+              </button>
+            </div>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+            <div class="tb-sep"></div>
+            <!-- Design — filled teal active -->
+            <button class="tb tb-combo active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              Design
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              Text
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              Replace
+            </button>
+          </div>
+
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3E-Insert: Insert active — component picker open ─── -->
+  <div class="col">
+    <span class="col-label">3E-Insert · Insert active — toolbar only</span>
+    <p class="col-description">
+      When <strong>Insert</strong> is active the right side of the toolbar collapses to a single button
+      that opens the component picker <strong>in the sidebar panel</strong> (not a dropdown).
+      Select/1+ dim but stay present.<br><br>
+      <strong>Naming pairs</strong> — the Select-mode and Insert-mode buttons open the same sidebar tab,
+      so they should feel related:<br>
+      <table style="margin-top: 8px; border-collapse: collapse; font-size: 11px; color: var(--text-mid);">
+        <tr style="border-bottom: 1px solid #333;">
+          <td style="padding: 4px 12px 4px 0; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;">Select mode</td>
+          <td style="padding: 4px 12px 4px 0; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;">Insert mode</td>
+          <td style="padding: 4px 0; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;">Notes</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #2a2a2a;">
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Swap</strong></td>
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Place</strong></td>
+          <td style="padding: 4px 0; color: var(--muted);">Both short action verbs. "Swap this" vs "Place new." Clear intent.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #2a2a2a;">
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Replace</strong></td>
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Place</strong></td>
+          <td style="padding: 4px 0; color: var(--muted);">Keeps existing "Replace" label. Rhymes with Place.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #2a2a2a;">
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Swap</strong></td>
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Add</strong></td>
+          <td style="padding: 4px 0; color: var(--muted);">Most familiar words. Minimal cognitive load.</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Components</strong></td>
+          <td style="padding: 4px 12px 4px 0;"><strong style="color:#5fd4da;">Components</strong></td>
+          <td style="padding: 4px 0; color: var(--muted);">Same label in both modes. Context (Select vs Insert) clarifies intent. Simplest.</td>
+        </tr>
+      </table>
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0; cursor: crosshair;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content" style="position: relative;">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <!-- ── DROP INDICATOR: solid teal line with inward arrow end-caps ── -->
+        <!-- Toolbar + message anchored to the line itself -->
+        <div style="position: relative; height: 3px; margin: -2px 0; z-index: 5;">
+          <!-- Main teal line -->
+          <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--teal); border-radius: 3px;"></div>
+          <!-- Left arrow end-cap > pointing right -->
+          <div style="position: absolute; top: 50%; left: -2px; transform: translateY(-50%); width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 5px; border-color: transparent transparent transparent var(--teal);"></div>
+          <!-- Right arrow end-cap < pointing left -->
+          <div style="position: absolute; top: 50%; right: -2px; transform: translateY(-50%); width: 0; height: 0; border-style: solid; border-width: 5px 5px 5px 0; border-color: transparent var(--teal) transparent transparent;"></div>
+
+          <!-- TOOLBAR: sits above the line -->
+          <div class="toolbar" style="bottom: calc(100% + 6px); left: 0; position: absolute;">
+            <!-- Select + 1+ — dimmed, not active -->
+            <div style="display: flex; align-items: center; border-radius: 5px; overflow: hidden; opacity: 0.4;">
+              <button class="tb tb-combo" style="background: transparent; color: #aaa; border-radius: 0;">
+                <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                Select
+              </button>
+              <div style="width: 1px; height: 14px; background: rgba(255,255,255,0.1);"></div>
+              <button class="tb" style="background: transparent; color: #aaa; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+              </button>
+            </div>
+            <!-- Insert — outline ring (active, temporary page mode) -->
+            <button class="tb tb-combo" style="box-shadow: inset 0 0 0 1.5px #00848B; color: #5fd4da; background: transparent;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" style="width:12px;height:12px;"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+            <div class="tb-sep"></div>
+            <!-- Place — opens component picker in sidebar -->
+            <button class="tb tb-combo" style="background: var(--teal-dark); color: #5fd4da;">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              Place
+            </button>
+          </div>
+
+          <!-- MESSAGE ROW: sits below the line -->
+          <div class="msg-row" style="top: calc(100% + 6px); left: 0; position: absolute;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+        </div>
+
+        <!-- ── FLOATING CURSOR LABEL: teal pill ── -->
+        <div style="
+          position: absolute; top: 46px; right: 30px; z-index: 20;
+          background: var(--teal); color: #fff; font-size: 11px; font-family: system-ui, sans-serif;
+          padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        ">Place: Button</div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3F: Underline active + 1+ as adjunct ─── -->
+  <div class="col">
+    <span class="col-label">3F · Underline active + separate 1+</span>
+    <p class="col-description">
+      <strong>Select</strong> gets an <strong style="color: #F5532D;">orange underline</strong> (temporary page mode) while
+      <strong>Design</strong> gets a <strong style="color: #5fd4da;">teal underline</strong> (persistent panel mode).
+      No background fills — just bottom borders. "N +" is its own button (opens group picker).
+      Insert simplified.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <!-- Select + 1+ segmented group (orange underline) -->
+            <div style="display: flex; align-items: center; border-bottom: 2px solid #F5532D; border-radius: 5px 5px 0 0; overflow: hidden;">
+              <button class="tb tb-combo" style="background: transparent; color: #F5532D; border-radius: 0;">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                Select
+              </button>
+              <div style="width: 1px; height: 14px; background: rgba(245,83,45,0.3);"></div>
+              <button class="tb" style="background: transparent; color: #F5532D; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+              </button>
+            </div>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+            <div class="tb-sep"></div>
+            <!-- Design — teal underline (panel mode) -->
+            <button class="tb tb-combo" style="background: transparent; color: #5fd4da; border-bottom: 2px solid #00848B; border-radius: 5px 5px 0 0;">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              Design
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              Text
+            </button>
+            <button class="tb tb-combo">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              Replace
+            </button>
+          </div>
+
+          <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Hover state detail ─── -->
+  <div class="col">
+    <span class="col-label">Hover states · segmented Select + 1+ group</span>
+    <p class="col-description">
+      Within the group, each half gets a subtle white overlay on hover —
+      enough to signal independent clickability without breaking the visual bond.
+      Shown here using the teal (3C) and orange (3D) variants.
+    </p>
+
+    <!-- TEAL VARIANT (3C) -->
+    <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); color: var(--muted); margin-top: 6px;">3C teal — three states</div>
+    <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 4px;">
+
+      <!-- idle -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 68px; font-size: 9px; color: var(--muted); font-family: var(--font-mono);">idle</div>
+        <div style="display: flex; align-items: center; background: var(--teal-dark); border-radius: 5px; overflow: hidden;">
+          <button class="tb tb-combo tb-select" style="background: transparent; color: #5fd4da; border-radius: 0;">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <div style="width:1px;height:14px;background:rgba(255,255,255,0.15);"></div>
+          <button class="tb tb-adjunct" style="background:transparent;color:#5fd4da;border-radius:0;padding:0 6px;font-size:10px;font-weight:700;font-family:var(--font-ui);">1<span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span></button>
+        </div>
+      </div>
+
+      <!-- 1+ hovered -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 68px; font-size: 9px; color: var(--muted); font-family: var(--font-mono);">1+ hover</div>
+        <div style="display: flex; align-items: center; background: var(--teal-dark); border-radius: 5px; overflow: hidden;">
+          <button class="tb tb-combo tb-select" style="background: transparent; color: #5fd4da; border-radius: 0;">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <div style="width:1px;height:14px;background:rgba(255,255,255,0.15);"></div>
+          <button class="tb tb-adjunct tb-adjunct-hovered" style="background:transparent;color:#5fd4da;border-radius:0;padding:0 6px;font-size:10px;font-weight:700;font-family:var(--font-ui);">1<span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span></button>
+        </div>
+      </div>
+
+      <!-- Select hovered -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 68px; font-size: 9px; color: var(--muted); font-family: var(--font-mono);">Select hover</div>
+        <div style="display: flex; align-items: center; background: var(--teal-dark); border-radius: 5px; overflow: hidden;">
+          <button class="tb tb-combo tb-select tb-select-hovered" style="background: transparent; color: #5fd4da; border-radius: 0;">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <div style="width:1px;height:14px;background:rgba(255,255,255,0.15);"></div>
+          <button class="tb tb-adjunct" style="background:transparent;color:#5fd4da;border-radius:0;padding:0 6px;font-size:10px;font-weight:700;font-family:var(--font-ui);">1<span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORANGE VARIANT (3D) -->
+    <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); color: var(--muted); margin-top: 18px;">3D orange — three states</div>
+    <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 4px;">
+
+      <!-- idle -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 68px; font-size: 9px; color: var(--muted); font-family: var(--font-mono);">idle</div>
+        <div style="display: flex; align-items: center; background: #3d1a10; border-radius: 5px; overflow: hidden;">
+          <button class="tb tb-combo tb-select" style="background: transparent; color: #F5532D; border-radius: 0;">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <div style="width:1px;height:14px;background:rgba(245,83,45,0.3);"></div>
+          <button class="tb tb-adjunct" style="background:transparent;color:#F5532D;border-radius:0;padding:0 6px;font-size:10px;font-weight:700;font-family:var(--font-ui);">1<span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span></button>
+        </div>
+      </div>
+
+      <!-- 1+ hovered -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 68px; font-size: 9px; color: var(--muted); font-family: var(--font-mono);">1+ hover</div>
+        <div style="display: flex; align-items: center; background: #3d1a10; border-radius: 5px; overflow: hidden;">
+          <button class="tb tb-combo tb-select" style="background: transparent; color: #F5532D; border-radius: 0;">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <div style="width:1px;height:14px;background:rgba(245,83,45,0.3);"></div>
+          <button class="tb tb-adjunct tb-adjunct-hovered" style="background:transparent;color:#F5532D;border-radius:0;padding:0 6px;font-size:10px;font-weight:700;font-family:var(--font-ui);">1<span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span></button>
+        </div>
+      </div>
+
+      <!-- Select hovered -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 68px; font-size: 9px; color: var(--muted); font-family: var(--font-mono);">Select hover</div>
+        <div style="display: flex; align-items: center; background: #3d1a10; border-radius: 5px; overflow: hidden;">
+          <button class="tb tb-combo tb-select tb-select-hovered" style="background: transparent; color: #F5532D; border-radius: 0;">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <div style="width:1px;height:14px;background:rgba(245,83,45,0.3);"></div>
+          <button class="tb tb-adjunct" style="background:transparent;color:#F5532D;border-radius:0;padding:0 6px;font-size:10px;font-weight:700;font-family:var(--font-ui);">1<span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span></button>
+        </div>
+      </div>
+    </div>
+
+    <p class="col-description" style="margin-top: 16px; font-size: 10px;">
+      The white-overlay approach keeps the grouping intact — the pair reads as one unit until you move the cursor, at which point the hovered half brightens just enough to feel pressable.
+    </p>
+  </div>
+
+</div><!-- end variations -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: CREATIVE LAYOUT IDEAS                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<hr class="divider">
+<div class="section-title">4 · Creative Layouts</div>
+<p class="section-subtitle">
+  Alternate placements and structures beyond the standard horizontal bar.
+</p>
+
+<div class="variations">
+
+  <!-- ─── 4A: L-shape — toolbar above, message drops from right end ─── -->
+  <div class="col">
+    <span class="col-label">4A · L-shape — toolbar above, message drops from right</span>
+    <p class="col-description">
+      Toolbar sits above. A chat-bubble icon at the end of the toolbar, and the
+      message row drops down from it vertically, creating an L-shape.
+      Visually connects the message to the toolbar without a second floating bar.
+    </p>
+    <div class="mock-page" style="min-height: 360px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- TOOLBAR: above, with message icon at right -->
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <button class="tb tb-text">Select</button>
+            <button class="tb tb-text-sm">1<span style="font-size: 9px; margin-left: 1px; opacity: 0.5;">+</span></button>
+            <button class="tb tb-text">Insert</button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-text active">Design</button>
+            <button class="tb tb-text">Text</button>
+            <button class="tb tb-text">Replace</button>
+            <div class="tb-sep"></div>
+            <!-- Chat icon that "owns" the message row -->
+            <button class="tb tb-icon" style="color: var(--teal);">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8,0C3.6,0,0,2.9,0,6.4c0,2.1,1.3,4,3.3,5.2L2,14.4c-0.2,0.4,0.1,0.9,0.6,0.9c0.1,0,0.2,0,0.3-0.1l4-2.3c0.4,0,0.7,0.1,1.1,0.1c4.4,0,8-2.9,8-6.4S12.4,0,8,0z"/></svg>
+            </button>
+          </div>
+
+          <!-- MESSAGE drops from right side of toolbar -->
+          <div class="msg-row" style="bottom: calc(100% + 8px - 34px); right: -230px; left: auto;">
+            <input type="text" placeholder="add your message" />
+            <button class="msg-send">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width: 12px; height: 12px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+            </button>
+          </div>
+
+          <div class="note" style="bottom: calc(100% + 48px); left: 0;">message slides out from chat icon →</div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 4B: Two-tier stacked bar ─── -->
+  <div class="col">
+    <span class="col-label">4B · Two-tier stacked bar above element</span>
+    <p class="col-description">
+      A single floating container with two rows: buttons on top, message input on bottom.
+      Feels like a unified widget rather than two separate overlays.
+      Rounded corners wrap both levels.
+    </p>
+    <div class="mock-page" style="min-height: 370px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- TWO-TIER UNIT: above -->
+          <div style="
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: var(--toolbar-bg);
+            border-radius: 8px;
+            box-shadow: var(--toolbar-shadow);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          ">
+            <!-- Row 1: buttons -->
+            <div style="display: flex; align-items: center; padding: 3px; gap: 1px;">
+              <button class="tb tb-text">Select</button>
+              <button class="tb tb-text-sm">1<span style="font-size: 9px; margin-left: 1px; opacity: 0.5;">+</span></button>
+              <button class="tb tb-text">Insert</button>
+              <div class="tb-sep"></div>
+              <button class="tb tb-text active">Design</button>
+              <button class="tb tb-text">Text</button>
+              <button class="tb tb-text">Replace</button>
+            </div>
+            <!-- Divider -->
+            <div style="height: 1px; background: #2a2a2a; margin: 0 6px;"></div>
+            <!-- Row 2: message -->
+            <div style="display: flex; align-items: center; gap: 4px; padding: 3px 4px 4px 8px;">
+              <input type="text" placeholder="add your message" style="
+                flex: 1;
+                min-width: 200px;
+                border: none;
+                background: #2a2a2a;
+                color: var(--text);
+                font-family: var(--font-ui);
+                font-size: 10px;
+                padding: 5px 8px;
+                border-radius: 5px;
+                outline: none;
+              " />
+              <button class="msg-send" style="width: 24px; height: 24px;">
+                <svg viewBox="0 0 16 16" fill="currentColor" style="width: 11px; height: 11px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mock-card">
+          <div class="mock-card-title">Status</div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 4C: Message hidden behind icon, expand on click ─── -->
+  <div class="col">
+    <span class="col-label">4C · Compact toolbar — message expands on demand</span>
+    <p class="col-description">
+      Minimal footprint. The toolbar is a tight row of icons.
+      A chat icon at the end toggles a message row that slides out below.
+      When closed: just the button bar. When open: button bar + message.
+      Shown here in both states.
+    </p>
+    <div class="mock-page" style="min-height: 420px; padding-top: 0;">
+      <div class="mock-header">
+        <div class="mock-logo"></div>
+        <span class="mock-header-text">My App</span>
+      </div>
+      <div class="mock-content">
+        <div class="mock-card">
+          <div class="mock-card-title">Profile</div>
+          <div class="mock-card-text">Your account settings</div>
+        </div>
+
+        <div class="mock-card selected-el" style="position: relative;">
+          <div class="mock-card-title">Comments</div>
+          <div class="mock-card-text">Add a comment</div>
+          <div class="mock-input-row">
+            <div class="mock-input">add your message</div>
+            <div class="mock-send-btn">→</div>
+          </div>
+
+          <!-- Compact toolbar ABOVE — message collapsed -->
+          <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb tb-icon active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+            </button>
+            <button class="tb tb-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+            </button>
+            <div class="tb-sep"></div>
+            <!-- Chat icon - toggle -->
+            <button class="tb tb-icon" style="color: #888;">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8,0C3.6,0,0,2.9,0,6.4c0,2.1,1.3,4,3.3,5.2L2,14.4c-0.2,0.4,0.1,0.9,0.6,0.9c0.1,0,0.2,0,0.3-0.1l4-2.3c0.4,0,0.7,0.1,1.1,0.1c4.4,0,8-2.9,8-6.4S12.4,0,8,0z"/></svg>
+            </button>
+          </div>
+          <div class="note" style="bottom: calc(100% + 42px); left: 0;">collapsed — message hidden</div>
+        </div>
+
+        <!-- Second element showing the expanded state -->
+        <div class="mock-card selected-el" style="position: relative; margin-top: 10px; outline-color: var(--orange);">
+          <div class="mock-card-title">Same toolbar — expanded</div>
+          <div class="mock-card-text">Chat icon clicked → message row appears below</div>
+
+          <!-- Expanded two-tier -->
+          <div style="
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: var(--toolbar-bg);
+            border-radius: 8px;
+            box-shadow: var(--toolbar-shadow);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          ">
+            <div style="display: flex; align-items: center; padding: 3px; gap: 1px;">
+              <button class="tb tb-icon">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              </button>
+              <button class="tb tb-icon">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+              </button>
+              <button class="tb tb-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              </button>
+              <div class="tb-sep"></div>
+              <button class="tb tb-icon active">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+              </button>
+              <button class="tb tb-icon">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+              </button>
+              <button class="tb tb-icon">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+              </button>
+              <div class="tb-sep"></div>
+              <button class="tb tb-icon active" style="background: var(--teal-dark); color: #5fd4da;">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8,0C3.6,0,0,2.9,0,6.4c0,2.1,1.3,4,3.3,5.2L2,14.4c-0.2,0.4,0.1,0.9,0.6,0.9c0.1,0,0.2,0,0.3-0.1l4-2.3c0.4,0,0.7,0.1,1.1,0.1c4.4,0,8-2.9,8-6.4S12.4,0,8,0z"/></svg>
+              </button>
+            </div>
+            <div style="height: 1px; background: #2a2a2a; margin: 0 6px;"></div>
+            <div style="display: flex; align-items: center; gap: 4px; padding: 3px 4px 4px 8px;">
+              <input type="text" placeholder="add your message" style="
+                flex: 1;
+                min-width: 200px;
+                border: none;
+                background: #2a2a2a;
+                color: var(--text);
+                font-family: var(--font-ui);
+                font-size: 10px;
+                padding: 5px 8px;
+                border-radius: 5px;
+                outline: none;
+              " />
+              <button class="msg-send" style="width: 24px; height: 24px;">
+                <svg viewBox="0 0 16 16" fill="currentColor" style="width: 11px; height: 11px;"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="note" style="bottom: calc(100% + 74px); left: 0;">expanded — chat icon toggled</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: ICON LEGEND                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<hr class="divider">
+<div class="section-title">5 · Icon Legend</div>
+<p class="section-subtitle">
+  Reference for each button's icon and its meaning. All icons are rendered at 14×14px in the toolbar.
+</p>
+
+<div style="display: flex; gap: 16px; flex-wrap: wrap;">
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--toolbar-bg); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 16 16" fill="#aaa" style="width: 14px; height: 14px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Select</div>
+      <div style="font-size: 9px; color: var(--muted);">Re-select / pick different element</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--toolbar-bg); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 16 16" fill="none" stroke="#aaa" stroke-width="1.5" style="width: 14px; height: 14px;"><rect x="1" y="4" width="9" height="9" rx="1.5"/><rect x="6" y="1" width="9" height="9" rx="1.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="7.5"/><line x1="8.5" y1="5.5" x2="12.5" y2="5.5"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Select More</div>
+      <div style="font-size: 9px; color: var(--muted);">Add similar elements to selection</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--teal-dark); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 16 16" fill="#5fd4da" style="width: 14px; height: 14px;"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Design</div>
+      <div style="font-size: 9px; color: var(--muted);">Edit Tailwind classes (default active)</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--toolbar-bg); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 16 16" fill="#aaa" style="width: 14px; height: 14px;"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Text</div>
+      <div style="font-size: 9px; color: var(--muted);">Enable contentEditable text editing</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--toolbar-bg); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 16 16" fill="#aaa" style="width: 14px; height: 14px;"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Replace</div>
+      <div style="font-size: 9px; color: var(--muted);">Replace with canvas or component</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--toolbar-bg); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" style="width: 14px; height: 14px;"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Insert</div>
+      <div style="font-size: 9px; color: var(--muted);">Switch to insert mode (add new elements)</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; background: #222; padding: 10px 16px; border-radius: 8px; min-width: 200px;">
+    <div style="width: 28px; height: 28px; background: var(--toolbar-bg); border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 16 16" fill="#aaa" style="width: 14px; height: 14px;"><path d="M8,0C3.6,0,0,2.9,0,6.4c0,2.1,1.3,4,3.3,5.2L2,14.4c-0.2,0.4,0.1,0.9,0.6,0.9c0.1,0,0.2,0,0.3-0.1l4-2.3c0.4,0,0.7,0.1,1.1,0.1c4.4,0,8-2.9,8-6.4S12.4,0,8,0z"/></svg>
+    </div>
+    <div>
+      <div style="font-size: 11px; font-weight: 700; color: var(--text);">Message</div>
+      <div style="font-size: 9px; color: var(--muted);">Add context / notes for the AI agent</div>
+    </div>
+  </div>
+
+</div>
+
+<hr class="divider">
+<div class="section-title">6 · Summary / Comparison</div>
+<div style="
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr 1fr;
+  gap: 1px;
+  background: #333;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 10px;
+  max-width: 700px;
+">
+  <div style="background: #222; padding: 8px; font-weight: 700; color: var(--teal);">Variant</div>
+  <div style="background: #222; padding: 8px; font-weight: 700; color: var(--teal);">Buttons</div>
+  <div style="background: #222; padding: 8px; font-weight: 700; color: var(--teal);">Message</div>
+  <div style="background: #222; padding: 8px; font-weight: 700; color: var(--teal);">Trade-offs</div>
+
+  <div style="background: #1e1e1e; padding: 8px;">1A</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">Icons ↑</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">↓ Below</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--muted);">Compact but icons need learning</div>
+
+  <div style="background: #222; padding: 8px;">1B</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">Icons ↓</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">↓ Below icons</div>
+  <div style="background: #222; padding: 8px; color: var(--muted);">Nothing above; takes space below</div>
+
+  <div style="background: #1e1e1e; padding: 8px;">1C</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">Icons ↑</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">↑ Same row</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--muted);">Single bar; gets wide</div>
+
+  <div style="background: #222; padding: 8px;">2A</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">Text ↑</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">↓ Below</div>
+  <div style="background: #222; padding: 8px; color: var(--muted);">Most readable; wider bar</div>
+
+  <div style="background: #1e1e1e; padding: 8px;">2B</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">Text ↓</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">↓ Below text</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--muted);">Clear; pushes content down</div>
+
+  <div style="background: #222; padding: 8px;">2C</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">Text ↑</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">↑ Same row</div>
+  <div style="background: #222; padding: 8px; color: var(--muted);">Widest bar of all</div>
+
+  <div style="background: #1e1e1e; padding: 8px;">3A</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">Icon+label ↑</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">↓ Below</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--muted);">Very clear; taller bar (~42px)</div>
+
+  <div style="background: #222; padding: 8px;">3B</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">Icon+label ↑</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">↑ Same row</div>
+  <div style="background: #222; padding: 8px; color: var(--muted);">Widest of all; most discoverable</div>
+
+  <div style="background: #1e1e1e; padding: 8px;">4A</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">Text ↑</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">→ Slides right</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--muted);">Creative; may overflow viewport</div>
+
+  <div style="background: #222; padding: 8px;">4B</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">Text ↑</div>
+  <div style="background: #222; padding: 8px; color: var(--text-mid);">↑ Stacked row 2</div>
+  <div style="background: #222; padding: 8px; color: var(--muted);">Unified widget; taller but clean</div>
+
+  <div style="background: #1e1e1e; padding: 8px;">4C</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">Icons ↑</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--text-mid);">↑ Expand on click</div>
+  <div style="background: #1e1e1e; padding: 8px; color: var(--muted);">Smallest default; extra click for msg</div>
+</div>
+
+</body>
+</html>

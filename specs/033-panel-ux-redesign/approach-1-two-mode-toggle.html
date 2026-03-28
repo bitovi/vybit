@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>033 · Approach 1 — Two-Mode Toggle (Select vs Insert)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── TOKENS (Bitovi dark theme) ───────────────────────── */
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --orange-hover: #C73D26;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1e1e1e;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 320px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 320px;
+      line-height: 1.5;
+      margin-bottom: 2px;
+    }
+
+    /* ─── PANEL CHROME ─────────────────────────────────────── */
+    .panel {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── HEADER ───────────────────────────────────────────── */
+    .panel-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .element-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .element-count {
+      font-family: var(--font-ui);
+      font-weight: 400;
+      color: var(--text-mid);
+    }
+
+    .container-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* ─── MODE TOGGLE ──────────────────────────────────────── */
+    .mode-toggle {
+      display: flex;
+      gap: 2px;
+      padding: 3px;
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .mode-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 120ms ease-out;
+      color: var(--text-mid);
+      background: transparent;
+    }
+
+    .mode-btn:hover {
+      color: var(--text);
+      background: var(--surface-hi);
+    }
+
+    .mode-btn.active {
+      color: white;
+      background: var(--teal);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+
+    .mode-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ─── ACTION MENU ──────────────────────────────────────── */
+    .action-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      background: transparent;
+      text-align: left;
+      font-family: var(--font-ui);
+    }
+
+    .action-item:hover {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+
+    .action-item .action-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .action-icon.design   { background: rgba(0, 132, 139, 0.15); color: var(--teal); }
+    .action-icon.text     { background: rgba(99, 102, 241, 0.15); color: #818CF8; }
+    .action-icon.replace  { background: rgba(245, 83, 45, 0.15);  color: var(--orange); }
+    .action-icon.redraw   { background: rgba(168, 85, 247, 0.15); color: #A855F7; }
+    .action-icon.message  { background: rgba(234, 179, 8, 0.15);  color: #EAB308; }
+    .action-icon.group    { background: rgba(59, 130, 246, 0.15);  color: #3B82F6; }
+    .action-icon.component{ background: rgba(16, 185, 129, 0.15); color: #10B981; }
+    .action-icon.draw     { background: rgba(168, 85, 247, 0.15); color: #A855F7; }
+    .action-icon.describe { background: rgba(234, 179, 8, 0.15);  color: #EAB308; }
+
+    .action-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .action-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 1px;
+    }
+
+    .action-desc {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .action-arrow {
+      color: var(--muted);
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .action-item:hover .action-arrow {
+      opacity: 1;
+    }
+
+    /* ─── QUICK MESSAGE BAR ────────────────────────────────── */
+    .quick-message {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 8px 8px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .quick-message input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .quick-message input::placeholder {
+      color: var(--muted);
+    }
+
+    .quick-send {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: none;
+      background: var(--teal);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .quick-send:hover {
+      opacity: 0.9;
+    }
+
+    /* ─── PROPERTY EDITOR (stub) ───────────────────────────── */
+    .editor-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .back-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .back-btn:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .editor-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .box-model-stub {
+      margin: 12px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .section-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .section-row:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .section-caret {
+      color: var(--muted);
+      font-size: 10px;
+      width: 12px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .section-badge {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(0, 132, 139, 0.2);
+      color: var(--teal);
+    }
+
+    .section-add {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .section-row:hover .section-add {
+      opacity: 1;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px 12px 8px 30px;
+    }
+
+    .chip {
+      padding: 3px 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-mid);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .chip.active {
+      background: var(--teal-dim);
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    /* ─── INSERT MODE ──────────────────────────────────────── */
+    .insert-prompt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 16px 12px;
+      color: var(--text-mid);
+      text-align: center;
+    }
+
+    .insert-prompt .prompt-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(0, 132, 139, 0.1);
+      color: var(--teal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .insert-prompt .prompt-text {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .insert-prompt .prompt-hint {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .insert-section {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .insert-section-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      padding: 4px 8px;
+    }
+
+    /* ─── QUEUE FOOTER ─────────────────────────────────────── */
+    .queue-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .queue-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .queue-dot.draft       { background: #F59E0B; }
+    .queue-dot.committed   { background: var(--orange); }
+    .queue-dot.implementing{ background: #3B82F6; }
+    .queue-dot.implemented { background: var(--teal); }
+
+    .queue-count { color: var(--muted); }
+    .queue-count.active-draft       { color: #F59E0B; }
+    .queue-count.active-implemented { color: var(--teal); }
+
+    /* ─── COMPONENT TILE ───────────────────────────────────── */
+    .component-tile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .component-tile:hover {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+
+    .component-tile .tile-thumb {
+      width: 48px;
+      height: 36px;
+      background: var(--surface);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .component-tile .tile-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .component-tile .tile-meta {
+      font-size: 10px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">Approach 1 — Two-Mode Toggle</h1>
+<p class="page-subtitle">
+  Two primary mode buttons in the header: <strong>Select</strong> and <strong>Insert</strong>.
+  The entire panel content adapts based on the active mode. Select mode shows an action menu first,
+  then drills into the specific editor. Insert mode shows component placement and drawing tools.
+</p>
+
+<div class="variations">
+
+  <!-- ────────── STATE A: Select Mode — Action Menu ────────── -->
+  <div class="col">
+    <span class="col-label">A · Select mode — action menu</span>
+    <p class="col-description">After clicking an element, the user sees what they can <em>do</em> with it, rather than immediately landing in property editors.</p>
+    <div class="panel">
+      <!-- Header -->
+      <div class="panel-header">
+        <div class="header-left">
+          <div class="element-name">EditableTextarea <span class="element-count">— 2 instances</span></div>
+        </div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+      <!-- Mode toggle -->
+      <div style="padding: 8px 12px;">
+        <div class="mode-toggle">
+          <button class="mode-btn active">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <button class="mode-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            Insert
+          </button>
+        </div>
+      </div>
+      <!-- Action menu -->
+      <div class="action-menu">
+        <div class="action-item">
+          <div class="action-icon design">🎨</div>
+          <div class="action-info">
+            <div class="action-title">Edit Design</div>
+            <div class="action-desc">Change colors, spacing, typography…</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+        <div class="action-item">
+          <div class="action-icon text">✏️</div>
+          <div class="action-info">
+            <div class="action-title">Edit Text</div>
+            <div class="action-desc">Change the text content directly</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+        <div class="action-item">
+          <div class="action-icon replace">🔄</div>
+          <div class="action-info">
+            <div class="action-title">Replace with Component</div>
+            <div class="action-desc">Swap this element for a Storybook component</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+        <div class="action-item">
+          <div class="action-icon redraw">🖼️</div>
+          <div class="action-info">
+            <div class="action-title">Redraw (Canvas)</div>
+            <div class="action-desc">Decompose into moveable objects and rearrange</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+        <div class="action-item">
+          <div class="action-icon group">⊕</div>
+          <div class="action-info">
+            <div class="action-title">Select More</div>
+            <div class="action-desc">Add similar elements to this selection</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+      </div>
+      <!-- Quick message -->
+      <div class="quick-message">
+        <input type="text" placeholder="&quot;Make this bigger&quot; or &quot;Add a save button&quot;…" />
+        <button class="quick-send">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <!-- Queue footer -->
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE B: Select Mode — Drilled into Edit Design ────────── -->
+  <div class="col">
+    <span class="col-label">B · Select mode — edit design (drilled in)</span>
+    <p class="col-description">After clicking "Edit Design", the user sees the current Design tab with a back arrow to return to the action menu.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="header-left">
+          <div class="element-name">EditableTextarea <span class="element-count">— 2 instances</span></div>
+        </div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+      <div class="editor-header">
+        <button class="back-btn">←</button>
+        <span class="editor-title">Edit Design</span>
+      </div>
+      <!-- Box model stub -->
+      <div class="box-model-stub">
+        <span style="font-family: var(--font-mono);">margin → outline → border → padding</span>
+      </div>
+      <!-- Property sections -->
+      <div class="section-row">
+        <span class="section-caret">▸</span>
+        <span class="section-label">Layout</span>
+        <button class="section-add">+</button>
+      </div>
+      <div class="section-row">
+        <span class="section-caret">▸</span>
+        <span class="section-label">Radius</span>
+        <button class="section-add">+</button>
+      </div>
+      <div class="section-row">
+        <span class="section-caret">▾</span>
+        <span class="section-label">Sizing</span>
+        <span class="section-badge">2</span>
+        <button class="section-add">+</button>
+      </div>
+      <div class="chip-row">
+        <span class="chip active">w-full</span>
+        <span class="chip">min-h-[80px]</span>
+      </div>
+      <div class="section-row">
+        <span class="section-caret">▾</span>
+        <span class="section-label">Typography</span>
+        <span class="section-badge">3</span>
+        <button class="section-add">+</button>
+      </div>
+      <div class="chip-row">
+        <span class="chip active">text-sm</span>
+        <span class="chip">text-foreground</span>
+        <span class="chip">leading-[21px]</span>
+      </div>
+      <!-- Quick message stays -->
+      <div class="quick-message">
+        <input type="text" placeholder="&quot;Make this bigger&quot;…" />
+        <button class="quick-send">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE C: Insert Mode ────────── -->
+  <div class="col">
+    <span class="col-label">C · Insert mode — no element selected</span>
+    <p class="col-description">Clicking "Insert" switches to a clean UI for adding new things to the page: components, drawing canvases, or text prompts.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="header-left">
+          <div class="element-name" style="color: var(--muted); font-weight: 400; font-family: var(--font-ui); font-size: 12px;">No element selected</div>
+        </div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+      <div style="padding: 8px 12px;">
+        <div class="mode-toggle">
+          <button class="mode-btn">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            Select
+          </button>
+          <button class="mode-btn active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            Insert
+          </button>
+        </div>
+      </div>
+      <!-- Insert prompt -->
+      <div class="insert-prompt">
+        <div class="prompt-icon">⊕</div>
+        <div class="prompt-text">Click where you want to insert</div>
+        <div class="prompt-hint">or choose what to add below</div>
+      </div>
+      <!-- Insert options -->
+      <div class="insert-section">
+        <span class="insert-section-label">Components</span>
+        <div class="component-tile">
+          <div class="tile-thumb">🔘</div>
+          <div>
+            <div class="tile-name">Button</div>
+            <div class="tile-meta">Primary, 3 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">📋</div>
+          <div>
+            <div class="tile-name">Card</div>
+            <div class="tile-meta">Card, 2 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">📝</div>
+          <div>
+            <div class="tile-name">Input</div>
+            <div class="tile-meta">TextField, 4 stories</div>
+          </div>
+        </div>
+      </div>
+      <div class="action-menu" style="padding-top: 0;">
+        <div class="action-item">
+          <div class="action-icon draw">✏️</div>
+          <div class="action-info">
+            <div class="action-title">Draw & Explore</div>
+            <div class="action-desc">Open a blank canvas for sketching layouts</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+        <div class="action-item">
+          <div class="action-icon describe">💬</div>
+          <div class="action-info">
+            <div class="action-title">Describe What You Need</div>
+            <div class="action-desc">Tell the AI what to build, get options</div>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+      </div>
+      <!-- Quick message -->
+      <div class="quick-message">
+        <input type="text" placeholder="&quot;Add a sidebar navigation&quot;…" />
+        <button class="quick-send">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

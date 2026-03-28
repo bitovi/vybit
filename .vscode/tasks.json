@@ -188,6 +188,29 @@
       "dependsOrder": "parallel",
       "presentation": { "reveal": "always" },
       "problemMatcher": []
+    },
+    {
+      "label": "Server for External SB (port 3333)",
+      "type": "shell",
+      "command": "npx tsx watch ../server/index.ts",
+      "options": {
+        "cwd": "${workspaceFolder}/test-app",
+        "env": { "STORYBOOK_URL": "http://localhost:6006" }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "tsx-ext-sb",
+        "pattern": { "regexp": "^(Error): (.*)$", "severity": 1, "message": 2 },
+        "background": { "activeOnStart": true, "beginsPattern": ".", "endsPattern": "Listening on" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Dev: External SB6006",
+      "dependsOn": ["Watch: Overlay", "Watch: Panel", "Server for External SB (port 3333)", "Test App (port 5173)"],
+      "dependsOrder": "parallel",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
     }
   ]
 }

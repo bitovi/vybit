@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>033 · Approach 4 — Smart Tabs + Persistent Message Bar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1e1e1e;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 320px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 320px;
+      line-height: 1.5;
+      margin-bottom: 2px;
+    }
+
+    /* ─── PANEL ────────────────────────────────────────────── */
+    .panel {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 10px 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .select-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .select-btn.active {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: white;
+    }
+
+    .element-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .element-count {
+      font-family: var(--font-ui);
+      font-weight: 400;
+      color: var(--text-mid);
+    }
+
+    .container-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ─── PERSISTENT MESSAGE BAR ───────────────────────────── */
+    .message-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 8px 10px;
+      padding: 7px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 200ms;
+    }
+
+    .message-bar:focus-within {
+      border-color: var(--teal);
+    }
+
+    .message-bar input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .message-bar input::placeholder {
+      color: var(--muted);
+    }
+
+    .mic-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color var(--t-fast);
+    }
+
+    .mic-btn:hover { color: var(--teal); }
+
+    .send-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: none;
+      background: var(--teal);
+      color: white;
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .send-btn:hover { opacity: 0.9; }
+
+    /* ─── TAB BAR ──────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+    }
+
+    .tab {
+      position: relative;
+      padding: 8px 12px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-mid);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: color var(--t-fast);
+    }
+
+    .tab:hover { color: var(--text); }
+
+    .tab.active {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--teal);
+    }
+
+    /* ─── EDIT TAB CONTENT ─────────────────────────────────── */
+    .box-model-stub {
+      margin: 12px 10px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+    }
+
+    .corner-model-stub {
+      margin: 0 10px 8px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+    }
+
+    .prop-section {
+      padding: 4px 12px;
+    }
+
+    .prop-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 0;
+      cursor: pointer;
+    }
+
+    .prop-header:hover { background: rgba(255,255,255,0.02); margin: 0 -12px; padding: 6px 12px; border-radius: 4px; }
+
+    .prop-caret { font-size: 10px; color: var(--muted); width: 12px; }
+    .prop-label { font-size: 10px; font-weight: 600; color: var(--text); flex: 1; }
+    .prop-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 999px; background: rgba(0, 132, 139, 0.2); color: var(--teal); }
+    .prop-add { width: 16px; height: 16px; border-radius: 3px; border: none; background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0; transition: opacity var(--t-fast); }
+    .prop-header:hover .prop-add { opacity: 1; }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 2px 0 6px 18px;
+    }
+
+    .chip {
+      padding: 3px 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-mid);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .chip.active {
+      background: var(--teal-dim);
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    /* ─── MORE ACTIONS ROW ─────────────────────────────────── */
+    .more-actions {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+
+    .more-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-mid);
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      white-space: nowrap;
+    }
+
+    .more-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .more-btn .btn-icon {
+      font-size: 11px;
+    }
+
+    /* ─── ADD TAB CONTENT ──────────────────────────────────── */
+    .add-tab-content {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .add-section-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      padding: 4px 4px 0;
+    }
+
+    .component-tile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 8px;
+      border-radius: var(--radius);
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .component-tile:hover {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+
+    .component-tile .tile-thumb {
+      width: 44px;
+      height: 32px;
+      background: var(--surface);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .tile-info { min-width: 0; }
+    .tile-name { font-size: 11px; font-weight: 600; color: var(--text); }
+    .tile-meta { font-size: 10px; color: var(--muted); }
+
+    .draw-card {
+      padding: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color var(--t-fast);
+    }
+
+    .draw-card:hover {
+      border-color: var(--teal);
+    }
+
+    .draw-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .draw-card-icon.draw  { background: rgba(168, 85, 247, 0.15); color: #A855F7; }
+    .draw-card-icon.explore { background: rgba(234, 179, 8, 0.15); color: #EAB308; }
+
+    .draw-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .draw-card-desc {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ─── QUEUE FOOTER ─────────────────────────────────────── */
+    .queue-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      margin-top: auto;
+    }
+
+    .queue-item { display: flex; align-items: center; gap: 4px; }
+    .queue-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .queue-dot.draft       { background: #F59E0B; }
+    .queue-dot.committed   { background: var(--orange); }
+    .queue-dot.implementing{ background: #3B82F6; }
+    .queue-dot.implemented { background: var(--teal); }
+    .queue-count { color: var(--muted); }
+    .queue-count.active-draft { color: #F59E0B; }
+    .queue-count.active-implemented { color: var(--teal); }
+
+    /* ─── EMPTY STATE ──────────────────────────────────────── */
+    .empty-cta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0, 132, 139, 0.1);
+      color: var(--teal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .empty-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .empty-hint {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-mid);
+      line-height: 1;
+      margin: 0 1px;
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">Approach 4 — Smart Tabs + Persistent Message Bar</h1>
+<p class="page-subtitle">
+  Keep tabs (they're a good navigation paradigm) but rename them to <strong>Edit</strong> and <strong>Add</strong>
+  to match user intent. Add a <strong>persistent message bar</strong> visible on all tabs — the most common
+  cross-cutting action is always one keystroke away. Tabs adapt based on whether an element is selected.
+</p>
+
+<div class="variations">
+
+  <!-- ────────── STATE A: Edit tab — element selected ────────── -->
+  <div class="col">
+    <span class="col-label">A · Edit tab — element selected</span>
+    <p class="col-description">The Edit tab is the default when an element is selected. Shows the property editors (current Design tab) with a persistent message bar above. "More actions" at the bottom.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <button class="select-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </button>
+        <div class="element-name">EditableTextarea <span class="element-count">— 2 inst.</span></div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+
+      <!-- Persistent message bar -->
+      <div class="message-bar">
+        <input type="text" placeholder="&quot;Make this bigger&quot; or &quot;add a save button&quot;…" />
+        <button class="mic-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a4 4 0 0 1 4 4v7a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M6 11a1 1 0 0 1 1 1 5 5 0 0 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.07A7 7 0 0 1 5 12a1 1 0 0 1 1-1z"/></svg>
+        </button>
+        <button class="send-btn">Send</button>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <button class="tab active">Edit</button>
+        <button class="tab">Add</button>
+      </div>
+
+      <!-- Box model -->
+      <div class="box-model-stub">margin → outline → border → padding</div>
+
+      <!-- Corner model -->
+      <div class="corner-model-stub">border-radius</div>
+
+      <!-- Property sections -->
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Layout</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Sizing</span>
+          <span class="prop-badge">2</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▾</span>
+          <span class="prop-label">Typography</span>
+          <span class="prop-badge">3</span>
+          <button class="prop-add">+</button>
+        </div>
+        <div class="chip-row">
+          <span class="chip active">text-sm</span>
+          <span class="chip">text-foreground</span>
+          <span class="chip">leading-[21px]</span>
+        </div>
+      </div>
+
+      <!-- More actions row -->
+      <div class="more-actions">
+        <button class="more-btn"><span class="btn-icon">🔄</span> Replace</button>
+        <button class="more-btn"><span class="btn-icon">✏️</span> Redraw</button>
+        <button class="more-btn"><span class="btn-icon">✨</span> Explore</button>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE B: Add tab — element selected ────────── -->
+  <div class="col">
+    <span class="col-label">B · Add tab — element selected</span>
+    <p class="col-description">The Add tab shows components, drawing, and design exploration. Same message bar at top. Insertion position options since we have element context.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <button class="select-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </button>
+        <div class="element-name">EditableTextarea <span class="element-count">— 2 inst.</span></div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+
+      <div class="message-bar">
+        <input type="text" placeholder="&quot;Add a submit button below this&quot;…" />
+        <button class="mic-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a4 4 0 0 1 4 4v7a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M6 11a1 1 0 0 1 1 1 5 5 0 0 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.07A7 7 0 0 1 5 12a1 1 0 0 1 1-1z"/></svg>
+        </button>
+        <button class="send-btn">Send</button>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab">Edit</button>
+        <button class="tab active">Add</button>
+      </div>
+
+      <div class="add-tab-content">
+        <span class="add-section-label">Components</span>
+        <div class="component-tile">
+          <div class="tile-thumb">🔘</div>
+          <div class="tile-info">
+            <div class="tile-name">Button</div>
+            <div class="tile-meta">Primary, 3 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">📋</div>
+          <div class="tile-info">
+            <div class="tile-name">Card</div>
+            <div class="tile-meta">Card, 2 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">📝</div>
+          <div class="tile-info">
+            <div class="tile-name">Input</div>
+            <div class="tile-meta">TextField, 4 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">🏷️</div>
+          <div class="tile-info">
+            <div class="tile-name">Badge</div>
+            <div class="tile-meta">Status badge, 2 stories</div>
+          </div>
+        </div>
+
+        <span class="add-section-label" style="margin-top: 4px;">Create</span>
+        <div class="draw-card">
+          <div class="draw-card-icon draw">✏️</div>
+          <div>
+            <div class="draw-card-title">Draw on Canvas</div>
+            <div class="draw-card-desc">Sketch a layout or rearrange elements</div>
+          </div>
+        </div>
+        <div class="draw-card">
+          <div class="draw-card-icon explore">✨</div>
+          <div>
+            <div class="draw-card-title">Explore Designs</div>
+            <div class="draw-card-desc">Generate AI design variations</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE C: No element selected ────────── -->
+  <div class="col">
+    <span class="col-label">C · No element — Add tab only</span>
+    <p class="col-description">Without an element selected, only the Add tab is shown (Edit requires an element). Message bar still visible. CTA to select an element at bottom.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <button class="select-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: var(--muted); flex: 1;">No element selected</span>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+
+      <div class="message-bar">
+        <input type="text" placeholder="&quot;Add a login form to the page&quot;…" />
+        <button class="mic-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a4 4 0 0 1 4 4v7a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M6 11a1 1 0 0 1 1 1 5 5 0 0 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.07A7 7 0 0 1 5 12a1 1 0 0 1 1-1z"/></svg>
+        </button>
+        <button class="send-btn">Send</button>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab active">Add</button>
+      </div>
+
+      <div class="add-tab-content">
+        <span class="add-section-label">Components</span>
+        <div class="component-tile">
+          <div class="tile-thumb">🔘</div>
+          <div class="tile-info">
+            <div class="tile-name">Button</div>
+            <div class="tile-meta">Primary, 3 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">📋</div>
+          <div class="tile-info">
+            <div class="tile-name">Card</div>
+            <div class="tile-meta">Card, 2 stories</div>
+          </div>
+        </div>
+        <div class="component-tile">
+          <div class="tile-thumb">📝</div>
+          <div class="tile-info">
+            <div class="tile-name">Input</div>
+            <div class="tile-meta">TextField, 4 stories</div>
+          </div>
+        </div>
+
+        <span class="add-section-label" style="margin-top: 4px;">Create</span>
+        <div class="draw-card">
+          <div class="draw-card-icon draw">✏️</div>
+          <div>
+            <div class="draw-card-title">Draw on Canvas</div>
+            <div class="draw-card-desc">Sketch a layout or rearrange elements</div>
+          </div>
+        </div>
+        <div class="draw-card">
+          <div class="draw-card-icon explore">✨</div>
+          <div>
+            <div class="draw-card-title">Explore Designs</div>
+            <div class="draw-card-desc">Generate AI design variations</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA to select -->
+      <div class="empty-cta">
+        <div class="empty-icon">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </div>
+        <span class="empty-title">Select an element to edit its design</span>
+        <span class="empty-hint">
+          <span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">C</span>
+        </span>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

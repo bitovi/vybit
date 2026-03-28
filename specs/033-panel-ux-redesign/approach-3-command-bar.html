@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>033 · Approach 3 — Command Bar (Spotlight Model)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1e1e1e;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 320px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 320px;
+      line-height: 1.5;
+      margin-bottom: 2px;
+    }
+
+    /* ─── PANEL ────────────────────────────────────────────── */
+    .panel {
+      width: 320px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .select-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .element-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .element-count {
+      font-family: var(--font-ui);
+      font-weight: 400;
+      color: var(--text-mid);
+    }
+
+    .container-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ─── COMMAND BAR ──────────────────────────────────────── */
+    .command-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 10px 10px 0;
+      padding: 9px 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 200ms;
+    }
+
+    .command-bar:focus-within {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 1px var(--teal), 0 0 12px rgba(0, 132, 139, 0.15);
+    }
+
+    .command-bar .search-icon {
+      color: var(--muted);
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+    }
+
+    .command-bar input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .command-bar input::placeholder {
+      color: var(--muted);
+    }
+
+    .command-bar .kbd-hint {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-mid);
+      line-height: 1;
+    }
+
+    /* ─── RESULTS DROPDOWN ─────────────────────────────────── */
+    .results {
+      margin: 4px 10px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .result-group-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      padding: 8px 12px 4px;
+    }
+
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+
+    .result-item:hover,
+    .result-item.highlighted {
+      background: var(--teal-dim);
+    }
+
+    .result-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .result-icon.ai      { background: rgba(234, 179, 8, 0.15); color: #EAB308; }
+    .result-icon.comp     { background: rgba(16, 185, 129, 0.15); color: #10B981; }
+    .result-icon.action   { background: rgba(0, 132, 139, 0.15); color: var(--teal); }
+    .result-icon.design   { background: rgba(99, 102, 241, 0.15); color: #818CF8; }
+
+    .result-info { flex: 1; min-width: 0; }
+
+    .result-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .result-desc {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .result-badge {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .result-badge.ai { background: rgba(234, 179, 8, 0.15); color: #EAB308; }
+    .result-badge.component { background: rgba(16, 185, 129, 0.15); color: #10B981; }
+    .result-badge.action-tag { background: rgba(0, 132, 139, 0.15); color: var(--teal); }
+
+    .result-enter {
+      font-size: 10px;
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .result-item:hover .result-enter,
+    .result-item.highlighted .result-enter { opacity: 1; }
+
+    /* ─── DEFAULT CONTENT (no search) ──────────────────────── */
+    .box-model-stub {
+      margin: 12px 10px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+    }
+
+    .prop-section {
+      padding: 4px 12px;
+    }
+
+    .prop-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 0;
+      cursor: pointer;
+    }
+
+    .prop-caret {
+      font-size: 10px;
+      color: var(--muted);
+      width: 12px;
+    }
+
+    .prop-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .prop-badge {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: rgba(0, 132, 139, 0.2);
+      color: var(--teal);
+    }
+
+    .prop-add {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity var(--t-fast);
+    }
+
+    .prop-header:hover .prop-add { opacity: 1; }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 2px 0 6px 18px;
+    }
+
+    .chip {
+      padding: 3px 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-mid);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .chip.active {
+      background: var(--teal-dim);
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    /* ─── QUEUE FOOTER ─────────────────────────────────────── */
+    .queue-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      margin-top: auto;
+    }
+
+    .queue-item { display: flex; align-items: center; gap: 4px; }
+    .queue-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .queue-dot.draft       { background: #F59E0B; }
+    .queue-dot.committed   { background: var(--orange); }
+    .queue-dot.implementing{ background: #3B82F6; }
+    .queue-dot.implemented { background: var(--teal); }
+    .queue-count { color: var(--muted); }
+    .queue-count.active-draft { color: #F59E0B; }
+    .queue-count.active-implemented { color: var(--teal); }
+
+    /* ─── EMPTY STATE ──────────────────────────────────────── */
+    .empty-cta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 32px 16px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0, 132, 139, 0.1);
+      color: var(--teal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .empty-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .empty-hint {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* ─── RECENT ACTIONS ───────────────────────────────────── */
+    .recent-section {
+      padding: 6px 10px 10px;
+    }
+
+    .recent-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      padding: 4px 2px 6px;
+    }
+
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+      font-size: 11px;
+      color: var(--text-mid);
+    }
+
+    .recent-item:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .recent-item .recent-icon {
+      font-size: 12px;
+      width: 18px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">Approach 3 — Command Bar (Spotlight/Palette)</h1>
+<p class="page-subtitle">
+  A persistent <strong>command bar</strong> at the top (like VS Code's Command Palette, but always visible as a single-line input).
+  Typing filters to actions, components, or sends a message to the AI. Empty → shows default property editors.
+  Extremely fast for power users — type what you want, hit Enter.
+</p>
+
+<div class="variations">
+
+  <!-- ────────── STATE A: Empty bar, element selected (default view) ────────── -->
+  <div class="col">
+    <span class="col-label">A · Empty bar — element selected</span>
+    <p class="col-description">When nothing is typed, the panel functions like the current Design tab with property editors. The command bar waits at the top.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <button class="select-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </button>
+        <div class="element-name">EditableTextarea <span class="element-count">— 2 inst.</span></div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+
+      <div class="command-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Type or ask anything…" />
+        <div class="kbd-hint">
+          <span class="kbd">⌘</span><span class="kbd">K</span>
+        </div>
+      </div>
+
+      <div class="box-model-stub">margin → outline → border → padding</div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▾</span>
+          <span class="prop-label">Typography</span>
+          <span class="prop-badge">3</span>
+          <button class="prop-add">+</button>
+        </div>
+        <div class="chip-row">
+          <span class="chip active">text-sm</span>
+          <span class="chip">text-foreground</span>
+          <span class="chip">leading-[21px]</span>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Sizing</span>
+          <span class="prop-badge">2</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Layout</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-header">
+          <span class="prop-caret">▸</span>
+          <span class="prop-label">Backgrounds</span>
+          <button class="prop-add">+</button>
+        </div>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE B: Typing "add button" — fuzzy results ────────── -->
+  <div class="col">
+    <span class="col-label">B · Typing "add button" — fuzzy results</span>
+    <p class="col-description">Typing shows a filtered results list: AI message (default), matching Storybook components, and matching actions. Arrow keys + Enter to select.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <button class="select-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </button>
+        <div class="element-name">EditableTextarea <span class="element-count">— 2 inst.</span></div>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+
+      <div class="command-bar" style="border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal), 0 0 12px rgba(0,132,139,0.15);">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" value="add button" style="color: var(--text);" />
+      </div>
+
+      <div class="results">
+        <div class="result-item highlighted">
+          <div class="result-icon ai">💬</div>
+          <div class="result-info">
+            <div class="result-title">Send to AI: "add button"</div>
+            <div class="result-desc">Queue as instruction for the agent</div>
+          </div>
+          <span class="result-badge ai">AI</span>
+          <span class="result-enter">↵</span>
+        </div>
+        <div class="result-group-label">Components</div>
+        <div class="result-item">
+          <div class="result-icon comp">📦</div>
+          <div class="result-info">
+            <div class="result-title">Place: Button</div>
+            <div class="result-desc">Primary button — 3 stories</div>
+          </div>
+          <span class="result-badge component">SB</span>
+          <span class="result-enter">↵</span>
+        </div>
+        <div class="result-item">
+          <div class="result-icon comp">📦</div>
+          <div class="result-info">
+            <div class="result-title">Place: IconButton</div>
+            <div class="result-desc">Icon button variant — 2 stories</div>
+          </div>
+          <span class="result-badge component">SB</span>
+          <span class="result-enter">↵</span>
+        </div>
+        <div class="result-group-label">Actions</div>
+        <div class="result-item">
+          <div class="result-icon action">🎨</div>
+          <div class="result-info">
+            <div class="result-title">Edit Design</div>
+            <div class="result-desc">Change colors, spacing, typography…</div>
+          </div>
+          <span class="result-enter">↵</span>
+        </div>
+        <div class="result-item">
+          <div class="result-icon design">✨</div>
+          <div class="result-info">
+            <div class="result-title">Explore Designs</div>
+            <div class="result-desc">Generate design variations for this element</div>
+          </div>
+          <span class="result-enter">↵</span>
+        </div>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────── STATE C: No element selected ────────── -->
+  <div class="col">
+    <span class="col-label">C · No element — command bar as entry point</span>
+    <p class="col-description">With no element selected, the command bar is the primary interface. Below it: recent actions and quick links.</p>
+    <div class="panel">
+      <div class="panel-header">
+        <button class="select-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: var(--muted); flex: 1;">No element selected</span>
+        <div class="container-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </div>
+      </div>
+
+      <div class="command-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Type or ask anything…" />
+        <div class="kbd-hint">
+          <span class="kbd">⌘</span><span class="kbd">K</span>
+        </div>
+      </div>
+
+      <!-- Recent / Quick actions -->
+      <div class="recent-section">
+        <div class="recent-label">Quick Actions</div>
+        <div class="recent-item">
+          <span class="recent-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+          </span>
+          Select an element
+        </div>
+        <div class="recent-item">
+          <span class="recent-icon">📦</span>
+          Place a component
+        </div>
+        <div class="recent-item">
+          <span class="recent-icon">✏️</span>
+          Open drawing canvas
+        </div>
+        <div class="recent-item">
+          <span class="recent-icon">✨</span>
+          Explore new design
+        </div>
+      </div>
+
+      <div class="recent-section">
+        <div class="recent-label">Recent Messages</div>
+        <div class="recent-item">
+          <span class="recent-icon">💬</span>
+          "Make the header taller"
+        </div>
+        <div class="recent-item">
+          <span class="recent-icon">💬</span>
+          "Add an error state to the form"
+        </div>
+      </div>
+
+      <div class="queue-footer">
+        <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count active-draft">1 draft</span></div>
+        <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0 committed</span></div>
+        <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0 implementing</span></div>
+        <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active-implemented">1 implemented</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>033 · Approach 6 — Select / Insert Mode Toggle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1e1e1e;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 36px;
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .page-subtitle strong { color: var(--text-mid); }
+
+    .variations {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 460px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 460px;
+      line-height: 1.55;
+      margin-bottom: 4px;
+    }
+
+    .section-divider {
+      width: 100%;
+      border: none;
+      border-top: 1px solid #333;
+      margin: 24px 0 20px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* ─── MOCK PAGE ────────────────────────────────────────── */
+    .mock-page {
+      width: 420px;
+      min-height: 340px;
+      background: #f8fafc;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+      font-family: var(--font-ui);
+    }
+
+    .mock-header {
+      background: #0f172a;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mock-logo {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      background: var(--teal);
+    }
+
+    .mock-header-text {
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .mock-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mock-card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 12px;
+    }
+
+    .mock-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .mock-card-text {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .mock-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: none;
+    }
+
+    /* ─── SELECTED ELEMENT HIGHLIGHT ───────────────────────── */
+    .selected-el {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+      position: relative;
+    }
+
+    /* ─── ELEMENT TOOLBAR (overlay) ────────────────────────── */
+    .el-toolbar {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      padding: 3px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+      z-index: 10;
+    }
+
+    .toolbar-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #bbb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all var(--t-fast);
+      position: relative;
+    }
+
+    .toolbar-btn:hover {
+      background: #333;
+      color: white;
+    }
+
+    .toolbar-btn.active {
+      background: var(--teal-dark);
+      color: var(--teal);
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 16px;
+      background: #444;
+      margin: 0 2px;
+    }
+
+    .toolbar-count {
+      font-size: 10px;
+      font-weight: 600;
+      color: #bbb;
+      padding: 0 6px;
+      cursor: pointer;
+    }
+
+    /* ─── PANEL ────────────────────────────────────────────── */
+    .panel {
+      width: 310px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── MODE TOGGLE (segmented control) ──────────────────── */
+    .mode-toggle {
+      display: flex;
+      margin: 8px 10px 0;
+      background: #222;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .mode-btn:hover { color: var(--text-mid); }
+
+    .mode-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .mode-icon {
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    /* ─── PANEL HEADER ─────────────────────────────────────── */
+    .panel-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .element-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .element-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--teal);
+    }
+
+    /* ─── EMPTY STATE ──────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      text-align: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .empty-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-mid);
+    }
+
+    .empty-text {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ─── INLINE MESSAGE BAR ───────────────────────────────── */
+    .inline-message {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 10px 8px;
+      padding: 7px 8px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 6px;
+    }
+
+    .inline-message input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .inline-message input::placeholder { color: #666; }
+
+    .msg-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .msg-btn.send {
+      background: var(--teal);
+      color: white;
+    }
+
+    /* ─── DESIGN EDITOR CONTENT ────────────────────────────── */
+    .box-model-stub {
+      margin: 10px 10px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border);
+    }
+
+    .prop-section { padding: 4px 12px; }
+    .prop-header { display: flex; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; }
+    .prop-caret { font-size: 10px; color: var(--muted); width: 12px; }
+    .prop-label { font-size: 10px; font-weight: 600; color: var(--text); flex: 1; }
+    .prop-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 999px; background: rgba(0, 132, 139, 0.2); color: var(--teal); }
+    .prop-add { width: 16px; height: 16px; border-radius: 3px; border: none; background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0; transition: opacity var(--t-fast); }
+    .prop-header:hover .prop-add { opacity: 1; }
+
+    .chip-row {
+      display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px 18px;
+    }
+
+    .chip {
+      padding: 3px 8px; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      color: var(--text-mid); background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+      cursor: pointer; transition: all var(--t-fast);
+    }
+
+    .chip:hover { border-color: var(--teal); color: var(--text); }
+
+    .chip.active {
+      background: var(--teal-dim); border-color: var(--teal); color: var(--teal);
+    }
+
+    /* ─── INSERT MODE CONTENT ──────────────────────────────── */
+    .insert-choices {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .insert-choice {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .insert-choice:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .insert-choice.active-choice {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .insert-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .insert-icon.comp { background: rgba(245, 83, 45, 0.15); color: var(--orange); }
+    .insert-icon.canv { background: rgba(168, 85, 247, 0.15); color: #A855F7; }
+
+    .insert-info { display: flex; flex-direction: column; gap: 1px; }
+
+    .insert-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .insert-desc {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .insert-shortcut {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: #555;
+    }
+
+    /* ─── COMPONENT BROWSER ────────────────────────────────── */
+    .component-search {
+      margin: 0 10px;
+      padding: 7px 8px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .component-search input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .component-search input::placeholder { color: #666; }
+
+    .component-search .search-icon { color: #666; font-size: 11px; }
+
+    .component-list {
+      padding: 6px 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .component-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+
+    .component-item:hover { background: var(--surface); }
+
+    .component-item.armed {
+      background: rgba(245, 83, 45, 0.12);
+      outline: 1px solid rgba(245, 83, 45, 0.3);
+    }
+
+    .comp-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .comp-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .comp-path {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+    }
+
+    .comp-arm-badge {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--orange);
+      padding: 2px 6px;
+      background: rgba(245, 83, 45, 0.15);
+      border-radius: 3px;
+    }
+
+    /* ─── DROP ZONES (on mock page) ────────────────────────── */
+    .drop-zone {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      z-index: 20;
+    }
+
+    .drop-indicator {
+      height: 3px;
+      width: 100%;
+      background: var(--orange);
+      border-radius: 2px;
+      box-shadow: 0 0 8px rgba(245, 83, 45, 0.4);
+    }
+
+    .drop-indicator.vertical {
+      width: 3px;
+      height: 100%;
+    }
+
+    .drop-label {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 700;
+      color: white;
+      background: var(--orange);
+      padding: 2px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .drop-arrow {
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-bottom: 5px solid var(--orange);
+    }
+
+    .drop-arrow.down {
+      border-bottom: none;
+      border-top: 5px solid var(--orange);
+    }
+
+    /* ─── QUEUE FOOTER ─────────────────────────────────────── */
+    .queue-footer {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 6px 12px; border-top: 1px solid var(--border); font-size: 10px; margin-top: auto;
+    }
+
+    .queue-item { display: flex; align-items: center; gap: 4px; }
+    .queue-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .queue-dot.draft       { background: #F59E0B; }
+    .queue-dot.committed   { background: var(--orange); }
+    .queue-dot.implementing{ background: #3B82F6; }
+    .queue-dot.implemented { background: var(--teal); }
+    .queue-count { color: var(--muted); }
+    .queue-count.active { color: var(--teal); }
+
+    /* ─── LAYOUT ───────────────────────────────────────────── */
+    .page-and-panel {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .annotation {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--teal);
+      background: rgba(0, 132, 139, 0.15);
+      padding: 2px 6px;
+      border-radius: 3px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .annotation.orange {
+      color: var(--orange);
+      background: rgba(245, 83, 45, 0.15);
+    }
+
+    .flow-arrow {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      color: #555;
+      align-self: center;
+      padding: 0 4px;
+    }
+
+    /* ─── CURSOR LABEL (follows cursor in insert mode) ───── */
+    .cursor-label {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--orange);
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .cursor-label::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: white;
+    }
+
+    /* ─── TOOLBAR MESSAGE ROW ──────────────────────────────── */
+    .toolbar-message-row {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      padding: 3px 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+      z-index: 10;
+    }
+
+    .toolbar-message-row input {
+      width: 180px;
+      border: none;
+      background: #2a2a2a;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 10px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .toolbar-message-row input::placeholder { color: #666; }
+
+    .toolbar-msg-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-msg-btn.send {
+      background: var(--teal);
+      color: white;
+    }
+
+    /* ─── SUB-POPOVER ─────────────────────────────────────── */
+    .sub-popover {
+      position: absolute;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      padding: 3px;
+      z-index: 25;
+      min-width: 130px;
+    }
+
+    .sub-popover-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .sub-popover-item:hover {
+      background: var(--teal-dim);
+    }
+
+    .sub-popover-icon {
+      font-size: 10px;
+      width: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">Approach 6 — Select / Insert Mode Toggle</h1>
+<p class="page-subtitle">
+  A <strong>segmented control</strong> in the panel header switches between <strong>Select</strong> (element-first: click → inspect → edit)
+  and <strong>Insert</strong> (action-first: choose what to add → place it). Both paths converge: after inserting, auto-switch to Select
+  with the new element selected. The overlay toolbar provides contextual actions once an element is selected.
+  <br><br>
+  Insert supports <strong>both orderings</strong>: click Insert icon → click WHERE → choose WHAT; or click Insert icon → choose WHAT → click WHERE.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section-title">Select Mode</div>
+<p class="section-subtitle">Element-first: click to inspect, toolbar for actions, panel shows design editor.</p>
+
+<div class="variations">
+
+  <!-- ────── STATE A: Select mode, no element selected ────── -->
+  <div class="col">
+    <span class="col-label">A · Select mode — no element selected</span>
+    <p class="col-description">Default state. Mode toggle shows Select is active. Panel shows an empty state inviting the user to click an element. The page is in selection mode — hovering highlights elements.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 300px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card" style="border: 1px dashed #94a3b8; border-color: rgba(0, 132, 139, 0.4); background: rgba(248, 250, 252, 0.7);">
+            <div class="mock-card-title" style="opacity: 0.7;">Case Description</div>
+            <div class="mock-card-text" style="opacity: 0.7;">Hover highlight — ready to select</div>
+            <div class="annotation" style="top: -4px; right: -4px; font-size: 8px;">hover</div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident on Highway 101.</div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-card-title">Status</div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+              <span style="font-size: 10px; padding: 2px 8px; background: #f1f5f9; color: #64748b; border-radius: 4px;">Priority: High</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.5"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+          </div>
+          <div class="empty-title">Click an element to inspect</div>
+          <div class="empty-text">Select any element on the page to view<br>and edit its Tailwind styles</div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── STATE B: Select mode, element selected → design editor ────── -->
+  <div class="col">
+    <span class="col-label">B · Select mode — element selected</span>
+    <p class="col-description">User clicked an element. Toolbar + message bar appear on the element. The message input is <strong>always visible</strong> right below the toolbar — no button needed. Toolbar buttons pivot panel to Component/Canvas views.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 340px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+
+          <div class="mock-card selected-el" style="position: relative;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment…</div>
+
+            <!-- Element toolbar -->
+            <div class="el-toolbar" style="top: -36px; left: 0;">
+              <button class="toolbar-btn active" title="Design">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              </button>
+              <button class="toolbar-btn" title="Component"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13,2H3C1.9,2,1,2.9,1,4v8c0,1.1,.9,2,2,2h10c1.1,0,2-.9,2-2V4c0-1.1-.9-2-2-2Zm0,10H3V7h10v5Zm0-5H3V4h10v3Z"/></svg></button>
+              <button class="toolbar-btn" title="Canvas"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M0,0v5h2V2h3V0Zm11,0v2h3v3h2V0Zm5,11h-2v3h-3v2h5Zm-16,5h5v-2H2v-3H0Z"/></svg></button>
+              <div class="toolbar-sep"></div>
+              <span class="toolbar-count">2 +</span>
+            </div>
+
+            <!-- Always-visible message bar below toolbar -->
+            <div class="toolbar-message-row" style="top: -68px; left: 0;">
+              <span style="font-size: 12px; cursor: pointer;">🎙️</span>
+              <input type="text" placeholder="Add context about this element…" />
+              <button class="toolbar-msg-btn send" style="font-size: 9px;">↑</button>
+            </div>
+
+            <div class="annotation" style="top: -88px; left: 0; z-index: 30;">message bar always visible — right next to element</div>
+          </div>
+
+          <div class="mock-card">
+            <div class="mock-card-title">Status</div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <div class="panel-header">
+          <span class="element-name">Comments</span>
+          <span class="element-tag">&lt;div&gt;</span>
+        </div>
+
+        <div class="box-model-stub">Box Model</div>
+
+        <div class="prop-section">
+          <div class="prop-header">
+            <span class="prop-caret">▼</span>
+            <span class="prop-label">Spacing</span>
+            <span class="prop-badge">3</span>
+            <button class="prop-add">+</button>
+          </div>
+          <div class="chip-row">
+            <span class="chip active">p-3</span>
+            <span class="chip">mt-2</span>
+            <span class="chip">gap-4</span>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-header">
+            <span class="prop-caret">▼</span>
+            <span class="prop-label">Border</span>
+            <span class="prop-badge">2</span>
+            <button class="prop-add">+</button>
+          </div>
+          <div class="chip-row">
+            <span class="chip active">rounded-lg</span>
+            <span class="chip">border</span>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-header">
+            <span class="prop-caret">▶</span>
+            <span class="prop-label">Background</span>
+            <span class="prop-badge">1</span>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-header">
+            <span class="prop-caret">▶</span>
+            <span class="prop-label">Typography</span>
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<hr class="section-divider">
+<div class="section-title">Select Mode — Toolbar Pivot: Component / Canvas</div>
+<p class="section-subtitle">Clicking a toolbar button changes what the panel shows — no tabs needed. In Select mode, 📦 means <strong>replace</strong> this element. Use Insert mode to add new elements.</p>
+
+<div class="variations">
+
+  <!-- ────── STATE C: Toolbar → Component (replace) ────── -->
+  <div class="col">
+    <span class="col-label">C · Toolbar → Component button → replace this element</span>
+    <p class="col-description">Clicking 📦 in the toolbar pivots the panel to the component browser. Pick a component to <strong>replace</strong> the selected element. No sub-popover needed — "insert nearby" is what Insert mode is for.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 280px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+          <div class="mock-card selected-el" style="position: relative;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment…</div>
+
+            <div class="el-toolbar" style="top: -36px; left: 0;">
+              <button class="toolbar-btn" title="Design">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              </button>
+              <button class="toolbar-btn active" title="Component"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13,2H3C1.9,2,1,2.9,1,4v8c0,1.1,.9,2,2,2h10c1.1,0,2-.9,2-2V4c0-1.1-.9-2-2-2Zm0,10H3V7h10v5Zm0-5H3V4h10v3Z"/></svg></button>
+              <button class="toolbar-btn" title="Canvas"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M0,0v5h2V2h3V0Zm11,0v2h3v3h2V0Zm5,11h-2v3h-3v2h5Zm-16,5h5v-2H2v-3H0Z"/></svg></button>
+              <div class="toolbar-sep"></div>
+              <span class="toolbar-count">2 +</span>
+            </div>
+
+            <!-- Always-visible message bar below toolbar -->
+            <div class="toolbar-message-row" style="top: -68px; left: 0;">
+              <span style="font-size: 12px; cursor: pointer;">🎙️</span>
+              <input type="text" placeholder="Add context about this element…" />
+              <button class="toolbar-msg-btn send" style="font-size: 9px;">↑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <div class="panel-header">
+          <span class="element-name">Comments</span>
+          <span class="element-tag">&lt;div&gt;</span>
+        </div>
+
+        <!-- Component browser (panel pivoted to show this — for replacing selected element) -->
+        <div style="padding: 6px 12px 4px; font-size: 10px; color: var(--teal); font-weight: 600; display: flex; align-items: center; gap: 6px;">
+          <span>📦</span> Replace with component
+          <span style="margin-left: auto; font-size: 9px; color: var(--muted); cursor: pointer;">✕ back to design</span>
+        </div>
+
+        <div class="component-search" style="margin-top: 4px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search components…" />
+        </div>
+
+        <div class="component-list">
+          <div class="component-item">
+            <div class="comp-thumb">📋</div>
+            <div>
+              <div class="comp-name">CommentCard</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+          <div class="component-item">
+            <div class="comp-thumb">📝</div>
+            <div>
+              <div class="comp-name">TextInput</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+          <div class="component-item">
+            <div class="comp-thumb">🔘</div>
+            <div>
+              <div class="comp-name">Button</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+          <div class="component-item">
+            <div class="comp-thumb">📊</div>
+            <div>
+              <div class="comp-name">StatusBadge</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── (State D removed — message bar is always visible in toolbar, no separate state needed) ────── -->
+            <span class="prop-label">Border</span>
+            <span class="prop-badge">2</span>
+          </div>
+        </div>
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<hr class="section-divider">
+<div class="section-title">Insert Mode — Two Orderings</div>
+<p class="section-subtitle">
+  Users can go <strong>WHAT → WHERE</strong> (pick component, then place it) or <strong>WHERE → WHAT</strong> (click location, then choose what to insert).
+  Both paths land in the same place.
+</p>
+
+<div class="variations">
+
+  <!-- ────── STATE E: Insert mode — choose what to insert ────── -->
+  <div class="col">
+    <span class="col-label">E · Insert mode — action-first: choose WHAT</span>
+    <p class="col-description">User switches to Insert mode. Panel shows the insertion options: Component (from Storybook) or Canvas (freeform draw). Clicking a component arms it; clicking Canvas starts the draw flow. Page shows subtle drop zone indicators.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 300px; opacity: 0.85;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card" style="border-style: dashed; border-color: #cbd5e1;">
+            <div class="mock-card-title" style="opacity: 0.5;">Case Description</div>
+            <div class="mock-card-text" style="opacity: 0.5;">Ready for insertion…</div>
+          </div>
+          <div class="mock-card" style="border-style: dashed; border-color: #cbd5e1;">
+            <div class="mock-card-title" style="opacity: 0.5;">Comments</div>
+            <div class="mock-card-text" style="opacity: 0.5;">Add a comment…</div>
+          </div>
+        </div>
+        <div class="annotation orange" style="bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 9px;">
+          page dims slightly — insertion mode active
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <div style="padding: 8px 12px 2px; font-size: 10px; color: var(--text-mid);">What do you want to insert?</div>
+
+        <div class="insert-choices">
+          <div class="insert-choice">
+            <div class="insert-icon comp">📦</div>
+            <div class="insert-info">
+              <span class="insert-name">Component</span>
+              <span class="insert-desc">From your Storybook library</span>
+            </div>
+          </div>
+          <div class="insert-choice">
+            <div class="insert-icon canv">🖼️</div>
+            <div class="insert-info">
+              <span class="insert-name">Canvas</span>
+              <span class="insert-desc">Draw a new section freeform</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 4px 12px 0;">
+          <div style="height: 1px; background: var(--border); margin: 4px 0 8px;"></div>
+          <div style="font-size: 10px; color: var(--muted); line-height: 1.5; padding-bottom: 12px;">
+            <strong style="color: var(--text-mid);">Or click anywhere on the page first</strong> — hover to see drop zones, click to set the location, then choose what to insert.
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── STATE F: Insert mode, component armed, drop zones ────── -->
+  <div class="col">
+    <span class="col-label">F · Insert → Component → armed, drop zones visible</span>
+    <p class="col-description">User chose "Component" and picked a component from Storybook. A cursor label follows the mouse. Drop zone indicators appear between elements showing before/after/first-child/last-child options. This is the existing drop zone UX — same as today.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 340px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content" style="position: relative;">
+          <!-- Drop zone: before first card -->
+          <div style="position: relative; height: 3px; margin: -2px 0;">
+            <div class="drop-indicator"></div>
+            <div class="drop-label" style="top: -18px; left: 50%; transform: translateX(-50%);">before</div>
+          </div>
+
+          <div class="mock-card" style="opacity: 0.6;">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+
+          <!-- Drop zone: between cards -->
+          <div style="position: relative; height: 3px; margin: -2px 0;">
+            <div class="drop-indicator"></div>
+            <div class="drop-label" style="top: -18px; left: 50%; transform: translateX(-50%);">after · before</div>
+          </div>
+
+          <div class="mock-card" style="opacity: 0.6;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment…</div>
+          </div>
+
+          <!-- Drop zone: after last card -->
+          <div style="position: relative; height: 3px; margin: -2px 0;">
+            <div class="drop-indicator"></div>
+            <div class="drop-label" style="top: -18px; left: 50%; transform: translateX(-50%);">after</div>
+          </div>
+
+          <!-- Cursor label -->
+          <div class="cursor-label" style="right: 20px; top: 60px;">
+            CommentCard
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <div style="padding: 6px 12px 4px; font-size: 10px; color: var(--orange); font-weight: 600; display: flex; align-items: center; gap: 6px;">
+          <span>📦</span> Placing: CommentCard
+          <span style="margin-left: auto; font-size: 9px; color: var(--muted); cursor: pointer;">✕ cancel</span>
+        </div>
+
+        <div class="component-search" style="margin-top: 4px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search components…" />
+        </div>
+
+        <div class="component-list">
+          <div class="component-item">
+            <div class="comp-thumb">📋</div>
+            <div>
+              <div class="comp-name">CommentCard</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+          <div class="component-item armed">
+            <div class="comp-thumb" style="border-color: var(--orange);">📋</div>
+            <div>
+              <div class="comp-name">CommentCard</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+            <span class="comp-arm-badge">ARMED</span>
+          </div>
+          <div class="component-item">
+            <div class="comp-thumb">📝</div>
+            <div>
+              <div class="comp-name">TextInput</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+          <div class="component-item">
+            <div class="comp-thumb">🔘</div>
+            <div>
+              <div class="comp-name">Button</div>
+              <div class="comp-path">src/components/</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<hr class="section-divider">
+<div class="section-title">Insert Mode — Location-First (WHERE → WHAT)</div>
+<p class="section-subtitle">
+  The user switches to Insert mode and clicks a location on the page <em>before</em> choosing what to insert.
+  Drop zones appear on hover. After clicking a drop zone, the panel asks "what do you want to insert here?"
+</p>
+
+<div class="variations">
+
+  <!-- ────── STATE G: Insert mode, hovering page for location ────── -->
+  <div class="col">
+    <span class="col-label">G · Insert mode — hovering to choose location first</span>
+    <p class="col-description">User is in Insert mode but hasn't picked a component yet. Hovering the page shows drop zone indicators between elements. The panel's "What do you want to insert?" prompt is still visible. Click a drop zone to lock the location.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 300px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content" style="position: relative;">
+          <div class="mock-card" style="opacity: 0.7;">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+
+          <!-- Hovering between cards — drop zone highlighted -->
+          <div style="position: relative; height: 8px; margin: -2px 0; display: flex; align-items: center;">
+            <div class="drop-indicator" style="opacity: 0.7;"></div>
+            <div class="drop-label" style="top: -18px; left: 50%; transform: translateX(-50%);">insert here</div>
+          </div>
+
+          <div class="mock-card" style="opacity: 0.7;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment…</div>
+          </div>
+
+          <!-- Cursor indicator -->
+          <div class="cursor-label" style="right: 30px; top: 40px; background: #666;">
+            pick a spot
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <div style="padding: 8px 12px 2px; font-size: 10px; color: var(--text-mid);">What do you want to insert?</div>
+
+        <div class="insert-choices">
+          <div class="insert-choice">
+            <div class="insert-icon comp">📦</div>
+            <div class="insert-info">
+              <span class="insert-name">Component</span>
+              <span class="insert-desc">From your Storybook library</span>
+            </div>
+          </div>
+          <div class="insert-choice">
+            <div class="insert-icon canv">🖼️</div>
+            <div class="insert-info">
+              <span class="insert-name">Canvas</span>
+              <span class="insert-desc">Draw a new section freeform</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 4px 12px;">
+          <div style="height: 1px; background: var(--border); margin: 4px 0 8px;"></div>
+          <div style="font-size: 10px; color: var(--muted); line-height: 1.5; padding-bottom: 12px;">
+            <strong style="color: var(--text-mid);">Or click a drop zone on the page</strong> to set the location first, then pick what to insert.
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── STATE H: Location locked, now choose what ────── -->
+  <div class="col">
+    <span class="col-label">H · Location locked — now choose what to insert</span>
+    <p class="col-description">User clicked a drop zone. The location is pinned with a marker on the page. Panel now shows "Inserting after Comments" and the same WHAT choices. Clicking "Component" opens the browser; clicking "Canvas" starts the draw.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 300px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content" style="position: relative;">
+          <div class="mock-card" style="opacity: 0.7;">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+
+          <div class="mock-card" style="opacity: 0.7;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment…</div>
+          </div>
+
+          <!-- Pinned drop zone -->
+          <div style="position: relative; height: 6px; margin: -2px 0;">
+            <div class="drop-indicator"></div>
+            <div class="drop-label" style="top: -18px; left: 50%; transform: translateX(-50%);">📍 after Comments</div>
+          </div>
+
+          <div class="mock-card" style="opacity: 0.7; border-style: dashed; border-color: #94a3b8;">
+            <div class="mock-card-title" style="opacity: 0.4;">← new content goes here</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <!-- Location confirmed banner -->
+        <div style="padding: 8px 12px; background: rgba(245, 83, 45, 0.08); border-bottom: 1px solid rgba(245, 83, 45, 0.2); display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 12px;">📍</span>
+          <div style="flex: 1;">
+            <div style="font-size: 10px; font-weight: 600; color: var(--orange);">Inserting after Comments</div>
+            <div style="font-size: 9px; color: var(--muted);">What do you want to add?</div>
+          </div>
+          <span style="font-size: 9px; color: var(--muted); cursor: pointer;">✕</span>
+        </div>
+
+        <div class="insert-choices">
+          <div class="insert-choice">
+            <div class="insert-icon comp">📦</div>
+            <div class="insert-info">
+              <span class="insert-name">Component</span>
+              <span class="insert-desc">From your Storybook library</span>
+            </div>
+          </div>
+          <div class="insert-choice">
+            <div class="insert-icon canv">🖼️</div>
+            <div class="insert-info">
+              <span class="insert-name">Canvas</span>
+              <span class="insert-desc">Draw a new section freeform</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">1</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<hr class="section-divider">
+<div class="section-title">After Placement → Auto-Switch to Select</div>
+<p class="section-subtitle">Inserting a component completes the Insert flow. The app auto-switches to Select mode with the new element selected, toolbar appears, and the design editor is ready for refinement.</p>
+
+<div class="variations">
+
+  <!-- ────── STATE I: Just placed, auto-selected ────── -->
+  <div class="col">
+    <span class="col-label">I · Just placed → auto-switch to Select mode</span>
+    <p class="col-description">The component was placed. Mode automatically flips to Select, the new element is highlighted, toolbar appears, and the panel shows the design editor. The user can immediately refine the new element's Tailwind classes without any extra clicks.</p>
+    <div class="page-and-panel">
+      <div class="mock-page" style="min-height: 340px;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">Case Management</span>
+        </div>
+        <div class="mock-content" style="position: relative;">
+          <div class="mock-card">
+            <div class="mock-card-title">Case Description</div>
+            <div class="mock-card-text">Customer involved in minor vehicle accident.</div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment…</div>
+          </div>
+
+          <!-- Newly placed component (selected) -->
+          <div class="mock-card selected-el" style="position: relative; border-color: var(--orange); background: #fffbeb;">
+            <div class="mock-card-title" style="color: var(--orange);">📋 CommentCard</div>
+            <div class="mock-card-text">Newly inserted component</div>
+
+            <div class="el-toolbar" style="top: -36px; left: 0;">
+              <button class="toolbar-btn active" title="Design">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              </button>
+              <button class="toolbar-btn" title="Component"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13,2H3C1.9,2,1,2.9,1,4v8c0,1.1,.9,2,2,2h10c1.1,0,2-.9,2-2V4c0-1.1-.9-2-2-2Zm0,10H3V7h10v5Zm0-5H3V4h10v3Z"/></svg></button>
+              <button class="toolbar-btn" title="Canvas"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M0,0v5h2V2h3V0Zm11,0v2h3v3h2V0Zm5,11h-2v3h-3v2h5Zm-16,5h5v-2H2v-3H0Z"/></svg></button>
+              <button class="toolbar-btn" title="Message"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2,1C1.45,1,1,1.45,1,2v8c0,.55.45,1,1,1h4.27L8,14l1.73-3H14c.55,0,1-.45,1-1V2c0-.55-.45-1-1-1H2ZM13,9H9L8,11.18,7,9H3V3h10Z"/></svg></button>
+              <div class="toolbar-sep"></div>
+              <span class="toolbar-count">3 +</span>
+            </div>
+          </div>
+
+          <div class="annotation" style="bottom: 8px; right: 8px; z-index: 30;">
+            auto-switched to Select after placement
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="mode-toggle">
+          <button class="mode-btn active">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105.895,2,2,2H6c.552,0,1-.448,1-1s-.448-1-1-1H2V2H14V6c0,.552.448,1,1,1s1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068.43-.339.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492.126-.128.129-.177.317-.126.492l2,7c.061.214.257.362.48.362h.009c.226-.004.421-.16.476-.379l.644-2.578,3.664,3.664c.397.384,1.03.373,1.414-.025.374-.388.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </span>
+            Select
+          </button>
+          <button class="mode-btn">
+            <span class="mode-icon">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="14" height="14" rx="1.5" stroke-dasharray="2 1.5" stroke-width="2"/><path d="M7 8 L3.5 3 L3.5 13 Z" fill="currentColor" stroke="none"/><path d="M9 8 L12.5 3 L12.5 13 Z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Insert
+          </button>
+        </div>
+
+        <!-- Success banner -->
+        <div style="padding: 6px 12px; background: rgba(0, 132, 139, 0.08); border-bottom: 1px solid rgba(0, 132, 139, 0.2); display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 10px;">✓</span>
+          <span style="font-size: 10px; color: var(--teal); font-weight: 600;">Placed CommentCard after Comments</span>
+          <span style="margin-left: auto; font-size: 9px; color: var(--muted); cursor: pointer;">dismiss</span>
+        </div>
+
+        <div class="panel-header">
+          <span class="element-name">CommentCard</span>
+          <span class="element-tag">&lt;CommentCard&gt;</span>
+        </div>
+        <div class="inline-message">
+          <span class="msg-btn" style="font-size: 12px;">🎙️</span>
+          <input type="text" placeholder="Add context for agent…" />
+          <button class="msg-btn send" style="font-size: 9px;">↑</button>
+        </div>
+        <div class="box-model-stub">Box Model</div>
+        <div class="prop-section">
+          <div class="prop-header">
+            <span class="prop-caret">▼</span>
+            <span class="prop-label">Spacing</span>
+            <span class="prop-badge">2</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip active">p-4</span>
+            <span class="chip">space-y-2</span>
+          </div>
+        </div>
+        <div class="prop-section">
+          <div class="prop-header">
+            <span class="prop-caret">▶</span>
+            <span class="prop-label">Background</span>
+            <span class="prop-badge">1</span>
+          </div>
+        </div>
+
+        <div class="queue-footer">
+          <div class="queue-item"><div class="queue-dot draft"></div><span class="queue-count">2</span></div>
+          <div class="queue-item"><div class="queue-dot committed"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implementing"></div><span class="queue-count">0</span></div>
+          <div class="queue-item"><div class="queue-dot implemented"></div><span class="queue-count active">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end variations -->
+
+</body>
+</html>

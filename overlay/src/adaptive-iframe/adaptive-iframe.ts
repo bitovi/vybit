@@ -30,6 +30,8 @@ export class AdaptiveIframe extends HTMLElement {
   private loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private hasLoaded = false;
   private _loadedDispatched = false;
+  /** Debug log dedup — only log each unique message once per load cycle. */
+  private _loggedOnce = new Set<string>();
 
   constructor() {
     super();
@@ -107,6 +109,7 @@ export class AdaptiveIframe extends HTMLElement {
     if (this.loadTimeoutId) clearTimeout(this.loadTimeoutId);
     this.hasLoaded = false;
     this._loadedDispatched = false;
+    this._loggedOnce.clear();
 
     const src = this.getAttribute('src');
     const srcdoc = this.getAttribute('srcdoc');
@@ -133,8 +136,14 @@ export class AdaptiveIframe extends HTMLElement {
     }
     this.hasLoaded = true;
 
+    const src = this.getAttribute('src');
+    console.log(`[AdaptiveIframe] iframe loaded — src=${src}`);
+
     const doc = this.hiddenIframe.contentDocument;
-    if (!doc) return;
+    if (!doc) {
+      console.warn('[AdaptiveIframe] iframe loaded but contentDocument is null');
+      return;
+    }
 
     // Strip body/html margin and padding
     const resetStyle = doc.createElement('style');
@@ -151,6 +160,7 @@ export class AdaptiveIframe extends HTMLElement {
 
     // For Storybook src iframes, the story component renders asynchronously
     // after the page load event. Wait for a non-spinner child in #storybook-root.
+    console.log(`[AdaptiveIframe] waiting for story content — #storybook-root=${!!doc.querySelector('#storybook-root')}, bodyChildren=${doc.body?.childElementCount}`);
     this.waitForStoryContent(doc);
   }
 
@@ -203,7 +213,8 @@ export class AdaptiveIframe extends HTMLElement {
     }
 
     // Observe #storybook-root (or body as fallback) for child changes
-    const target = doc.querySelector('#storybook-root') ?? doc.body;
+    const storybookRoot = doc.querySelector('#storybook-root');
+    const target = storybookRoot ?? doc.body;
     if (!target) return;
 
     const observer = new MutationObserver(() => {
@@ -230,6 +241,15 @@ export class AdaptiveIframe extends HTMLElement {
       attributes: true,
     });
 
+    // Also observe body for portal-rendered content (e.g. Radix dialogs)
+    // that mounts outside #storybook-root directly on document.body.
+    // Only watch childList (not subtree/attributes) to avoid animation spam.
+    if (storybookRoot && doc.body && storybookRoot !== doc.body) {
+      observer.observe(doc.body, {
+        childList: true,
+      });
+    }
+
     // Safety timeout: only disconnect the observer created in THIS call.
     // Guards against stories that never render (broken/missing).
     // After extraction the observer stays alive for args-update re-extraction.
@@ -237,6 +257,17 @@ export class AdaptiveIframe extends HTMLElement {
       if (!extracted && this.observer === observer) {
         this.observer.disconnect();
         this.observer = null;
+        const sbRoot = doc.querySelector('#storybook-root');
+        console.error(`[AdaptiveIframe] 20s timeout — story never rendered. src=${this.getAttribute('src')}`);
+        console.error(`[AdaptiveIframe]   #storybook-root exists=${!!sbRoot}, children=${sbRoot?.children.length ?? 0}`);
+        if (sbRoot) {
+          console.error(`[AdaptiveIframe]   #storybook-root innerHTML (first 500)=${sbRoot.innerHTML.slice(0, 500)}`);
+        }
+        console.error(`[AdaptiveIframe]   body innerHTML (first 500)=${doc.body?.innerHTML.slice(0, 500)}`);
+        const errorEl = doc.querySelector('#error-message, .sb-errordisplay, [id*="error"]');
+        if (errorEl) {
+          console.error(`[AdaptiveIframe]   error element found: ${errorEl.textContent?.slice(0, 300)}`);
+        }
         this.reportError('Story did not render — component may not exist or Storybook story file has an error');
       }
     }, 20000);
@@ -244,6 +275,8 @@ export class AdaptiveIframe extends HTMLElement {
 
   /**
    * Finds the story's root element, skipping Storybook's loading spinner.
+   * Also detects portal-rendered content (e.g. Radix UI dialogs, Headless UI)
+   * that mounts outside #storybook-root onto document.body.
    */
   private findStoryRoot(doc: Document): Element | null {
     const storybookRoot = doc.querySelector('#storybook-root');
@@ -251,13 +284,78 @@ export class AdaptiveIframe extends HTMLElement {
       // Skip elements that are the Storybook loading spinner
       for (const child of storybookRoot.children) {
         if (!child.classList.contains('sb-loader')) {
+          this.logOnce('root', `[AdaptiveIframe] found story root in #storybook-root: <${child.tagName.toLowerCase()}>`);
           return child;
         }
       }
+
+      // #storybook-root is empty — check for portaled content that renders
+      // as a direct child of body outside of #storybook-root.
+      const portalEl = this.findPortalContent(doc);
+      if (portalEl) {
+        this.logOnce('portal', `[AdaptiveIframe] found portal content: <${portalEl.tagName.toLowerCase()} id="${portalEl.id}">`);
+        return portalEl;
+      }
+
+      // Log body children once for debugging
+      const bodyChildren = Array.from(doc.body.children).map(
+        (el) => `<${el.tagName.toLowerCase()} id="${el.id}" class="${el.className}">`
+      );
+      this.logOnce('no-root', `[AdaptiveIframe] #storybook-root empty, no portals. body: ${bodyChildren.join(', ')}`);
       return null;
     }
-    // Fallback for non-Storybook content
+    this.logOnce('no-sb-root', '[AdaptiveIframe] no #storybook-root, falling back to body.firstElementChild');
     return doc.body.firstElementChild;
+  }
+
+  /** Log a message only once per load cycle (keyed by tag). */
+  private logOnce(tag: string, msg: string) {
+    if (this._loggedOnce.has(tag)) return;
+    this._loggedOnce.add(tag);
+    console.log(msg);
+  }
+
+  /** Tags that are Storybook infrastructure — never portal content. */
+  private static INFRA_TAGS = new Set(['SCRIPT', 'STYLE', 'LINK', 'META', 'NOSCRIPT']);
+
+  /** IDs that are Storybook infrastructure — never portal content. */
+  private static INFRA_IDS = new Set(['storybook-root', 'storybook-docs', 'sb-addons-root']);
+
+  /** Class prefixes that indicate Storybook infrastructure elements on body. */
+  private static INFRA_CLASS_PREFIXES = ['sb-'];
+
+  /**
+   * Generic portal detection: finds the first direct child of body that isn't
+   * Storybook infrastructure (scripts, styles, #storybook-root, etc.).
+   * Works for Radix, Headless UI, Floating UI, MUI, Chakra, Ark UI, and any
+   * library that portals to body.
+   */
+  private findPortalContent(doc: Document): Element | null {
+    const win = doc.defaultView ?? window;
+    for (const child of doc.body.children) {
+      if (AdaptiveIframe.INFRA_TAGS.has(child.tagName)) continue;
+      if (child.id && AdaptiveIframe.INFRA_IDS.has(child.id)) continue;
+
+      // Skip Storybook infrastructure elements (sb-preparing-story, sb-wrapper, etc.)
+      if (child.className && typeof child.className === 'string') {
+        const classes = child.className.split(/\s+/);
+        if (classes.some(cls => AdaptiveIframe.INFRA_CLASS_PREFIXES.some(p => cls.startsWith(p)))) {
+          continue;
+        }
+      }
+
+      // Skip elements that are hidden via computed style (not just inline style)
+      if (child instanceof HTMLElement) {
+        const computed = win.getComputedStyle(child);
+        if (computed.display === 'none' || computed.visibility === 'hidden') continue;
+      }
+
+      // Skip empty elements with no meaningful content (e.g. aria-live <span>)
+      if (!child.children.length && !child.textContent?.trim()) continue;
+
+      return child;
+    }
+    return null;
   }
 
   /**
@@ -286,16 +384,46 @@ export class AdaptiveIframe extends HTMLElement {
     const root = this.findStoryRoot(doc);
     const win = root ? (root.ownerDocument.defaultView ?? window) : window;
     if (!root) return;
+    this.logOnce('extract', `[AdaptiveIframe] extractAndApply: root=<${root.tagName.toLowerCase()}>, src=${this.getAttribute('src')}`);
 
     // Sync hidden iframe width to the host element's actual width so that
     // block-level content auto-expands to the correct size.  Fall back to
     // 800 px if the host hasn't been laid out yet.
-    const hostWidth = this.clientWidth || 800;
-    this.hiddenIframe.style.width = hostWidth + 'px';
+    // Width is only set once (first extraction) to avoid a feedback loop where
+    // re-extraction → smaller host width → narrower iframe → even smaller
+    // extracted width → repeat until content collapses (e.g. portal dialogs).
+    if (!this._loadedDispatched) {
+      const hostWidth = this.clientWidth || 800;
+      this.hiddenIframe.style.width = hostWidth + 'px';
+    }
 
     // Extract computed styles and apply to host (drives layout flow)
     const styles = extractStyles(root);
-    applyStylesToHost(this, styles, hostWidth);
+
+    // For portal content (position:fixed dialogs, etc.), strip viewport-relative
+    // positioning and animation properties so the ghost renders inline and visible
+    // in the card. Entry animations (e.g. Radix animate-in/fade-in-0) can leave
+    // opacity at 0 at extraction time.
+    if (styles['position'] === 'fixed' || styles['position'] === 'absolute') {
+      const portalStripProps = [
+        // Positioning
+        'position', 'left', 'right', 'top', 'bottom',
+        'inset', 'inset-block', 'inset-block-start', 'inset-block-end',
+        'inset-inline', 'inset-inline-start', 'inset-inline-end',
+        'transform', 'translate', 'z-index',
+        // Animation / transition (entry animations can leave opacity=0)
+        'opacity',
+        'animation', 'animation-name', 'animation-duration', 'animation-delay',
+        'animation-fill-mode', 'animation-timing-function',
+        'transition', 'transition-property', 'transition-duration',
+        'transition-delay', 'transition-timing-function',
+      ];
+      for (const prop of portalStripProps) {
+        delete styles[prop];
+      }
+    }
+
+    applyStylesToHost(this, styles, parseInt(this.hiddenIframe.style.width) || 800);
 
     // Clone story content into the ghost — use innerHTML (not outerHTML)
     // because the host element already carries the root's styles (padding,

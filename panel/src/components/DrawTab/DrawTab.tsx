@@ -206,6 +206,8 @@ function groupByComponent(
     if (entry.type === 'docs' || entry.id.endsWith('--docs')) continue;
     // title: "Components/Button" → component name: "Button"
     const name = entry.title.split('/').at(-1) ?? entry.title;
+    // DEBUG: temporarily limit to HoverCard only
+    if (!name.toLowerCase().includes('hovercard')) continue;
     if (!map.has(name)) map.set(name, []);
     map.get(name)!.push(entry);
   }

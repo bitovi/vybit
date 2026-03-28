@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3F · Toolbar + Panel Unified — Mode-Dependent Tabs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+      --toolbar-bg:   #1a1a1a;
+      --toolbar-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a1a;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px 40px 120px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 40px;
+      line-height: 1.7;
+      max-width: 800px;
+    }
+
+    .page-subtitle strong { color: var(--text-mid); }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+      max-width: 700px;
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 48px 0 32px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 460px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 460px;
+      line-height: 1.55;
+      margin-bottom: 6px;
+    }
+
+    /* ─── MOCK PAGE ─────────────────────────────────────── */
+    .mock-page {
+      width: 400px;
+      min-height: 300px;
+      background: #f8fafc;
+      border-radius: var(--radius-lg);
+      border: 1px solid #555;
+      overflow: visible;
+      position: relative;
+      font-family: var(--font-ui);
+    }
+
+    .mock-header {
+      background: #0f172a;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .mock-logo {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: var(--teal);
+    }
+
+    .mock-header-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .mock-content {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mock-card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 12px;
+    }
+
+    .mock-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .mock-card-text {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .mock-input-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .mock-input {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #94a3b8;
+      background: #f8fafc;
+    }
+
+    .mock-send-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #0f172a;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+    }
+
+    /* ─── SELECTED ELEMENT ──────────────────────────────── */
+    .selected-el {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+      position: relative;
+    }
+
+    /* ─── COMMON TOOLBAR PARTS ──────────────────────────── */
+    .toolbar {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      background: var(--toolbar-bg);
+      border-radius: 8px;
+      padding: 3px;
+      box-shadow: var(--toolbar-shadow);
+      z-index: 10;
+      gap: 1px;
+    }
+
+    .tb {
+      height: 28px;
+      border-radius: 5px;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .tb:hover {
+      background: #333;
+      color: white;
+    }
+
+    .tb.active {
+      background: var(--teal-dark);
+      color: #5fd4da;
+    }
+
+    .tb svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .tb-icon {
+      width: 28px;
+    }
+
+    .tb-combo {
+      gap: 4px;
+      padding: 0 8px;
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .tb-combo svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .tb-sep {
+      width: 1px;
+      height: 16px;
+      background: #3a3a3a;
+      margin: 0 2px;
+      flex-shrink: 0;
+    }
+
+    /* ─── MESSAGE ROW ───────────────────────────────────── */
+    .msg-row {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--toolbar-bg);
+      border-radius: 8px;
+      padding: 3px 4px 3px 8px;
+      box-shadow: var(--toolbar-shadow);
+      z-index: 10;
+    }
+
+    .msg-row input {
+      width: 190px;
+      border: none;
+      background: #2a2a2a;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 10px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    .msg-row input::placeholder { color: #888; }
+
+    .msg-send {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      border: none;
+      background: var(--teal);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .msg-send svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* ─── PANEL (right-side inspector) ──────────────────── */
+    .panel {
+      width: 300px;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: var(--font-ui);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── MODE TOGGLE (segmented button in panel header) ── */
+    .mode-toggle {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 6px;
+      background: #1a1a1a;
+      padding: 2px;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .mode-toggle button {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: none;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: var(--font-ui);
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .mode-toggle button:hover {
+      color: var(--text-mid);
+    }
+
+    .mode-toggle button.active {
+      background: var(--teal-dark);
+      color: #5fd4da;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .mode-toggle button svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    .panel-element-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panel-element-name .meta {
+      font-family: var(--font-ui);
+      font-weight: 400;
+      color: var(--text-mid);
+    }
+
+    .panel-container-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .panel-container-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .panel-container-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ─── TAB BAR ───────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+    }
+
+    .tab-bar button {
+      position: relative;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: var(--font-ui);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-mid);
+      transition: color var(--t-fast);
+    }
+
+    .tab-bar button:hover {
+      color: var(--text);
+    }
+
+    .tab-bar button.active {
+      color: var(--text);
+    }
+
+    .tab-bar button.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--teal);
+    }
+
+    /* ─── PANEL CONTENT ─────────────────────────────────── */
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    /* ─── DESIGN TAB MOCK CONTENT ───────────────────────── */
+    .design-group {
+      margin-bottom: 14px;
+    }
+
+    .design-group-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-family: var(--font-mono);
+    }
+
+    .design-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .design-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      font-family: var(--font-mono);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .design-chip .prefix {
+      color: var(--muted);
+    }
+
+    .design-chip .color-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ─── REPLACE / PLACE TAB ───────────────────────────── */
+    .replace-section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+    }
+
+    .replace-option {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all var(--t-fast);
+      margin-bottom: 8px;
+    }
+
+    .replace-option:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .replace-option-text {
+      font-size: 12px;
+      color: var(--text-mid);
+    }
+
+    .replace-option .canvas-icon {
+      margin-right: 6px;
+      color: var(--muted);
+    }
+
+    .replace-option .canvas-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .component-section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      margin: 16px 0 6px;
+    }
+
+    /* ─── VB PREVIEW CARDS (from 024-draw-design B) ─────── */
+    .vb-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .vb-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color var(--t-fast), box-shadow var(--t-fast);
+      position: relative;
+    }
+
+    .vb-card:hover {
+      border-color: #555;
+    }
+
+    .vb-card .card-preview {
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      position: relative;
+      overflow: hidden;
+      padding: 8px;
+    }
+
+    .vb-card .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .vb-card .card-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .vb-card .card-meta {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* Fake preview elements inside cards */
+    .preview-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      color: white;
+      background: #ef4444;
+    }
+
+    .preview-button {
+      display: inline-block;
+      padding: 8px 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      color: white;
+      background: #6366f1;
+    }
+
+    .preview-card-inner {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      color: #1a1a1a;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .preview-card-inner h4 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-card-inner h4 .mini-tag {
+      font-size: 10px;
+      background: #dbeafe;
+      color: #2563eb;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .preview-card-inner p {
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .preview-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 4px;
+      color: white;
+      background: #f59e0b;
+    }
+
+    /* ─── QUEUE FOOTER ──────────────────────────────────── */
+    .panel-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .footer-stat {
+      color: var(--muted);
+    }
+
+    .footer-stat .count {
+      font-weight: 700;
+      margin-right: 2px;
+    }
+
+    .footer-stat .count.active {
+      color: #fbbf24;
+    }
+
+    /* ─── COMPOSITE LAYOUT ──────────────────────────────── */
+    .composite {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">3F · Toolbar + Panel Unified — Mode-Dependent Tabs</h1>
+<p class="page-subtitle">
+  The toolbar and panel work together. A <strong>Select / Insert toggle</strong> in both the
+  overlay toolbar and the panel header keeps them in sync. The panel tabs change with the active mode:<br>
+  <strong>Select mode →</strong> tabs = <strong>Design</strong> | <strong>Replace</strong><br>
+  <strong>Insert mode →</strong> tab = <strong>Place</strong><br>
+  The <strong>Replace</strong> and <strong>Place</strong> tabs share the same layout: a canvas option + Storybook component list.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 1. SELECT MODE — Design tab active                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<div class="section-title">Select Mode — Design Tab Active</div>
+<p class="section-subtitle">
+  User has selected an element. The toolbar shows <strong>Select</strong> active (outline ring),
+  <strong>Insert</strong> dimmed. The panel’s <strong>Select/Insert toggle</strong> mirrors the toolbar state.
+  Tabs show <strong>Design</strong> and <strong>Replace</strong>,
+  with <strong>Design</strong> active — displaying the familiar property chips.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Overlay — element selected</span>
+    <div class="composite">
+      <div class="mock-page" style="min-height: 340px; padding-top: 0;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">My App</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card">
+            <div class="mock-card-title">Profile</div>
+            <div class="mock-card-text">Your account settings</div>
+          </div>
+
+          <div class="mock-card selected-el" style="position: relative;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment</div>
+            <div class="mock-input-row">
+              <div class="mock-input">add your message</div>
+              <div class="mock-send-btn">→</div>
+            </div>
+
+            <!-- TOOLBAR above selected element -->
+            <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+              <!-- Select + 1+ segmented group (outline ring = active page mode) -->
+              <div style="display: flex; align-items: center; box-shadow: inset 0 0 0 1.5px #00848B; border-radius: 5px; overflow: hidden;">
+                <button class="tb tb-combo tb-select" style="background: transparent; color: #5fd4da; border-radius: 0;">
+                  <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                  Select
+                </button>
+                <div style="width: 1px; height: 14px; background: rgba(0,132,139,0.5);"></div>
+                <button class="tb tb-adjunct" style="background: transparent; color: #5fd4da; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                  1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+                </button>
+              </div>
+              <button class="tb tb-combo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+                Insert
+              </button>
+            </div>
+
+            <!-- Message row below element -->
+            <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+              <input type="text" placeholder="add your message" />
+              <button class="msg-send">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="mock-card">
+            <div class="mock-card-title">Status</div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: Select mode, Design tab active -->
+      <div class="panel" style="height: 340px;">
+        <div class="panel-header">
+          <div class="mode-toggle">
+            <button class="active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              Select
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+          </div>
+          <div class="panel-element-name">
+            &lt;div&gt; selected
+          </div>
+          <button class="panel-container-btn" title="Container layout">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+          </button>
+        </div>
+        <div class="tab-bar">
+          <button class="active">Design</button>
+          <button>Replace</button>
+        </div>
+        <div class="panel-body">
+          <!-- Design chips (mock of current Picker) -->
+          <div class="design-group">
+            <div class="design-group-label">Layout</div>
+            <div class="design-chips">
+              <div class="design-chip"><span class="prefix">flex</span></div>
+              <div class="design-chip"><span class="prefix">flex-col</span></div>
+              <div class="design-chip"><span class="prefix">gap-</span>3</div>
+            </div>
+          </div>
+          <div class="design-group">
+            <div class="design-group-label">Spacing</div>
+            <div class="design-chips">
+              <div class="design-chip"><span class="prefix">p-</span>4</div>
+              <div class="design-chip"><span class="prefix">mt-</span>2</div>
+            </div>
+          </div>
+          <div class="design-group">
+            <div class="design-group-label">Sizing</div>
+            <div class="design-chips">
+              <div class="design-chip"><span class="prefix">w-</span>full</div>
+              <div class="design-chip"><span class="prefix">h-</span>auto</div>
+            </div>
+          </div>
+          <div class="design-group">
+            <div class="design-group-label">Background</div>
+            <div class="design-chips">
+              <div class="design-chip">
+                <span class="color-dot" style="background: white;"></span>
+                <span class="prefix">bg-</span>white
+              </div>
+            </div>
+          </div>
+          <div class="design-group">
+            <div class="design-group-label">Border</div>
+            <div class="design-chips">
+              <div class="design-chip"><span class="prefix">rounded-</span>lg</div>
+              <div class="design-chip"><span class="prefix">border</span></div>
+              <div class="design-chip">
+                <span class="color-dot" style="background: #e2e8f0;"></span>
+                <span class="prefix">border-</span>slate-200
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <span class="footer-stat"><span class="count active">2</span>draft</span>
+          <span class="footer-stat"><span class="count">0</span>committed</span>
+          <span class="footer-stat"><span class="count">0</span>implementing</span>
+          <span class="footer-stat"><span class="count">0</span>implemented</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 2. SELECT MODE — Replace tab active                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Select Mode — Replace Tab Active</div>
+<p class="section-subtitle">
+  User clicked the <strong>Replace</strong> tab to swap the selected element.
+  The tab shows: <strong>Canvas</strong> option (draw replacement from scratch)
+  + <strong>Storybook Components</strong> list (pick a component to replace with).
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Overlay — element selected, Replace tab open</span>
+    <div class="composite">
+      <div class="mock-page" style="min-height: 340px; padding-top: 0;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">My App</span>
+        </div>
+        <div class="mock-content">
+          <div class="mock-card">
+            <div class="mock-card-title">Profile</div>
+            <div class="mock-card-text">Your account settings</div>
+          </div>
+
+          <div class="mock-card selected-el" style="position: relative;">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment</div>
+            <div class="mock-input-row">
+              <div class="mock-input">add your message</div>
+              <div class="mock-send-btn">→</div>
+            </div>
+
+            <!-- TOOLBAR: Select active, Replace tab highlighted -->
+            <div class="toolbar" style="bottom: calc(100% + 8px); left: 0;">
+              <div style="display: flex; align-items: center; box-shadow: inset 0 0 0 1.5px #00848B; border-radius: 5px; overflow: hidden;">
+                <button class="tb tb-combo tb-select" style="background: transparent; color: #5fd4da; border-radius: 0;">
+                  <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                  Select
+                </button>
+                <div style="width: 1px; height: 14px; background: rgba(0,132,139,0.5);"></div>
+                <button class="tb tb-adjunct" style="background: transparent; color: #5fd4da; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                  1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+                </button>
+              </div>
+              <button class="tb tb-combo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+                Insert
+              </button>
+            </div>
+
+            <div class="msg-row" style="top: calc(100% + 8px); left: 0;">
+              <input type="text" placeholder="add your message" />
+              <button class="msg-send">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="mock-card">
+            <div class="mock-card-title">Status</div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: Select mode, Replace tab active -->
+      <div class="panel" style="min-height: 340px;">
+        <div class="panel-header">
+          <div class="mode-toggle">
+            <button class="active">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              Select
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+          </div>
+          <div class="panel-element-name">
+            &lt;div&gt; selected
+          </div>
+          <button class="panel-container-btn" title="Container layout">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+          </button>
+        </div>
+        <div class="tab-bar">
+          <button>Design</button>
+          <button class="active">Replace</button>
+        </div>
+        <div class="panel-body">
+          <!-- Canvas option -->
+          <div class="replace-option">
+            <span class="canvas-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,1H2C1.448,1,1,1.448,1,2v12c0,0.552,0.448,1,1,1h12c0.552,0,1-0.448,1-1V2C15,1.448,14.552,1,14,1z M13,13H3V3h10V13z"/><rect x="5" y="5" width="2" height="2"/><rect x="9" y="5" width="2" height="2"/><rect x="5" y="9" width="2" height="2"/><rect x="9" y="9" width="2" height="2"/></svg>
+            </span>
+            <span class="replace-option-text">A canvas</span>
+          </div>
+
+          <!-- Storybook Components -->
+          <div class="component-section-label">Storybook Components</div>
+          <div class="vb-list">
+            <div class="vb-card">
+              <div class="card-preview"><span class="preview-badge">New</span></div>
+              <div class="card-footer"><span class="card-name">Badge</span><span class="card-meta">3 variants</span></div>
+            </div>
+            <div class="vb-card">
+              <div class="card-preview"><span class="preview-button">Click me</span></div>
+              <div class="card-footer"><span class="card-name">Button</span><span class="card-meta">2 variants</span></div>
+            </div>
+            <div class="vb-card">
+              <div class="card-preview">
+                <div class="preview-card-inner"><h4>Card Title <span class="mini-tag">Tag</span></h4><p>Card description goes here.</p></div>
+              </div>
+              <div class="card-footer"><span class="card-name">Card</span><span class="card-meta">1 variant</span></div>
+            </div>
+            <div class="vb-card">
+              <div class="card-preview"><span class="preview-tag">Design</span></div>
+              <div class="card-footer"><span class="card-name">Tag</span><span class="card-meta">4 variants</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <span class="footer-stat"><span class="count active">2</span>draft</span>
+          <span class="footer-stat"><span class="count">0</span>committed</span>
+          <span class="footer-stat"><span class="count">0</span>implementing</span>
+          <span class="footer-stat"><span class="count">0</span>implemented</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 3. INSERT MODE — Place tab                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Insert Mode — Place Tab</div>
+<p class="section-subtitle">
+  User clicked <strong>Insert</strong>. The toolbar outlines Insert (temporary page mode).
+  The panel shows a single <strong>Place</strong> tab — identical layout to <strong>Replace</strong>:
+  canvas option + Storybook component list. Crosshair cursor + drop-line on the page.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Overlay — Insert mode active, drop line between cards</span>
+    <div class="composite">
+      <div class="mock-page" style="min-height: 340px; padding-top: 0; cursor: crosshair;">
+        <div class="mock-header">
+          <div class="mock-logo"></div>
+          <span class="mock-header-text">My App</span>
+        </div>
+        <div class="mock-content" style="position: relative;">
+          <div class="mock-card">
+            <div class="mock-card-title">Profile</div>
+            <div class="mock-card-text">Your account settings</div>
+          </div>
+
+          <!-- DROP INDICATOR: solid teal line with inward arrow end-caps -->
+          <div style="position: relative; height: 3px; margin: -2px 0; z-index: 5;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--teal); border-radius: 3px;"></div>
+            <div style="position: absolute; top: 50%; left: -2px; transform: translateY(-50%); width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 5px; border-color: transparent transparent transparent var(--teal);"></div>
+            <div style="position: absolute; top: 50%; right: -2px; transform: translateY(-50%); width: 0; height: 0; border-style: solid; border-width: 5px 5px 5px 0; border-color: transparent var(--teal) transparent transparent;"></div>
+
+            <!-- TOOLBAR above line -->
+            <div class="toolbar" style="bottom: calc(100% + 6px); left: 0; position: absolute;">
+              <!-- Select + 1+ dimmed -->
+              <div style="display: flex; align-items: center; border-radius: 5px; overflow: hidden; opacity: 0.4;">
+                <button class="tb tb-combo" style="background: transparent; color: #aaa; border-radius: 0;">
+                  <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+                  Select
+                </button>
+                <div style="width: 1px; height: 14px; background: rgba(255,255,255,0.1);"></div>
+                <button class="tb" style="background: transparent; color: #aaa; border-radius: 0; padding: 0 6px; font-size: 10px; font-weight: 700; font-family: var(--font-ui);">
+                  1<span style="font-size: 9px; margin-left: 1px; opacity: 0.6;">+</span>
+                </button>
+              </div>
+              <!-- Insert — outline ring (active temporary page mode) -->
+              <button class="tb tb-combo" style="box-shadow: inset 0 0 0 1.5px #00848B; color: #5fd4da; background: transparent;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" style="width:12px;height:12px;"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+                Insert
+              </button>
+            </div>
+
+            <!-- MESSAGE below line -->
+            <div class="msg-row" style="top: calc(100% + 6px); left: 0; position: absolute;">
+              <input type="text" placeholder="add your message" />
+              <button class="msg-send">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="mock-card">
+            <div class="mock-card-title">Comments</div>
+            <div class="mock-card-text">Add a comment</div>
+            <div class="mock-input-row">
+              <div class="mock-input">add your message</div>
+              <div class="mock-send-btn">→</div>
+            </div>
+          </div>
+
+          <!-- Floating cursor label -->
+          <div style="position: absolute; top: 46px; right: 30px; z-index: 20; background: var(--teal); color: #fff; font-size: 11px; font-family: system-ui, sans-serif; padding: 3px 8px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+            Place: Button
+          </div>
+
+          <div class="mock-card">
+            <div class="mock-card-title">Status</div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <span style="font-size: 10px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 600;">Open</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: Insert mode, Place tab only -->
+      <div class="panel" style="min-height: 340px;">
+        <div class="panel-header">
+          <div class="mode-toggle">
+            <button>
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105,.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              Select
+            </button>
+            <button class="active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+              Insert
+            </button>
+          </div>
+          <div class="panel-element-name" style="color: var(--text-mid); font-weight: 400; font-family: var(--font-ui); font-size: 11px;">
+            Pick a placement on the page
+          </div>
+          <button class="panel-container-btn" title="Container layout">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+          </button>
+        </div>
+        <div class="tab-bar">
+          <button class="active">Place</button>
+        </div>
+        <div class="panel-body">
+          <!-- Canvas option -->
+          <div class="replace-option">
+            <span class="canvas-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,1H2C1.448,1,1,1.448,1,2v12c0,0.552,0.448,1,1,1h12c0.552,0,1-0.448,1-1V2C15,1.448,14.552,1,14,1z M13,13H3V3h10V13z"/><rect x="5" y="5" width="2" height="2"/><rect x="9" y="5" width="2" height="2"/><rect x="5" y="9" width="2" height="2"/><rect x="9" y="9" width="2" height="2"/></svg>
+            </span>
+            <span class="replace-option-text">A canvas</span>
+          </div>
+
+          <!-- Storybook Components -->
+          <div class="component-section-label">Storybook Components</div>
+          <div class="vb-list">
+            <div class="vb-card">
+              <div class="card-preview"><span class="preview-badge">New</span></div>
+              <div class="card-footer"><span class="card-name">Badge</span><span class="card-meta">3 variants</span></div>
+            </div>
+            <div class="vb-card">
+              <div class="card-preview"><span class="preview-button">Click me</span></div>
+              <div class="card-footer"><span class="card-name">Button</span><span class="card-meta">2 variants</span></div>
+            </div>
+            <div class="vb-card">
+              <div class="card-preview">
+                <div class="preview-card-inner"><h4>Card Title <span class="mini-tag">Tag</span></h4><p>Card description goes here.</p></div>
+              </div>
+              <div class="card-footer"><span class="card-name">Card</span><span class="card-meta">1 variant</span></div>
+            </div>
+            <div class="vb-card">
+              <div class="card-preview"><span class="preview-tag">Design</span></div>
+              <div class="card-footer"><span class="card-name">Tag</span><span class="card-meta">4 variants</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <span class="footer-stat"><span class="count">0</span>draft</span>
+          <span class="footer-stat"><span class="count">0</span>committed</span>
+          <span class="footer-stat"><span class="count">0</span>implementing</span>
+          <span class="footer-stat"><span class="count">0</span>implemented</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 4. Tab behavior summary                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Tab Behavior Summary</div>
+<p class="section-subtitle" style="margin-bottom: 12px;">
+  Quick reference for how toolbar mode maps to panel tabs.
+</p>
+
+<table style="border-collapse: collapse; font-size: 12px; color: var(--text); max-width: 600px;">
+  <thead>
+    <tr style="border-bottom: 2px solid var(--border);">
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Toolbar Mode</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Panel Tabs</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px; font-weight: 600;">Select</td>
+      <td style="padding: 8px 16px;">Design · Replace</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Design = property chips. Replace = canvas + components.</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px; font-weight: 600;">Insert</td>
+      <td style="padding: 8px 16px;">Place</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Same layout as Replace (canvas + components). Single tab.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="section-subtitle" style="margin-top: 16px;">
+  <strong>Replace vs Place:</strong> Identical UI — the name changes to match the action semantics.
+  In <span style="color: var(--teal);">Select</span> mode you're <em>replacing</em> an existing element.
+  In <span style="color: var(--teal);">Insert</span> mode you're <em>placing</em> a new element.
+</p>
+
+</body>
+</html>
