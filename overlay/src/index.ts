@@ -1,29 +1,19 @@
 import { armInsert, armGenericInsert, armElementSelect, cancelInsert, replaceElement, startBrowse, getLockedInsert, clearLockedInsert, isActive as isDropZoneActive } from "./drop-zone";
-import { computePosition, flip, offset } from "@floating-ui/dom";
-import { parseClasses } from "./tailwind/class-parser";
-import { startTextEdit, endTextEdit, isTextEditing } from "./text-edit";
-import { buildTextContext } from "./context";
-import type { ContainerName, IContainer } from "./containers/IContainer";
+import { isTextEditing } from "./text-edit";
+import type { ContainerName } from "./containers/IContainer";
 import { ModalContainer } from "./containers/ModalContainer";
 import { PopoverContainer } from "./containers/PopoverContainer";
 import { PopupContainer } from "./containers/PopupContainer";
 import { SidebarContainer } from "./containers/SidebarContainer";
 import { buildContext } from "./context";
 import {
-	findAllInstances,
 	findComponentBoundary,
-	findDOMEquivalents,
-	findInlineRepeatedNodes,
-	getChildPath,
 	getFiber,
-	getRootFiber,
-	resolvePathToDOM,
 } from "./fiber";
 import './design-canvas/index';
-import type { VbDesignCanvas } from './design-canvas/vb-design-canvas';
-import { css, TEAL, SHADOW_HOST, SUBMITTED_IMAGE } from './styles';
-import type { ElementGroup } from "./grouping";
-import { computeNearGroups, findExactMatches } from "./grouping";
+import { css, SHADOW_HOST, OVERLAY_CSS } from './styles';
+import { VYBIT_LOGO_SVG } from './svg-icons';
+import { findExactMatches } from "./grouping";
 import type { InsertMode } from "./messages";
 import {
 	applyPreview,
@@ -32,1085 +22,23 @@ import {
 	getPreviewState,
 	revertPreview,
 } from "./patcher";
-import { areSiblings, captureRegion } from "./screenshot";
 import { connect, onMessage, send, sendTo } from "./ws";
-
-let shadowRoot: ShadowRoot;
-let shadowHost: HTMLElement;
-let active = false;
-let wasConnected = false;
-let tailwindConfigCache: any = null;
-
-// Current selection state for Patcher WS handlers
-let currentEquivalentNodes: HTMLElement[] = [];
-let currentTargetEl: HTMLElement | null = null;
-let currentBoundary: { componentName: string } | null = null;
-let currentInstances: Array<{ index: number; label: string; parent: string }> =
-	[];
-
-// Cached near-groups for the current selection (computed lazily on first + click)
-let cachedNearGroups: ElementGroup[] | null = null;
-
-// Hover preview state (shown while selection mode is active + mouse moves)
-let hoverOutlineEl: HTMLElement | null = null;
-let hoverTooltipEl: HTMLElement | null = null;
-let lastHoveredEl: Element | null = null;
-let lastMoveTime = 0;
-
-// Current app mode ('select' | 'insert') — synced with panel
-let currentMode: 'select' | 'insert' = 'select';
-let currentTab: string = 'design';
-let tabPreference: 'design' | 'component' = 'design';
-let selectModeOn = false;
-
-/** Derive the concrete tab ID from the current mode + tab preference */
-function resolveTab(): string {
-	if (currentMode === 'insert') return 'place';
-	return tabPreference === 'component' ? 'replace' : 'design';
-}
-
-// Container management
-let containers: Record<ContainerName, IContainer>;
-let activeContainer: IContainer;
-
-const OVERLAY_CSS = `
-  .toggle-btn {
-    position: fixed;
-    bottom: 16px;
-    right: 16px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1.5px solid #DFE2E2;
-    cursor: pointer;
-    z-index: 999999;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-    animation: vybit-breathe 3s ease-in-out infinite;
-    pointer-events: auto;
-  }
-  @keyframes vybit-breathe {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(0,132,139,0), 0 2px 8px rgba(0,0,0,0.08); }
-    50%       { box-shadow: 0 0 0 3px rgba(0,132,139,0.09), 0 0 12px rgba(0,132,139,0.07), 0 2px 8px rgba(0,0,0,0.08); }
-  }
-  .toggle-btn:hover {
-    border-color: #00848B;
-    transform: scale(1.08);
-    animation: none;
-    box-shadow: 0 0 0 5px rgba(0,132,139,0.12), 0 0 18px rgba(0,132,139,0.12), 0 2px 8px rgba(0,0,0,0.10);
-  }
-  .toggle-btn:active { transform: scale(0.95); }
-  .toggle-btn svg { display: block; }
-  .toggle-btn .eb-fill { fill: #00848B; }
-  @keyframes rainbow-eyes {
-    0%   { fill: #ff4040; }
-    14%  { fill: #ff9800; }
-    28%  { fill: #ffee00; }
-    42%  { fill: #3dff6e; }
-    57%  { fill: #00bfff; }
-    71%  { fill: #5050ff; }
-    85%  { fill: #cc44ff; }
-    100% { fill: #ff4040; }
-  }
-  .toggle-btn:hover .eb-eye-l { animation: rainbow-eyes 1.8s linear infinite; }
-  .toggle-btn:hover .eb-eye-r { animation: rainbow-eyes 1.8s linear infinite; animation-delay: -0.45s; }
-  .toast {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #00464A;
-    color: #F4F5F5;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-family: 'Inter', system-ui, sans-serif;
-    z-index: 999999;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .toast.visible {
-    opacity: 1;
-  }
-  @keyframes highlight-pulse {
-    0%, 100% { border-color: #00848B; box-shadow: 0 0 6px rgba(0,132,139,0.5); }
-    50%       { border-color: #F5532D; box-shadow: 0 0 6px rgba(245,83,45,0.5); }
-  }
-  .highlight-overlay {
-    position: fixed;
-    pointer-events: none;
-    border: 2px solid #00848B;
-    border-radius: 2px;
-    box-sizing: border-box;
-    z-index: 999998;
-    animation: highlight-pulse 2s ease-in-out infinite;
-  }
-  /* Hover preview — lightweight outline shown while selection mode is active */
-  .hover-target-outline {
-    position: fixed;
-    pointer-events: none;
-    border: 2px solid #00848B;
-    border-radius: 2px;
-    box-sizing: border-box;
-    z-index: 999999;
-    transition: top 80ms ease, left 80ms ease, width 80ms ease, height 80ms ease;
-  }
-  .hover-tooltip {
-    position: fixed;
-    pointer-events: none;
-    z-index: 1000000;
-    background: #003D40;
-    color: #E0F5F6;
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 11px;
-    line-height: 1;
-    padding: 4px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    max-width: 280px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .hover-tooltip .ht-dim { opacity: 0.55; }
-  /* ── Element toolbar — 3f unified bar ── */
-  .el-toolbar {
-    position: fixed;
-    z-index: 999999;
-    display: flex;
-    align-items: center;
-    background: #1a1a1a;
-    border-radius: 8px;
-    padding: 3px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
-    pointer-events: auto;
-    gap: 1px;
-  }
-  .el-toolbar .tb {
-    height: 28px;
-    border-radius: 5px;
-    border: none;
-    background: transparent;
-    color: #aaa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 120ms ease-out;
-    position: relative;
-    flex-shrink: 0;
-    font-family: 'Inter', system-ui, sans-serif;
-    padding: 0;
-  }
-  .el-toolbar .tb:hover { background: #333; color: white; }
-  .el-toolbar .tb.active { background: #00464A; color: #5fd4da; }
-  .el-toolbar .tb svg { width: 14px; height: 14px; }
-  .el-toolbar .tb-icon { width: 28px; }
-  .el-toolbar .tb-combo {
-    gap: 4px;
-    padding: 0 8px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-  }
-  .el-toolbar .tb-combo svg { width: 12px; height: 12px; }
-  .el-toolbar .tb-adjunct {
-    padding: 0 6px;
-    font-size: 10px;
-    font-weight: 700;
-    background: transparent;
-    border-radius: 0;
-  }
-  .el-toolbar .mode-group {
-    display: flex;
-    align-items: center;
-    border-radius: 5px;
-    overflow: hidden;
-    transition: opacity 120ms ease-out;
-  }
-  .el-toolbar .mode-group.ring {
-    box-shadow: inset 0 0 0 1.5px #00848B;
-  }
-  .el-toolbar .mode-group.dim { opacity: 0.4; }
-  .el-toolbar .mode-group .mode-sep {
-    width: 1px;
-    height: 14px;
-    background: rgba(0,132,139,0.5);
-    flex-shrink: 0;
-  }
-  .el-toolbar .tb-sep {
-    width: 1px;
-    height: 16px;
-    background: #3a3a3a;
-    margin: 0 2px;
-    flex-shrink: 0;
-  }
-  /* ── Message row ── */
-  .msg-row {
-    position: fixed;
-    z-index: 999999;
-    display: flex;
-    align-items: flex-end;
-    gap: 4px;
-    background: #1a1a1a;
-    border-radius: 8px;
-    padding: 3px 4px 3px 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
-    pointer-events: auto;
-  }
-  .msg-row textarea {
-    width: 260px;
-    border: none;
-    background: #2a2a2a;
-    color: #e5e5e5;
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 4px 8px;
-    border-radius: 5px;
-    outline: none;
-    resize: none;
-    overflow: hidden;
-    height: 26px;
-    box-sizing: border-box;
-    margin: 0;
-  }
-  .msg-row textarea::placeholder { color: #888; }
-  .msg-send {
-    width: 24px;
-    height: 24px;
-    border-radius: 5px;
-    border: none;
-    background: #00848B;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .msg-send svg { width: 12px; height: 12px; }
-
-  /* ── Text editing action bar ── */
-  .text-action-bar {
-    position: fixed;
-    z-index: 999999;
-    display: flex;
-    gap: 6px;
-    padding: 4px;
-    background: #1a1a1a;
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-    pointer-events: auto;
-    font-family: 'Inter', system-ui, sans-serif;
-  }
-  .text-action-confirm {
-    padding: 4px 10px;
-    border-radius: 5px;
-    border: 1px solid #00848B;
-    background: #00848B;
-    color: white;
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.12s;
-  }
-  .text-action-confirm:hover { background: #006E74; }
-  .text-action-cancel {
-    padding: 4px 10px;
-    border-radius: 5px;
-    border: 1px solid rgba(255,255,255,0.15);
-    background: transparent;
-    color: #ccc;
-    font-size: 10px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.12s;
-  }
-  .text-action-cancel:hover {
-    border-color: #F5532D;
-    color: #F5532D;
-    background: rgba(245,83,45,0.1);
-  }
-
-  .el-toolbar-sep {
-    width: 1px;
-    background: rgba(255,255,255,0.15);
-    flex-shrink: 0;
-    align-self: stretch;
-  }
-  /* ── Hover preview highlight (dashed, for group hover) ── */
-  .highlight-preview {
-    position: fixed;
-    pointer-events: none;
-    border: 2px dashed #00848B;
-    border-radius: 2px;
-    box-sizing: border-box;
-    z-index: 999998;
-  }
-  /* ── Group picker popover (replaces instance picker) ── */
-  .el-group-exact {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: 11px;
-    color: #A0ABAB;
-  }
-  .el-group-exact .el-count-chip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    padding: 1px 6px;
-    font-size: 10px;
-    font-weight: 600;
-    color: #fff;
-    background: #00848B;
-    border-radius: 9999px;
-  }
-  .el-group-divider {
-    padding: 6px 12px 4px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #687879;
-    border-top: 1px solid #DFE2E2;
-  }
-  .el-group-empty {
-    padding: 12px 14px;
-    font-size: 11px;
-    color: #687879;
-    text-align: left;
-  }
-  .el-group-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 12px;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-  .el-group-row:hover { background: rgba(0,132,139,0.05); }
-  .el-group-row input[type=checkbox] {
-    accent-color: #00848B;
-    width: 13px;
-    height: 13px;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .el-group-count {
-    font-size: 11px;
-    font-weight: 600;
-    color: #334041;
-    min-width: 20px;
-  }
-  .el-group-diff {
-    flex: 1;
-    font-size: 10px;
-    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .el-group-diff .diff-add { color: #16a34a; }
-  .el-group-diff .diff-rem { color: #dc2626; }
-  /* ── Instance picker popover ── */
-  .el-picker {
-    position: fixed;
-    z-index: 1000000;
-    background: #fff;
-    border: 1px solid #DFE2E2;
-    border-radius: 8px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.14);
-    min-width: 240px;
-    max-width: 320px;
-    font-family: 'Inter', system-ui, sans-serif;
-    pointer-events: auto;
-    overflow: hidden;
-  }
-  .el-picker-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px 6px;
-    border-bottom: 1px solid #DFE2E2;
-  }
-  .el-picker-title {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #687879;
-  }
-  .el-picker-actions {
-    display: flex;
-    gap: 8px;
-  }
-  .el-picker-actions a {
-    font-size: 10px;
-    color: #00848B;
-    cursor: pointer;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .el-picker-actions a:hover { text-decoration: underline; }
-  .el-picker-list {
-    max-height: 240px;
-    overflow-y: auto;
-    padding: 4px 0;
-  }
-  .el-picker-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 12px;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-  .el-picker-row:hover { background: rgba(0,132,139,0.05); }
-  .el-picker-row input[type=checkbox] {
-    accent-color: #00848B;
-    width: 13px;
-    height: 13px;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .el-picker-badge {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid #DFE2E2;
-    background: #F4F5F5;
-    color: #687879;
-    font-size: 8px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .el-picker-badge.checked {
-    border-color: #00848B;
-    background: rgba(0,132,139,0.08);
-    color: #00848B;
-  }
-  .el-picker-label {
-    flex: 1;
-    font-size: 11px;
-    color: #334041;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .el-picker-tag {
-    font-size: 9px;
-    color: #A3ADAD;
-    font-weight: 400;
-  }
-  .el-picker-footer {
-    padding: 6px 10px;
-    border-top: 1px solid #DFE2E2;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .el-picker-apply {
-    height: 26px;
-    padding: 0 12px;
-    border-radius: 5px;
-    border: none;
-    background: #00848B;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .el-picker-apply:hover { background: #006E74; }
-`;
-
-function highlightElement(el: HTMLElement): void {
-	const rect = el.getBoundingClientRect();
-	const overlay = document.createElement("div");
-	overlay.className = "highlight-overlay";
-	overlay.style.top = `${rect.top - 3}px`;
-	overlay.style.left = `${rect.left - 3}px`;
-	overlay.style.width = `${rect.width + 6}px`;
-	overlay.style.height = `${rect.height + 6}px`;
-	shadowRoot.appendChild(overlay);
-}
+import { state, resolveTab } from "./overlay-state";
+import { highlightElement, clearHighlights, clearHoverPreview, mouseMoveHandler } from "./element-highlight";
+import { showDrawButton, positionWithFlip, initToolbar } from "./element-toolbar";
+import { injectDesignCanvas, handleCaptureScreenshot, handleDesignSubmitted, handleDesignClose, initDesignCanvasManager } from "./design-canvas-manager";
 
 /** Callback for startBrowse — when user locks an insertion point, set it as current target and show toolbar */
 function onBrowseLocked(target: HTMLElement): void {
-	currentTargetEl = target;
-	currentEquivalentNodes = [target];
+	state.currentTargetEl = target;
+	state.currentEquivalentNodes = [target];
 	const fiber = getFiber(target);
 	const boundary = fiber ? findComponentBoundary(fiber) : null;
-	currentBoundary = boundary
+	state.currentBoundary = boundary
 		? { componentName: boundary.componentName }
 		: { componentName: target.tagName.toLowerCase() };
-	cachedNearGroups = null;
+	state.cachedNearGroups = null;
 	showDrawButton(target);
-}
-
-function clearHighlights(): void {
-	shadowRoot
-		.querySelectorAll(".highlight-overlay")
-		.forEach((el) => el.remove());
-	removeDrawButton();
-}
-
-// Element toolbar (wraps draw button + matching controls) shown on selected element
-let toolbarEl: HTMLElement | null = null;
-let msgRowEl: HTMLElement | null = null;
-let pickerEl: HTMLElement | null = null;
-let pickerCloseHandler: ((e: MouseEvent) => void) | null = null;
-
-function removeDrawButton(): void {
-	toolbarEl?.remove();
-	toolbarEl = null;
-	msgRowEl?.remove();
-	msgRowEl = null;
-	pickerEl?.remove();
-	pickerEl = null;
-}
-
-// ── Hover preview ─────────────────────────────────────────────
-
-function clearHoverPreview(): void {
-	hoverOutlineEl?.remove();
-	hoverOutlineEl = null;
-	hoverTooltipEl?.remove();
-	hoverTooltipEl = null;
-	lastHoveredEl = null;
-}
-
-function showHoverPreview(el: HTMLElement, componentName: string): void {
-	const rect = el.getBoundingClientRect();
-
-	if (!hoverOutlineEl) {
-		hoverOutlineEl = document.createElement("div");
-		hoverOutlineEl.className = "hover-target-outline";
-		shadowRoot.appendChild(hoverOutlineEl);
-	}
-	hoverOutlineEl.style.top = `${rect.top - 3}px`;
-	hoverOutlineEl.style.left = `${rect.left - 3}px`;
-	hoverOutlineEl.style.width = `${rect.width + 6}px`;
-	hoverOutlineEl.style.height = `${rect.height + 6}px`;
-
-	if (!hoverTooltipEl) {
-		hoverTooltipEl = document.createElement("div");
-		hoverTooltipEl.className = "hover-tooltip";
-		shadowRoot.appendChild(hoverTooltipEl);
-	}
-	const tag = el.tagName.toLowerCase();
-	const cls =
-		(typeof el.className === "string"
-			? el.className.trim().split(/\s+/)[0]
-			: "") ?? "";
-	hoverTooltipEl.innerHTML = `<span class="ht-dim">&lt;</span>${componentName}<span class="ht-dim">&gt;</span> <span class="ht-dim">${tag}${cls ? `.${cls}` : ""}</span>`;
-
-	// Position tooltip just above the element (with 6px gap)
-	const tooltipHeight = 24; // approximate before DOM paint
-	const ttTop = rect.top - tooltipHeight - 6;
-	hoverTooltipEl.style.top = `${ttTop < 4 ? rect.bottom + 6 : ttTop}px`;
-	hoverTooltipEl.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - 200))}px`;
-}
-
-function mouseMoveHandler(e: MouseEvent): void {
-	const now = Date.now();
-	if (now - lastMoveTime < 16) return;
-	lastMoveTime = now;
-
-	// Ignore events originating from our shadow DOM
-	const composed = e.composedPath();
-	if (composed.some((n) => n === shadowHost)) {
-		clearHoverPreview();
-		return;
-	}
-
-	const target = e.target as Element;
-	if (!target || !(target instanceof HTMLElement)) {
-		clearHoverPreview();
-		return;
-	}
-	if (target === lastHoveredEl) return;
-	lastHoveredEl = target;
-
-	const rect = target.getBoundingClientRect();
-	if (rect.width < 10 || rect.height < 10) {
-		clearHoverPreview();
-		return;
-	}
-
-	const fiber = getFiber(target);
-	const boundary = fiber ? findComponentBoundary(fiber) : null;
-	const label = boundary?.componentName ?? target.tagName.toLowerCase();
-
-	showHoverPreview(target, label);
-}
-
-const PENCIL_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>`;
-
-const CHEVRON_SVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-
-const RESELECT_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>`;
-
-const SELECT_SVG = RESELECT_SVG;
-
-const INSERT_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>`;
-
-const DESIGN_SVG = PENCIL_SVG;
-
-const TEXT_SVG = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>`;
-
-const REPLACE_SVG = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M6,15H1a1,1,0,0,1-1-1V2A1,1,0,0,1,1,1H6A1,1,0,0,1,7,2V14A1,1,0,0,1,6,15Z"/><rect x="9" y="6" width="2" height="4"/><path d="M14,13H11V12H9v2a1,1,0,0,0,1,1h5a1,1,0,0,0,1-1V12H14Z"/><path d="M15,1H10A1,1,0,0,0,9,2V4h2V3h3V4h2V2A1,1,0,0,0,15,1Z"/><rect x="14" y="6" width="2" height="4"/></svg>`;
-
-const SEND_SVG = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.7,7.3l-14-7C1.4,0.1,1.1,0.1,0.8,0.3C0.6,0.4,0.5,0.7,0.5,1l1.8,6H9v2H2.3L0.5,15c-0.1,0.3,0,0.6,0.2,0.7C0.8,15.9,1,16,1.1,16c0.1,0,0.3,0,0.4-0.1l14-7C15.8,8.7,16,8.4,16,8S15.8,7.3,15.7,7.3z"/></svg>`;
-
-async function positionWithFlip(
-	anchor: HTMLElement,
-	floating: HTMLElement,
-	placement: "top-start" | "bottom-start" = "top-start",
-): Promise<void> {
-	const { x, y } = await computePosition(anchor, floating, {
-		placement,
-		middleware: [offset(6), flip()],
-	});
-	floating.style.left = `${x}px`;
-	floating.style.top = `${y}px`;
-}
-
-function showDrawButton(targetEl: HTMLElement): void {
-	removeDrawButton();
-
-	const instanceCount = currentEquivalentNodes.length;
-
-	// ── Build 3f unified toolbar ──────────────────────────────
-	const toolbar = document.createElement("div");
-	toolbar.className = "el-toolbar";
-	toolbar.style.left = "0px";
-	toolbar.style.top = "0px";
-	shadowRoot.appendChild(toolbar);
-	toolbarEl = toolbar;
-
-	// ── Select mode group (ring when active) or standalone Select button ──
-	if (currentMode === 'select') {
-		// Full group: Select + separator + N+
-		const selectGroup = document.createElement("div");
-		selectGroup.className = 'mode-group ring';
-
-		const selectBtn = document.createElement("button");
-		selectBtn.className = 'tb tb-combo tb-select';
-		selectBtn.innerHTML = `${SELECT_SVG} Select`;
-		selectBtn.style.cssText = 'color: #5fd4da; border-radius: 0;';
-		selectBtn.addEventListener("click", (e) => {
-			e.stopPropagation();
-			cancelInsert();
-			clearLockedInsert();
-			revertPreview();
-			clearHighlights();
-			currentEquivalentNodes = [];
-			currentTargetEl = null;
-			currentBoundary = null;
-			cachedNearGroups = null;
-			currentMode = 'select';
-			currentTab = resolveTab();
-			sendTo("panel", { type: "MODE_CHANGED", mode: "select" });
-			setSelectMode(true);
-		});
-		selectGroup.appendChild(selectBtn);
-
-		const innerSep = document.createElement("div");
-		innerSep.className = "mode-sep";
-		selectGroup.appendChild(innerSep);
-
-		const addGroupBtn = document.createElement("button");
-		addGroupBtn.className = "tb tb-adjunct";
-		addGroupBtn.innerHTML = `${instanceCount} <span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span>`;
-		addGroupBtn.style.cssText = 'color: #5fd4da; border-radius: 0;';
-		addGroupBtn.title = `${instanceCount} matching element${instanceCount !== 1 ? "s" : ""} selected — click to add similar`;
-		addGroupBtn.addEventListener("click", (e) => {
-			e.stopPropagation();
-			if (pickerEl) {
-				pickerEl.remove();
-				pickerEl = null;
-			} else {
-				showGroupPicker(
-					addGroupBtn,
-					() => {},
-					(totalCount) => {
-						addGroupBtn.innerHTML = `${totalCount} <span style="font-size:9px;margin-left:1px;opacity:0.6;">+</span>`;
-						addGroupBtn.title = `${totalCount} matching element${totalCount !== 1 ? "s" : ""} selected — click to add similar`;
-					},
-				);
-			}
-		});
-		selectGroup.appendChild(addGroupBtn);
-		toolbar.appendChild(selectGroup);
-	} else {
-		// Insert mode: standalone Select button (no N+ group)
-		const selectBtn = document.createElement("button");
-		selectBtn.className = 'tb tb-combo tb-select';
-		selectBtn.innerHTML = `${SELECT_SVG} Select`;
-		selectBtn.style.cssText = 'opacity: 0.4;';
-		selectBtn.addEventListener("click", (e) => {
-			e.stopPropagation();
-			cancelInsert();
-			clearLockedInsert();
-			revertPreview();
-			clearHighlights();
-			currentEquivalentNodes = [];
-			currentTargetEl = null;
-			currentBoundary = null;
-			cachedNearGroups = null;
-			currentMode = 'select';
-			currentTab = resolveTab();
-			sendTo("panel", { type: "MODE_CHANGED", mode: "select" });
-			setSelectMode(true);
-		});
-		toolbar.appendChild(selectBtn);
-	}
-
-	// ── Insert button (separate, ring when active) ──
-	const insertBtn = document.createElement("button");
-	insertBtn.className = `tb tb-combo`;
-	insertBtn.innerHTML = `${INSERT_SVG} Insert`;
-	if (currentMode === 'insert') {
-		insertBtn.style.cssText = `box-shadow: inset 0 0 0 1.5px #00848B; color: #5fd4da;`;
-	} else {
-		insertBtn.style.cssText = `opacity: 0.4;`;
-	}
-	insertBtn.addEventListener("click", (e) => {
-		e.stopPropagation();
-		// Always clear selection and restart insert browse mode
-		cancelInsert();
-		clearLockedInsert();
-		revertPreview();
-		clearHighlights();
-		currentEquivalentNodes = [];
-		currentTargetEl = null;
-		currentBoundary = null;
-		cachedNearGroups = null;
-		currentMode = 'insert';
-		if (tabPreference === 'design') tabPreference = 'component';
-		currentTab = resolveTab();
-		sendTo("panel", { type: "MODE_CHANGED", mode: "insert" });
-		startBrowse(shadowHost, onBrowseLocked);
-	});
-	toolbar.appendChild(insertBtn);
-
-	// ── Separator ──
-	const sep = document.createElement("div");
-	sep.className = "tb-sep";
-	toolbar.appendChild(sep);
-
-	// ── Action buttons (mode-dependent) ──
-	if (currentMode === 'select') {
-		const actions = [
-			{ id: 'design', label: 'Design', svg: DESIGN_SVG },
-			{ id: 'text', label: 'Text', svg: TEXT_SVG },
-			{ id: 'replace', label: 'Replace', svg: REPLACE_SVG },
-		];
-		for (const action of actions) {
-			const btn = document.createElement("button");
-			btn.className = `tb tb-combo ${currentTab === action.id ? 'active' : ''}`;
-			btn.innerHTML = `${action.svg} ${action.label}`;
-			btn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				if (action.id === 'text') {
-					startTextEdit(targetEl, {
-						sendTo,
-						send,
-						currentBoundary,
-						currentTargetEl: targetEl,
-						currentEquivalentNodes,
-						buildTextContext,
-						positionToolbar: () => positionWithFlip(targetEl, toolbar),
-						shadowRoot,
-						onDone: () => showDrawButton(targetEl),
-					});
-					// Hide toolbar and message row — only the text action bar should be visible
-					removeDrawButton();
-					return;
-				}
-				currentTab = action.id;
-				tabPreference = (action.id === 'replace' || action.id === 'place') ? 'component' : 'design';
-				sendTo("panel", { type: "TAB_CHANGED", tab: action.id as any });
-				showDrawButton(targetEl);
-			});
-			toolbar.appendChild(btn);
-		}
-	} else {
-		const placeBtn = document.createElement("button");
-		placeBtn.className = "tb tb-combo active";
-		placeBtn.innerHTML = `Place`;
-		toolbar.appendChild(placeBtn);
-	}
-
-	// Position toolbar using @floating-ui/dom
-	positionWithFlip(targetEl, toolbar);
-
-	// ── Message row (below element) ──
-	const msgRow = document.createElement("div");
-	msgRow.className = "msg-row";
-	msgRow.style.left = "0px";
-	msgRow.style.top = "0px";
-	shadowRoot.appendChild(msgRow);
-	msgRowEl = msgRow;
-
-	const msgInput = document.createElement("textarea");
-	msgInput.rows = 1;
-	msgInput.placeholder = "add your message";
-	msgRow.appendChild(msgInput);
-
-	const msgSendBtn = document.createElement("button");
-	msgSendBtn.className = "msg-send";
-	msgSendBtn.innerHTML = SEND_SVG;
-	msgRow.appendChild(msgSendBtn);
-
-	function sendMessage() {
-		const text = msgInput.value.trim();
-		if (!text) return;
-		const id = crypto.randomUUID();
-		send({
-			type: "MESSAGE_STAGE",
-			id,
-			message: text,
-			elementKey: currentBoundary?.componentName ?? "",
-			component: currentBoundary ? { name: currentBoundary.componentName } : undefined,
-		});
-		msgInput.value = "";
-		msgInput.style.height = "auto";
-		positionWithFlip(targetEl, msgRow, "bottom-start");
-		showToast("Message staged");
-	}
-
-	msgSendBtn.addEventListener("click", (e) => {
-		e.stopPropagation();
-		sendMessage();
-	});
-
-	msgInput.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			sendMessage();
-		}
-		if (e.key === "Escape") {
-			msgInput.blur();
-		}
-	});
-
-	msgInput.addEventListener("input", () => {
-		msgInput.style.height = "auto";
-		msgInput.style.height = msgInput.scrollHeight + "px";
-		positionWithFlip(targetEl, msgRow, "bottom-start");
-	});
-
-	// Prevent clicks on the message row from triggering page click handlers
-	msgRow.addEventListener("click", (e) => e.stopPropagation());
-
-	// Position message row below the element
-	positionWithFlip(targetEl, msgRow, "bottom-start");
-}
-
-function showGroupPicker(
-	anchorBtn: HTMLElement,
-	onClose: () => void,
-	onCountChange: (totalCount: number) => void,
-): void {
-	if (pickerCloseHandler) {
-		document.removeEventListener("click", pickerCloseHandler, {
-			capture: true,
-		});
-		pickerCloseHandler = null;
-	}
-	pickerEl?.remove();
-
-	// Lazily compute near-groups on first open
-	if (!cachedNearGroups && currentTargetEl) {
-		const exactSet = new Set(currentEquivalentNodes);
-		cachedNearGroups = computeNearGroups(currentTargetEl, exactSet, shadowHost);
-	}
-	const groups = cachedNearGroups ?? [];
-
-	const picker = document.createElement("div");
-	picker.className = "el-picker";
-	picker.style.left = "0px";
-	picker.style.top = "0px";
-	shadowRoot.appendChild(picker);
-	pickerEl = picker;
-
-	// Header
-	const header = document.createElement("div");
-	header.className = "el-picker-header";
-	const title = document.createElement("span");
-	title.className = "el-picker-title";
-	title.textContent = "Selection";
-	header.appendChild(title);
-	picker.appendChild(header);
-
-	// Exact match summary
-	const exactCount = currentEquivalentNodes.length;
-	const exactRow = document.createElement("div");
-	exactRow.className = "el-group-exact";
-	const chip = document.createElement("span");
-	chip.className = "el-count-chip";
-	chip.textContent = String(exactCount);
-	exactRow.appendChild(chip);
-	const exactLabel = document.createElement("span");
-	exactLabel.textContent = `exact match${exactCount !== 1 ? "es" : ""} selected`;
-	exactRow.appendChild(exactLabel);
-	picker.appendChild(exactRow);
-
-	// Divider before similar section
-	const divider = document.createElement("div");
-	divider.className = "el-group-divider";
-	divider.textContent = "Similar";
-	picker.appendChild(divider);
-
-	if (groups.length === 0) {
-		const empty = document.createElement("div");
-		empty.className = "el-group-empty";
-		empty.textContent = "No additional similar elements found";
-		picker.appendChild(empty);
-	} else {
-		const list = document.createElement("div");
-		list.className = "el-picker-list";
-		picker.appendChild(list);
-
-		// Track which groups are checked (includes their elements in selection)
-		const checkedGroups = new Set<number>();
-		// Base exact-match nodes that are always included
-		const baseNodes = [...currentEquivalentNodes];
-
-		function clearPreviewHighlights() {
-			shadowRoot
-				.querySelectorAll(".highlight-preview")
-				.forEach((el) => el.remove());
-		}
-
-		function updateSelection() {
-			// Rebuild currentEquivalentNodes from base + checked groups
-			const allNodes = [...baseNodes];
-			for (const idx of checkedGroups) {
-				for (const el of groups[idx].elements) {
-					if (!allNodes.includes(el)) allNodes.push(el);
-				}
-			}
-			currentEquivalentNodes = allNodes;
-			// Redraw highlights
-			shadowRoot
-				.querySelectorAll(".highlight-overlay")
-				.forEach((el) => el.remove());
-			currentEquivalentNodes.forEach((n) => highlightElement(n));
-			onCountChange(currentEquivalentNodes.length);
-			// Update panel
-			if (currentTargetEl && currentBoundary) {
-				sendTo("panel", {
-					type: "ELEMENT_SELECTED",
-					componentName: currentBoundary.componentName,
-					instanceCount: currentEquivalentNodes.length,
-					classes:
-						typeof currentTargetEl.className === "string"
-							? currentTargetEl.className
-							: "",
-					tailwindConfig: tailwindConfigCache,
-				});
-			}
-		}
-
-		groups.forEach((group, idx) => {
-			const row = document.createElement("label");
-			row.className = "el-group-row";
-
-			const cb = document.createElement("input");
-			cb.type = "checkbox";
-			cb.checked = false;
-			cb.addEventListener("change", () => {
-				if (cb.checked) checkedGroups.add(idx);
-				else checkedGroups.delete(idx);
-				updateSelection();
-			});
-
-			const count = document.createElement("span");
-			count.className = "el-group-count";
-			count.textContent = `(${group.elements.length})`;
-
-			const diff = document.createElement("span");
-			diff.className = "el-group-diff";
-			const parts: string[] = [];
-			for (const a of group.added)
-				parts.push(`<span class="diff-add">+${a}</span>`);
-			for (const r of group.removed)
-				parts.push(`<span class="diff-rem">-${r}</span>`);
-			diff.innerHTML = parts.join(" ");
-
-			row.appendChild(cb);
-			row.appendChild(count);
-			row.appendChild(diff);
-			list.appendChild(row);
-
-			// Hover preview: show dashed outlines for this group's elements
-			row.addEventListener("mouseenter", () => {
-				clearPreviewHighlights();
-				for (const el of group.elements) {
-					const rect = el.getBoundingClientRect();
-					const preview = document.createElement("div");
-					preview.className = "highlight-preview";
-					preview.style.top = `${rect.top - 3}px`;
-					preview.style.left = `${rect.left - 3}px`;
-					preview.style.width = `${rect.width + 6}px`;
-					preview.style.height = `${rect.height + 6}px`;
-					shadowRoot.appendChild(preview);
-				}
-			});
-
-			row.addEventListener("mouseleave", () => {
-				clearPreviewHighlights();
-			});
-		});
-	}
-
-	// Position
-	positionWithFlip(anchorBtn, picker);
-
-	// Close on outside click
-	const removePicker = () => {
-		shadowRoot
-			.querySelectorAll(".highlight-preview")
-			.forEach((el) => el.remove());
-		if (pickerCloseHandler) {
-			document.removeEventListener("click", pickerCloseHandler, {
-				capture: true,
-			});
-			pickerCloseHandler = null;
-		}
-		pickerEl?.remove();
-		pickerEl = null;
-	};
-
-	setTimeout(() => {
-		pickerCloseHandler = (e: MouseEvent) => {
-			const path = e.composedPath();
-			if (!path.includes(picker) && !path.includes(anchorBtn)) {
-				removePicker();
-				onClose();
-			}
-		};
-		document.addEventListener("click", pickerCloseHandler, { capture: true });
-	}, 0);
 }
 
 function getServerOrigin(): string {
@@ -1136,13 +64,13 @@ const SERVER_ORIGIN = getServerOrigin();
 const insideStorybook = !!(window as any).__STORYBOOK_PREVIEW__;
 
 async function fetchTailwindConfig(): Promise<any> {
-	if (tailwindConfigCache) {
-		return tailwindConfigCache;
+	if (state.tailwindConfigCache) {
+		return state.tailwindConfigCache;
 	}
 	try {
 		const res = await fetch(`${SERVER_ORIGIN}/tailwind-config`);
-		tailwindConfigCache = await res.json();
-		return tailwindConfigCache;
+		state.tailwindConfigCache = await res.json();
+		return state.tailwindConfigCache;
 	} catch (err) {
 		console.error("[tw-overlay] Failed to fetch tailwind config:", err);
 		return {};
@@ -1213,7 +141,7 @@ function normalizeToHex(cssColor: string): string | null {
 async function clickHandler(e: MouseEvent): Promise<void> {
 	// Ignore clicks on our own shadow DOM UI
 	const composed = e.composedPath();
-	if (composed.some((el) => el === shadowHost)) { return; }
+	if (composed.some((el) => el === state.shadowHost)) { return; }
 
 	// Ignore clicks while the drop-zone is handling element-select (e.g. replace mode)
 	if (isDropZoneActive()) return;
@@ -1236,7 +164,7 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 		typeof targetEl.className === "string" ? targetEl.className : "";
 
 	// Use the new exact-match grouping logic
-	const result = findExactMatches(targetEl, shadowHost);
+	const result = findExactMatches(targetEl, state.shadowHost);
 	const componentName = result.componentName ?? targetEl.tagName.toLowerCase();
 
 	clearHighlights();
@@ -1248,13 +176,13 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 	const config = await fetchTailwindConfig();
 
 	// Store selection state for Patcher WS handlers
-	currentEquivalentNodes = result.exactMatch;
-	currentTargetEl = targetEl;
-	currentBoundary = { componentName };
-	cachedNearGroups = null; // Reset cached groups for new selection
+	state.currentEquivalentNodes = result.exactMatch;
+	state.currentTargetEl = targetEl;
+	state.currentBoundary = { componentName };
+	state.cachedNearGroups = null; // Reset cached groups for new selection
 
 	// Build instances metadata for context
-	currentInstances = result.exactMatch.map((node, i) => ({
+	state.currentInstances = result.exactMatch.map((node, i) => ({
 		index: i,
 		label: (node.innerText || "").trim().slice(0, 40) || `#${i + 1}`,
 		parent: node.parentElement?.tagName.toLowerCase() ?? "",
@@ -1270,8 +198,8 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 	// Open the container if not already open (skip in Storybook — panel lives in addon tab)
 	if (!insideStorybook) {
 		const panelUrl = `${SERVER_ORIGIN}/panel`;
-		if (!activeContainer.isOpen()) {
-			activeContainer.open(panelUrl);
+		if (!state.activeContainer.isOpen()) {
+			state.activeContainer.open(panelUrl);
 		}
 	}
 
@@ -1288,7 +216,7 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 }
 
 function setSelectMode(on: boolean): void {
-	selectModeOn = on;
+	state.selectModeOn = on;
 	if (on) {
 		document.documentElement.style.cursor = "crosshair";
 		document.addEventListener("click", clickHandler, { capture: true });
@@ -1305,8 +233,8 @@ function setSelectMode(on: boolean): void {
 const PANEL_OPEN_KEY = "tw-inspector-panel-open";
 
 function toggleInspect(btn: HTMLButtonElement): void {
-	active = !active;
-	if (active) {
+	state.active = !state.active;
+	if (state.active) {
 		btn.classList.add("active");
 		sessionStorage.setItem(PANEL_OPEN_KEY, "1");
 		if (insideStorybook) {
@@ -1315,8 +243,8 @@ function toggleInspect(btn: HTMLButtonElement): void {
 		} else {
 			// Open the container — select mode is activated via the panel's SelectElementButton
 			const panelUrl = `${SERVER_ORIGIN}/panel`;
-			if (!activeContainer.isOpen()) {
-				activeContainer.open(panelUrl);
+			if (!state.activeContainer.isOpen()) {
+				state.activeContainer.open(panelUrl);
 			}
 		}
 	} else {
@@ -1324,7 +252,7 @@ function toggleInspect(btn: HTMLButtonElement): void {
 		sessionStorage.removeItem(PANEL_OPEN_KEY);
 		setSelectMode(false);
 		if (!insideStorybook) {
-			activeContainer.close();
+			state.activeContainer.close();
 		}
 		revertPreview();
 		clearHighlights();
@@ -1335,7 +263,7 @@ export function showToast(message: string, duration: number = 3000): void {
 	const toast = document.createElement("div");
 	toast.className = "toast";
 	toast.textContent = message;
-	shadowRoot.appendChild(toast);
+	state.shadowRoot.appendChild(toast);
 	requestAnimationFrame(() => toast.classList.add("visible"));
 	setTimeout(() => {
 		toast.classList.remove("visible");
@@ -1343,208 +271,11 @@ export function showToast(message: string, duration: number = 3000): void {
 	}, duration);
 }
 
-// Active design canvas wrappers (tracked for cleanup / cancel restore)
-interface DesignCanvasEntry {
-	wrapper: HTMLElement;
-	replacedNodes: HTMLElement[] | null; // null for inject (no replaced nodes)
-	parent: HTMLElement | null;
-	anchor: ChildNode | null;
-}
-const designCanvasWrappers: DesignCanvasEntry[] = [];
 
-function injectDesignCanvas(insertMode: InsertMode): void {
-	if (!currentTargetEl || !currentBoundary) {
-		showToast("Select an element first");
-		return;
-	}
 
-	// Remove selection highlights and draw button
-	clearHighlights();
 
-	const targetEl = currentTargetEl;
 
-	// Create design canvas element
-	const canvas = document.createElement('vb-design-canvas') as VbDesignCanvas;
-	canvas.setAttribute('src', `${SERVER_ORIGIN}/panel/?mode=design`);
-	const wrapper = canvas.getWrapper();
 
-	// Insert into the DOM based on insertMode
-	let replacedNodes: HTMLElement[] | null = null;
-	let replacedParent: HTMLElement | null = null;
-	let replacedAnchor: ChildNode | null = null;
-
-	switch (insertMode) {
-		case "replace": {
-			// Replace: insert canvas before the target, then hide the target
-			replacedParent = targetEl.parentElement;
-			targetEl.insertAdjacentElement("beforebegin", canvas);
-			replacedAnchor = canvas.nextSibling;
-			replacedNodes = [targetEl];
-			targetEl.style.display = "none";
-			break;
-		}
-		case "before":
-			targetEl.insertAdjacentElement("beforebegin", canvas);
-			break;
-		case "after":
-			targetEl.insertAdjacentElement("afterend", canvas);
-			break;
-		case "first-child":
-			targetEl.insertAdjacentElement("afterbegin", canvas);
-			break;
-		case "last-child":
-			targetEl.appendChild(canvas);
-			break;
-		default:
-			targetEl.insertAdjacentElement("beforebegin", canvas);
-	}
-
-	designCanvasWrappers.push({
-		wrapper: canvas as unknown as HTMLElement,
-		replacedNodes,
-		parent: replacedParent,
-		anchor: replacedAnchor,
-	});
-	// Use a short delay to allow the iframe's WS client to connect and register
-	canvas.addEventListener('vb-canvas-ready', () => {
-		const contextMsg = {
-			type: "ELEMENT_CONTEXT",
-			componentName: currentBoundary?.componentName ?? "",
-			instanceCount: currentEquivalentNodes.length,
-			target: {
-				tag: targetEl.tagName.toLowerCase(),
-				classes:
-					typeof targetEl.className === "string" ? targetEl.className : "",
-				innerText: (targetEl.innerText || "").trim().slice(0, 60),
-			},
-			context: buildContext(targetEl, "", "", new Map()),
-			insertMode,
-		};
-		// Retry a few times so the design iframe's WS has time to register
-		let attempts = 0;
-		const trySend = () => {
-			sendTo("design", contextMsg);
-			attempts++;
-			if (attempts < 5) setTimeout(trySend, 300);
-		};
-		setTimeout(trySend, 200);
-	});
-}
-
-async function handleCaptureScreenshot(): Promise<void> {
-	if (!currentTargetEl || !currentBoundary) {
-		showToast("Select an element first");
-		return;
-	}
-
-	if (!areSiblings(currentEquivalentNodes)) {
-		showToast(
-			"Screenshot & Annotate requires all selected elements to be siblings in the DOM.",
-		);
-		return;
-	}
-
-	let screenshot: string;
-	let screenshotWidth: number;
-	let screenshotHeight: number;
-	try {
-		({
-			dataUrl: screenshot,
-			width: screenshotWidth,
-			height: screenshotHeight,
-		} = await captureRegion(currentEquivalentNodes));
-	} catch (err) {
-		showToast("Screenshot capture failed");
-		return;
-	}
-
-	// Record insertion anchor before we remove nodes
-	const parent = currentEquivalentNodes[0].parentElement;
-	if (!parent) {
-		showToast("Cannot find parent element");
-		return;
-	}
-	// Use a marker node so the anchor survives sibling removal
-	const marker = document.createComment("tw-placeholder");
-	parent.insertBefore(marker, currentEquivalentNodes[0]);
-
-	// Capture margins from the outer nodes before removal
-	const firstStyle = getComputedStyle(currentEquivalentNodes[0]);
-	const lastStyle = getComputedStyle(
-		currentEquivalentNodes[currentEquivalentNodes.length - 1],
-	);
-	const marginTop = firstStyle.marginTop;
-	const marginBottom = lastStyle.marginBottom;
-	const marginLeft = firstStyle.marginLeft;
-	const marginRight = firstStyle.marginRight;
-
-	// Snapshot the nodes to restore on cancel — take references before removal
-	const replacedNodes = [...currentEquivalentNodes];
-
-	// Snapshot context before DOM mutation
-	const targetEl = currentTargetEl;
-	const boundary = currentBoundary;
-	const instanceCount = currentEquivalentNodes.length;
-
-	// Remove selection highlights and draw button
-	clearHighlights();
-
-	// Hide all selected nodes so the canvas takes their place
-	for (const node of currentEquivalentNodes) {
-		node.style.display = "none";
-	}
-
-	// toolbar ~40px = no footer now
-	const PANEL_CHROME_HEIGHT = 40;
-
-	// Build canvas element (same structure as injectDesignCanvas)
-	const canvas = document.createElement('vb-design-canvas') as VbDesignCanvas;
-	canvas.setAttribute('src', `${SERVER_ORIGIN}/panel/?mode=design`);
-	canvas.setAttribute('width', `${screenshotWidth}px`);
-	canvas.setAttribute('height', `${screenshotHeight + PANEL_CHROME_HEIGHT}px`);
-	canvas.setAttribute('min-height', '0');
-	const wrapper = canvas.getWrapper();
-	wrapper.style.marginTop = marginTop;
-	wrapper.style.marginBottom = marginBottom;
-	wrapper.style.marginLeft = marginLeft;
-	wrapper.style.marginRight = marginRight;
-
-	// Insert at original position, then remove marker
-	parent.insertBefore(canvas, marker);
-	marker.remove();
-
-	designCanvasWrappers.push({ wrapper: canvas as unknown as HTMLElement, replacedNodes, parent, anchor: canvas.nextSibling });
-	canvas.addEventListener('vb-canvas-ready', () => {
-		const contextMsg = {
-			type: "ELEMENT_CONTEXT",
-			componentName: boundary.componentName,
-			instanceCount,
-			target: {
-				tag: targetEl.tagName.toLowerCase(),
-				classes:
-					typeof targetEl.className === "string" ? targetEl.className : "",
-				innerText: (targetEl.innerText || "").trim().slice(0, 60),
-			},
-			context: buildContext(targetEl, "", "", new Map()),
-			insertMode: "replace" as InsertMode,
-			screenshot,
-		};
-		let attempts = 0;
-		const trySend = () => {
-			sendTo("design", contextMsg);
-			attempts++;
-			if (attempts < 5) setTimeout(trySend, 300);
-		};
-		setTimeout(trySend, 200);
-	});
-}
-
-function removeAllDesignCanvases(): void {
-	for (const entry of designCanvasWrappers) {
-		entry.wrapper.remove();
-	}
-	designCanvasWrappers.length = 0;
-}
 
 function getDefaultContainer(): ContainerName {
 	try {
@@ -1565,60 +296,59 @@ function getDefaultContainer(): ContainerName {
 }
 
 function init(): void {
-	shadowHost = document.createElement("div");
-	shadowHost.id = "tw-visual-editor-host";
-	shadowHost.style.cssText = css(SHADOW_HOST);
-	document.body.appendChild(shadowHost);
+	state.shadowHost = document.createElement("div");
+	state.shadowHost.id = "tw-visual-editor-host";
+	state.shadowHost.style.cssText = css(SHADOW_HOST);
+	document.body.appendChild(state.shadowHost);
 
-	shadowRoot = shadowHost.attachShadow({ mode: "open" });
+	state.shadowRoot = state.shadowHost.attachShadow({ mode: "open" });
 
 	const style = document.createElement("style");
 	style.textContent = OVERLAY_CSS;
-	shadowRoot.appendChild(style);
+	state.shadowRoot.appendChild(style);
+
+	// Wire up toolbar callbacks (avoids circular deps)
+	initToolbar({ setSelectMode, showToast, onBrowseLocked });
+	initDesignCanvasManager({ serverOrigin: SERVER_ORIGIN, showToast });
 
 	// Initialize containers
-	containers = {
-		popover: new PopoverContainer(shadowRoot),
-		modal: new ModalContainer(shadowRoot),
-		sidebar: new SidebarContainer(shadowRoot),
+	state.containers = {
+		popover: new PopoverContainer(state.shadowRoot),
+		modal: new ModalContainer(state.shadowRoot),
+		sidebar: new SidebarContainer(state.shadowRoot),
 		popup: new PopupContainer(),
 	};
-	activeContainer = containers[getDefaultContainer()];
+	state.activeContainer = state.containers[getDefaultContainer()];
 
 	const btn = document.createElement("button");
 	btn.className = "toggle-btn";
 	btn.setAttribute("aria-label", "Open VyBit inspector");
-	btn.innerHTML = `<svg width="26" height="27" viewBox="0 0 210 221" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path class="eb-fill" d="M141.54 137.71L103.87 140.38C102.98 140.44 102.2 140.97 101.8 141.77C101.41 142.57 101.47 143.51 101.96 144.25C102.27 144.72 109.46 155.39 121.96 155.39C122.3 155.39 122.65 155.39 123 155.37C138.61 154.64 143.83 141.66 144.05 141.11C144.36 140.31 144.24 139.41 143.73 138.72C143.22 138.03 142.4 137.65 141.54 137.71Z"/>
-    <path class="eb-eye-l eb-fill" d="M80.6401 93.03C76.7801 93.22 73.8 96.5 73.99 100.36L74.7501 115.96C74.9401 119.85 78.2701 122.84 82.1501 122.61C85.9801 122.38 88.9101 119.11 88.7301 115.28L87.9701 99.68C87.7801 95.82 84.5001 92.84 80.6401 93.03Z"/>
-    <path class="eb-eye-r eb-fill" d="M149.46 96.67L150.32 111.72C150.54 115.58 153.85 118.53 157.71 118.31C161.57 118.09 164.52 114.78 164.3 110.92L163.44 95.87C163.22 92.03 159.94 89.08 156.09 89.28C152.22 89.48 149.24 92.79 149.47 96.67H149.46Z"/>
-    <path class="eb-fill" d="M203.62 90.36C200.83 87.64 198.15 86.1 195.79 84.75C194 83.73 192.46 82.84 190.96 81.51C189.22 79.95 187.1 75.74 186.15 73.24C186.14 73.21 186.12 73.17 186.11 73.14C180.84 57.81 173.51 43.77 164.58 32.13C148.57 11.27 129.15 0.16 108.42 0C108.28 0 108.13 0 107.99 0C85.65 0 64.34 13.17 47.95 37.12C42.28 45.4 37.04 56.95 33.2 65.38C32.31 67.35 31.51 69.09 30.84 70.52C29.88 72.54 28.87 74.32 27.74 75.95L21.06 15.98C24.27 14.61 26.42 11.74 26.24 8.54C26 4.26 21.69 1.03 16.61 1.31C11.53 1.59 7.61002 5.29 7.85002 9.57C8.04002 12.85 10.61 15.51 14.09 16.45L16.67 85.85L16.29 86.08C13.19 87.96 9.98002 89.9 7.71002 92.09C4.65002 95.04 2.40002 99.48 1.21002 104.92C-1.62998 117.95 0.120019 138.77 10.82 143.95C18.87 147.85 25.1 154.71 28.83 163.79C42.17 198.91 71.91 219.98 108.4 220.16C108.56 220.16 108.71 220.16 108.87 220.16C133.9 220.16 156.3 210.08 171.97 191.74C183.26 178.53 190.59 161.68 193.54 142.92C194.26 139.76 197.48 136.44 200.62 133.23C204.14 129.62 207.78 125.89 209.22 121.16C210.85 115.82 209.93 96.53 203.62 90.36ZM173.3 73.25C176.99 83.04 179.72 93.27 181.36 103.35C183.29 115.23 183.53 126.81 182.18 137.69C180.99 142.99 176.46 157.5 161.58 165.93C141.26 177.45 110.38 180.84 88.16 174.01C63.16 166.32 48.04 142.7 47.72 110.85C47.39 78.09 63.77 70.45 80.58 65.42C101.92 59.04 133.9 57.44 153.39 61.79C163.19 63.98 168.32 67.53 170.9 70.13C172.08 71.32 172.83 72.4 173.3 73.25ZM162.85 183.94C149.31 199.79 130.66 208.15 108.89 208.15C108.75 208.15 108.61 208.15 108.46 208.15C77.09 207.99 51.5 189.77 40 159.41C39.96 159.32 39.93 159.22 39.89 159.13C36.77 151.59 32.28 145.21 26.65 140.22C26.61 140.17 26.57 140.13 26.53 140.08C23.64 137.25 24.55 133.1 24.74 131.41C26.16 118.65 22.59 108.63 21.57 106.52C20.4 104.1 19.23 105.15 19.49 106.56C19.78 108.18 20.09 110.5 20.28 112.89C21.07 122.72 19.28 131.47 17.02 133.03C16.74 133.22 16.46 133.27 16.16 133.19C16.12 133.17 16.08 133.15 16.04 133.13C13.44 131.87 10.36 119.2 12.92 107.46C13.86 103.16 15.4 101.31 16.02 100.71C17.32 99.45 19.95 97.87 22.48 96.33L23.24 95.87C32.05 90.52 37.38 84.66 41.66 75.64C42.36 74.17 43.18 72.36 44.1 70.33C47.54 62.75 52.75 51.3 57.82 43.89C71.91 23.31 89.7 12 107.96 12C108.07 12 108.18 12 108.29 12C133.67 12.19 154.63 33.4 167.85 60.64C164.47 58.82 160.16 57.16 154.65 55.93C134.31 51.39 101 53.03 78.82 59.67C59.32 65.5 41.33 75.74 41.68 110.91C42.03 145.51 58.73 171.25 86.35 179.75C94.55 182.27 103.85 183.49 113.4 183.49C131.42 183.49 150.35 179.17 164.49 171.16C169.1 168.55 172.84 165.45 175.87 162.21C172.6 170.28 168.23 177.61 162.81 183.95L162.85 183.94ZM197.75 117.65C197.4 118.8 196.34 120.21 195.01 121.7C194.91 115.06 194.32 108.28 193.21 101.43C192.95 99.84 192.67 98.26 192.37 96.69C193.34 97.32 194.27 98.01 195.19 98.9C196.86 101.11 198.85 113.73 197.76 117.66L197.75 117.65Z"/>
-  </svg>`;
+	btn.innerHTML = VYBIT_LOGO_SVG;
 	btn.addEventListener("click", () => toggleInspect(btn));
 	if (insideStorybook) {
 		btn.style.display = 'none';
 	}
-	shadowRoot.appendChild(btn);
+	state.shadowRoot.appendChild(btn);
 
 	// Escape key — deselect element (keep mode), or deactivate mode if no element
 	document.addEventListener("keydown", (e) => {
 		if (e.key === "Escape") {
-			if (currentTargetEl) {
+			if (state.currentTargetEl) {
 				// Deselect element, stay in current mode
 				revertPreview();
 				clearHighlights();
-				currentEquivalentNodes = [];
-				currentTargetEl = null;
-				currentBoundary = null;
-				cachedNearGroups = null;
+				state.currentEquivalentNodes = [];
+				state.currentTargetEl = null;
+				state.currentBoundary = null;
+				state.cachedNearGroups = null;
 				sendTo("panel", { type: "RESET_SELECTION" });
 				// Re-enter selection/browse mode
-				if (currentMode === 'select') {
+				if (state.currentMode === 'select') {
 					setSelectMode(true);
-				} else if (currentMode === 'insert') {
-					startBrowse(shadowHost, onBrowseLocked);
+				} else if (state.currentMode === 'insert') {
+					startBrowse(state.shadowHost, onBrowseLocked);
 				}
-			} else if (selectModeOn) {
+			} else if (state.selectModeOn) {
 				// No element, deactivate select mode → go to landing
 				setSelectMode(false);
 				sendTo("panel", { type: "MODE_CHANGED", mode: null });
@@ -1643,7 +373,7 @@ function init(): void {
 				// Ensure panel is open (skip in Storybook — panel lives in addon tab)
 				if (!insideStorybook) {
 					const panelUrl = `${SERVER_ORIGIN}/panel`;
-					if (!activeContainer.isOpen()) activeContainer.open(panelUrl);
+					if (!state.activeContainer.isOpen()) state.activeContainer.open(panelUrl);
 				}
 			} else {
 				setSelectMode(false);
@@ -1654,25 +384,26 @@ function init(): void {
 			clearHighlights();
 			cancelInsert();
 			clearLockedInsert();
-			currentEquivalentNodes = [];
-			currentTargetEl = null;
-			currentBoundary = null;
-			cachedNearGroups = null;
+			state.currentEquivalentNodes = [];
+			state.currentTargetEl = null;
+			state.currentBoundary = null;
+			state.cachedNearGroups = null;
 
-			currentMode = msg.mode;
+			state.currentMode = msg.mode;
 			if (msg.mode === 'insert') {
-				if (tabPreference === 'design') tabPreference = 'component';
-				currentTab = resolveTab();
-				startBrowse(shadowHost, onBrowseLocked);
+				if (state.tabPreference === 'design') state.tabPreference = 'component';
+				state.currentTab = resolveTab();
+				startBrowse(state.shadowHost, onBrowseLocked);
 			} else {
-				currentTab = resolveTab();
+				state.currentTab = resolveTab();
 				setSelectMode(true);
 			}
 		} else if (msg.type === "TAB_CHANGED") {
-			currentTab = msg.tab;
-			tabPreference = (msg.tab === 'replace' || msg.tab === 'place') ? 'component' : 'design';
+			state.currentTab = msg.tab;
+			state.tabPreference = (msg.tab === 'replace' || msg.tab === 'place') ? 'component' : 'design';
+			state.replaceDirection = (msg.tab === 'replace' && state.currentTargetEl) ? 'element-first' : null;
 			// Rebuild toolbar to highlight the correct action button
-			if (currentTargetEl) showDrawButton(currentTargetEl);
+			if (state.currentTargetEl) showDrawButton(state.currentTargetEl);
 		} else if (msg.type === "CANCEL_MODE") {
 			// Panel sent Escape — deactivate select/insert mode
 			setSelectMode(false);
@@ -1680,51 +411,51 @@ function init(): void {
 			clearLockedInsert();
 		} else if (
 			msg.type === "PATCH_PREVIEW" &&
-			currentEquivalentNodes.length > 0 &&
+			state.currentEquivalentNodes.length > 0 &&
 			!isTextEditing()
 		) {
 			applyPreview(
-				currentEquivalentNodes,
+				state.currentEquivalentNodes,
 				msg.oldClass,
 				msg.newClass,
 				SERVER_ORIGIN,
 			);
 		} else if (
 			msg.type === "PATCH_PREVIEW_BATCH" &&
-			currentEquivalentNodes.length > 0 &&
+			state.currentEquivalentNodes.length > 0 &&
 			!isTextEditing()
 		) {
-			applyPreviewBatch(currentEquivalentNodes, msg.pairs, SERVER_ORIGIN);
+			applyPreviewBatch(state.currentEquivalentNodes, msg.pairs, SERVER_ORIGIN);
 		} else if (msg.type === "PATCH_REVERT" && !isTextEditing()) {
 			revertPreview();
-		} else if (msg.type === "PATCH_REVERT_STAGED" && currentEquivalentNodes.length > 0) {
+		} else if (msg.type === "PATCH_REVERT_STAGED" && state.currentEquivalentNodes.length > 0) {
 			// Undo a previously committed staged change: apply the reverse swap to the DOM
 			// and commit it as the new baseline without telling the server.
-			applyPreview(currentEquivalentNodes, msg.oldClass, msg.newClass, SERVER_ORIGIN)
+			applyPreview(state.currentEquivalentNodes, msg.oldClass, msg.newClass, SERVER_ORIGIN)
 				.then(() => commitPreview());
 		} else if (
 			msg.type === "PATCH_STAGE" &&
-			currentTargetEl &&
-			currentBoundary &&
+			state.currentTargetEl &&
+			state.currentBoundary &&
 			!isTextEditing()
 		) {
 			// Build context and send PATCH_STAGED to server
-			const state = getPreviewState();
+			const previewState = getPreviewState();
 			const originalClassMap = new Map<HTMLElement, string>();
-			if (state) {
-				for (let i = 0; i < state.elements.length; i++) {
-					originalClassMap.set(state.elements[i], state.originalClasses[i]);
+			if (previewState) {
+				for (let i = 0; i < previewState.elements.length; i++) {
+					originalClassMap.set(previewState.elements[i], previewState.originalClasses[i]);
 				}
 			}
 
-			const targetElIndex = currentEquivalentNodes.indexOf(currentTargetEl);
+			const targetElIndex = state.currentEquivalentNodes.indexOf(state.currentTargetEl);
 			const originalClassString =
-				state && targetElIndex !== -1
-					? state.originalClasses[targetElIndex]
-					: currentTargetEl.className;
+				previewState && targetElIndex !== -1
+					? previewState.originalClasses[targetElIndex]
+					: state.currentTargetEl.className;
 
 			const context = buildContext(
-				currentTargetEl,
+				state.currentTargetEl,
 				msg.oldClass,
 				msg.newClass,
 				originalClassMap,
@@ -1734,18 +465,18 @@ function init(): void {
 				type: "PATCH_STAGED",
 				patch: {
 					id: msg.id,
-					elementKey: currentBoundary.componentName,
+					elementKey: state.currentBoundary.componentName,
 					status: "staged",
 					originalClass: msg.oldClass,
 					newClass: msg.newClass,
 					property: msg.property,
 					timestamp: new Date().toISOString(),
 					pageUrl: window.location.href,
-					component: { name: currentBoundary.componentName },
+					component: { name: state.currentBoundary.componentName },
 					target: {
-						tag: currentTargetEl.tagName.toLowerCase(),
+						tag: state.currentTargetEl.tagName.toLowerCase(),
 						classes: originalClassString,
-						innerText: (currentTargetEl.innerText || "").trim().slice(0, 60),
+						innerText: (state.currentTargetEl.innerText || "").trim().slice(0, 60),
 					},
 					context,
 				},
@@ -1758,8 +489,8 @@ function init(): void {
 			// Special case: if this is an "add" (oldClass = '') with no prior preview,
 			// the new class was never applied to the DOM. Apply it now, then commit
 			// once the CSS is injected so the class renders immediately.
-			if (!state && !msg.oldClass && msg.newClass) {
-				applyPreview(currentEquivalentNodes, '', msg.newClass, SERVER_ORIGIN)
+			if (!previewState && !msg.oldClass && msg.newClass) {
+				applyPreview(state.currentEquivalentNodes, '', msg.newClass, SERVER_ORIGIN)
 					.then(() => commitPreview());
 			} else {
 				commitPreview();
@@ -1770,38 +501,38 @@ function init(): void {
 			cancelInsert();
 			clearLockedInsert();
 			if (msg.deselect) {
-				currentEquivalentNodes = [];
-				currentTargetEl = null;
-				currentBoundary = null;
-				cachedNearGroups = null;
+				state.currentEquivalentNodes = [];
+				state.currentTargetEl = null;
+				state.currentBoundary = null;
+				state.cachedNearGroups = null;
 			}
 		} else if (msg.type === "SWITCH_CONTAINER") {
 			const newName = msg.container as ContainerName;
-			if (containers[newName] && newName !== activeContainer.name) {
+			if (state.containers[newName] && newName !== state.activeContainer.name) {
 				if (!insideStorybook) {
-					const wasOpen = activeContainer.isOpen();
-					activeContainer.close();
-					activeContainer = containers[newName];
+					const wasOpen = state.activeContainer.isOpen();
+					state.activeContainer.close();
+					state.activeContainer = state.containers[newName];
 					if (wasOpen) {
-						activeContainer.open(`${SERVER_ORIGIN}/panel`);
+						state.activeContainer.open(`${SERVER_ORIGIN}/panel`);
 					}
 				} else {
-					activeContainer = containers[newName];
+					state.activeContainer = state.containers[newName];
 				}
 			}
 		} else if (msg.type === "INSERT_DESIGN_CANVAS") {
 			if (msg.insertMode === 'replace') {
-				if (currentTargetEl) {
+				if (state.currentTargetEl) {
 					// Element already selected — capture screenshot and replace
 					handleCaptureScreenshot();
 				} else {
 					// No element selected — arm element-select mode
-					armElementSelect('Replace: Canvas', shadowHost, (target) => {
-						const result = findExactMatches(target, shadowHost);
+					armElementSelect('Replace: Canvas', state.shadowHost, (target) => {
+						const result = findExactMatches(target, state.shadowHost);
 						const componentName = result.componentName ?? target.tagName.toLowerCase();
-						currentTargetEl = target;
-						currentBoundary = { componentName };
-						currentEquivalentNodes = result.exactMatch;
+						state.currentTargetEl = target;
+						state.currentBoundary = { componentName };
+						state.currentEquivalentNodes = result.exactMatch;
 						handleCaptureScreenshot();
 					});
 				}
@@ -1810,25 +541,25 @@ function init(): void {
 				const locked = getLockedInsert();
 				if (locked) {
 					// Use the locked position
-					currentTargetEl = locked.target;
+					state.currentTargetEl = locked.target;
 					const fiber = getFiber(locked.target);
 					const boundary = fiber ? findComponentBoundary(fiber) : null;
-					currentBoundary = boundary
+					state.currentBoundary = boundary
 						? { componentName: boundary.componentName }
 						: { componentName: locked.target.tagName.toLowerCase() };
-					currentEquivalentNodes = [locked.target];
+					state.currentEquivalentNodes = [locked.target];
 					clearLockedInsert();
 					injectDesignCanvas(locked.position as InsertMode);
 				} else {
 					// No locked position — arm canvas drop-zone
-					armGenericInsert('Place: Canvas', shadowHost, (target, position) => {
-						currentTargetEl = target;
+					armGenericInsert('Place: Canvas', state.shadowHost, (target, position) => {
+						state.currentTargetEl = target;
 						const fiber = getFiber(target);
 						const boundary = fiber ? findComponentBoundary(fiber) : null;
-						currentBoundary = boundary
+						state.currentBoundary = boundary
 							? { componentName: boundary.componentName }
 							: { componentName: target.tagName.toLowerCase() };
-						currentEquivalentNodes = [target];
+						state.currentEquivalentNodes = [target];
 						injectDesignCanvas(position as InsertMode);
 					});
 				}
@@ -1836,96 +567,74 @@ function init(): void {
 		} else if (msg.type === "CAPTURE_SCREENSHOT") {
 			handleCaptureScreenshot();
 		} else if (msg.type === "DESIGN_SUBMITTED") {
-			// Replace the most recent canvas iframe with a static image preview
-			const lastEntry = designCanvasWrappers[designCanvasWrappers.length - 1];
-			const last = lastEntry?.wrapper;
-			if (last) {
-				const iframe = last.querySelector("iframe");
-				if (iframe && msg.image) {
-					const img = document.createElement("img");
-					img.src = msg.image;
-					img.style.cssText = css(SUBMITTED_IMAGE);
-					// Remove all children (iframe, resize handles) and show just the image
-					last.innerHTML = "";
-					last.style.height = "auto";
-					last.style.minHeight = "0";
-					last.style.overflow = "hidden";
-					last.appendChild(img);
-				}
-			}
+			handleDesignSubmitted(msg);
 		} else if (msg.type === "CLOSE_PANEL") {
-			if (active) toggleInspect(btn);
+			if (state.active) toggleInspect(btn);
 		} else if (msg.type === "COMPONENT_ARM") {
 			if (msg.insertMode === 'replace') {
-				// Replace mode — arm element-select to pick the target element
-				armElementSelect(`Replace: ${msg.componentName}`, shadowHost, (target) => {
-					const result = findExactMatches(target, shadowHost);
+				const doReplace = (target: HTMLElement) => {
+					const result = findExactMatches(target, state.shadowHost);
 					const componentName = result.componentName ?? target.tagName.toLowerCase();
-					// Directly replace — no second click needed
 					const ghost = replaceElement(target, msg);
-					// Retarget selection onto the ghost element so highlights/toolbar attach correctly
 					const selectionTarget = ghost ?? target;
-					currentTargetEl = selectionTarget;
-					currentBoundary = { componentName: msg.componentName };
-					currentEquivalentNodes = [selectionTarget];
-					// Wait one frame for the browser to lay out the ghost before positioning UI
+					state.currentTargetEl = selectionTarget;
+					state.currentBoundary = { componentName: msg.componentName };
+					state.currentEquivalentNodes = [selectionTarget];
 					requestAnimationFrame(() => {
 						clearHighlights();
 						highlightElement(selectionTarget);
 						showDrawButton(selectionTarget);
 					});
-				});
+				};
+
+				if (state.replaceDirection === 'element-first' && state.currentTargetEl) {
+					// Element-first mode — replace the current target immediately
+					doReplace(state.currentTargetEl);
+				} else {
+					// Component-first mode — arm crosshair to pick the target
+					armElementSelect(`Replace: ${msg.componentName}`, state.shadowHost, doReplace);
+				}
 			} else {
-				armInsert(msg, shadowHost);
+				armInsert(msg, state.shadowHost);
 			}
 		} else if (msg.type === "COMPONENT_DISARM") {
 			cancelInsert();
 		} else if (msg.type === "DESIGN_CLOSE") {
-			// Remove the most recently added canvas wrapper, restoring replaced nodes if any
-			const last = designCanvasWrappers.pop();
-			if (last) {
-				if (last.replacedNodes) {
-					// Restore the original nodes (unhide if hidden, or reinsert if removed)
-					for (const node of last.replacedNodes) {
-						node.style.display = "";
-					}
-				}
-				last.wrapper.remove();
+			handleDesignClose();
 
-				// Re-apply selection highlights and toolbar so the user can keep editing
-				if (currentTargetEl && currentEquivalentNodes.length > 0) {
-					for (const n of currentEquivalentNodes) {
-						highlightElement(n);
-					}
-					showDrawButton(currentTargetEl);
+			// Re-apply selection highlights and toolbar so the user can keep editing
+			if (state.currentTargetEl && state.currentEquivalentNodes.length > 0) {
+				for (const n of state.currentEquivalentNodes) {
+					highlightElement(n);
 				}
+				showDrawButton(state.currentTargetEl);
 			}
 		}
 	});
 
 	window.addEventListener("resize", () => {
-		if (currentEquivalentNodes.length > 0) {
-			shadowRoot
+		if (state.currentEquivalentNodes.length > 0) {
+			state.shadowRoot
 				.querySelectorAll(".highlight-overlay")
 				.forEach((el) => el.remove());
-			currentEquivalentNodes.forEach((n) => highlightElement(n));
+			state.currentEquivalentNodes.forEach((n) => highlightElement(n));
 		}
-		if (toolbarEl && currentTargetEl) {
-			positionWithFlip(currentTargetEl, toolbarEl);
+		if (state.toolbarEl && state.currentTargetEl) {
+			positionWithFlip(state.currentTargetEl, state.toolbarEl);
 		}
 	});
 
 	window.addEventListener(
 		"scroll",
 		() => {
-			if (currentEquivalentNodes.length > 0) {
-				shadowRoot
+			if (state.currentEquivalentNodes.length > 0) {
+				state.shadowRoot
 					.querySelectorAll(".highlight-overlay")
 					.forEach((el) => el.remove());
-				currentEquivalentNodes.forEach((n) => highlightElement(n));
+				state.currentEquivalentNodes.forEach((n) => highlightElement(n));
 			}
-			if (toolbarEl && currentTargetEl) {
-				positionWithFlip(currentTargetEl, toolbarEl);
+			if (state.toolbarEl && state.currentTargetEl) {
+				positionWithFlip(state.currentTargetEl, state.toolbarEl);
 			}
 		},
 		{ capture: true, passive: true },
@@ -1933,27 +642,25 @@ function init(): void {
 
 	// Auto-open panel if it was open before the last page refresh
 	if (sessionStorage.getItem(PANEL_OPEN_KEY) === "1") {
-		active = true;
+		state.active = true;
 		btn.classList.add("active");
 		if (!insideStorybook) {
-			activeContainer.open(`${SERVER_ORIGIN}/panel`);
+			state.activeContainer.open(`${SERVER_ORIGIN}/panel`);
 		}
 	}
 
 	window.addEventListener("overlay-ws-connected", () => {
-		if (wasConnected) {
+		if (state.wasConnected) {
 			showToast("Reconnected");
 		}
-		wasConnected = true;
+		state.wasConnected = true;
 	});
 
 	window.addEventListener("overlay-ws-disconnected", () => {
-		if (wasConnected) {
+		if (state.wasConnected) {
 			showToast("Connection lost — restart the server and refresh.", 5000);
 		}
 	});
 }
-
-export { shadowRoot };
 
 init();
