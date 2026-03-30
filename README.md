@@ -1,6 +1,6 @@
 # VyBit
 
-Change designs, draw mockups, and provide suggestions __in your browser__ and send them to your favorite coding agent (Claude, Cursor, Copilot, etc) to be implemented. VyBit works with React apps built with Tailwind v3 or v4. 
+Change designs, draw mockups, provide suggestions, and report bugs __in your browser__ and send them to your favorite coding agent (Claude, Cursor, Copilot, etc) to be implemented. VyBit works with React apps built with Tailwind v3 or v4. 
 
 <img width="1453" height="903" alt="Cursor_and_Carton_Case_Management" src="https://github.com/user-attachments/assets/59b8e280-a827-4fa0-95e3-6c350afacbc9" />
 
@@ -12,6 +12,7 @@ Change designs, draw mockups, and provide suggestions __in your browser__ and se
 | 2    | __Use VyBit to fine-tune your design system in Storybook__ - Adjust colors, spacing, shadows, layout and more | <img  alt="image" src="https://github.com/user-attachments/assets/79ca04be-db8f-458f-8632-87cc040875db" />    |
 | 3a   | __Use VyBit to design features__ - drop your design system components into pages | <img width="1481" height="922" alt="image" src="https://github.com/user-attachments/assets/415acdb7-102a-4c31-910b-10536c59ee4a" /> |
 | 3b  | __Use VyBit to design features__ -  sketch a feature with the design canvas | <img width="1482" height="924" alt="image" src="https://github.com/user-attachments/assets/924e9733-baf6-4492-b9da-05fd27c2df93" /> | 
+| 3c | __Use VyBit to report bugs__ - send recent errors, console.logs, DOM snapshots, and events | Image Coming Soon |
 | 4 | Add text or voice messages for extra context | <img width="376" height="261" alt="image" src="https://github.com/user-attachments/assets/546ea987-a0ad-4809-85c6-52fb91fb987e" /> | 
 
 Plus, VyBit always knows what page, components, and elements you're editing, making it easier for agents to know exactly what you want!
