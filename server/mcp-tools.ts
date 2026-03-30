@@ -181,7 +181,7 @@ ${patch.bugElement.outerHTML.slice(0, 10000)}
 \`\`\`
 ` : ''}
 ${patch.bugTimeline && patch.bugTimeline.length > 0 ? (() => {
-  const triggerLabel = (t: import('../shared/types').BugTimelineEntry) => {
+  const triggerLabel = (t: import('../shared/types.js').BugTimelineEntry) => {
     switch (t.trigger) {
       case 'click': return `Click${t.elementInfo ? ` on \`<${t.elementInfo.tag}${t.elementInfo.classes ? ` class="${t.elementInfo.classes}"` : ''}>\`` : ''}`;
       case 'mutation': return 'DOM mutation';
