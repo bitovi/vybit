@@ -4,7 +4,7 @@ Change designs, draw mockups, provide suggestions, and report bugs __in your bro
 
 <img width="1453" height="903" alt="Cursor_and_Carton_Case_Management" src="https://github.com/user-attachments/assets/59b8e280-a827-4fa0-95e3-6c350afacbc9" />
 
-`VyBit` changes how you can design and build an app or website. Instead of building your design system and page designs in Sketch or Figma and then implementing it in code, you:
+`VyBit` changes how you can design and build an app or website. Instead of building your design system and page designs in a design tool and then implementing it in code, you:
 
 | Step No | Task | How |
 |----------|----------|----------|
