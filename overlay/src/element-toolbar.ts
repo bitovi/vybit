@@ -4,7 +4,8 @@
 import { computePosition, flip, offset } from "@floating-ui/dom";
 import { cancelInsert, clearLockedInsert, startBrowse } from "./drop-zone";
 import { highlightElement, clearHighlights, removeDrawButton } from "./element-highlight";
-import { computeNearGroups } from "./grouping";
+import { computeNearGroups, findSamePathElements } from "./grouping";
+import type { PathMatchResult } from "./grouping";
 import { state, resolveTab } from "./overlay-state";
 import { revertPreview } from "./patcher";
 import { SELECT_SVG, INSERT_SVG, DESIGN_SVG, TEXT_SVG, REPLACE_SVG, SEND_SVG } from "./svg-icons";
@@ -16,28 +17,58 @@ import { send, sendTo } from "./ws";
 let setSelectMode: (on: boolean) => void;
 let showToast: (message: string, duration?: number) => void;
 let onBrowseLocked: (target: HTMLElement) => void;
+let rebuildSelectionFromSources: () => void;
+let setAddMode: (on: boolean) => void;
 
 export function initToolbar(deps: {
 	setSelectMode: (on: boolean) => void;
 	showToast: (message: string, duration?: number) => void;
 	onBrowseLocked: (target: HTMLElement) => void;
+	rebuildSelectionFromSources: () => void;
+	setAddMode: (on: boolean) => void;
 }): void {
 	setSelectMode = deps.setSelectMode;
 	showToast = deps.showToast;
 	onBrowseLocked = deps.onBrowseLocked;
+	rebuildSelectionFromSources = deps.rebuildSelectionFromSources;
+	setAddMode = deps.setAddMode;
 }
 
 async function positionWithFlip(
 	anchor: HTMLElement,
 	floating: HTMLElement,
 	placement: "top-start" | "bottom-start" = "top-start",
-): Promise<void> {
-	const { x, y } = await computePosition(anchor, floating, {
+): Promise<"top-start" | "bottom-start"> {
+	const { x, y, placement: resolved } = await computePosition(anchor, floating, {
 		placement,
 		middleware: [offset(6), flip()],
 	});
 	floating.style.left = `${x}px`;
 	floating.style.top = `${y}px`;
+	return resolved as "top-start" | "bottom-start";
+}
+
+/**
+ * Position both toolbar and msgRow, avoiding overlap when toolbar flips below
+ * the element (e.g. element is near top of viewport).
+ */
+export async function positionBothMenus(
+	targetEl: HTMLElement,
+	toolbar: HTMLElement,
+	msgRow: HTMLElement | null,
+): Promise<void> {
+	const toolbarPlacement = await positionWithFlip(targetEl, toolbar, "top-start");
+	if (!msgRow) return;
+	const msgPlacement = await positionWithFlip(targetEl, msgRow, "bottom-start");
+
+	if (toolbarPlacement === "bottom-start" && msgPlacement === "bottom-start") {
+		// Top of viewport: both flipped below — stack msgRow under toolbar
+		await positionWithFlip(toolbar, msgRow, "bottom-start");
+	} else if (toolbarPlacement === "top-start" && msgPlacement === "top-start") {
+		// Bottom of viewport: both flipped above — stack msgRow above toolbar
+		await positionWithFlip(toolbar, msgRow, "top-start");
+	}
+	// Otherwise they're on opposite sides of the element — no overlap
 }
 
 export { positionWithFlip };
@@ -75,6 +106,9 @@ export function showDrawButton(targetEl: HTMLElement): void {
 			state.currentTargetEl = null;
 			state.currentBoundary = null;
 			state.cachedNearGroups = null;
+			state.cachedExactMatches = null;
+			state.manuallyAddedNodes = new Set<HTMLElement>();
+			state.addMode = false;
 			state.currentMode = 'select';
 			state.currentTab = resolveTab();
 			sendTo("panel", { type: "MODE_CHANGED", mode: "select" });
@@ -125,6 +159,9 @@ export function showDrawButton(targetEl: HTMLElement): void {
 			state.currentTargetEl = null;
 			state.currentBoundary = null;
 			state.cachedNearGroups = null;
+			state.cachedExactMatches = null;
+			state.manuallyAddedNodes = new Set<HTMLElement>();
+			state.addMode = false;
 			state.currentMode = 'select';
 			state.currentTab = resolveTab();
 			sendTo("panel", { type: "MODE_CHANGED", mode: "select" });
@@ -152,6 +189,9 @@ export function showDrawButton(targetEl: HTMLElement): void {
 		state.currentTargetEl = null;
 		state.currentBoundary = null;
 		state.cachedNearGroups = null;
+		state.cachedExactMatches = null;
+		state.manuallyAddedNodes = new Set<HTMLElement>();
+		state.addMode = false;
 		state.currentMode = 'insert';
 		if (state.tabPreference === 'design') state.tabPreference = 'component';
 		state.currentTab = resolveTab();
@@ -208,8 +248,7 @@ export function showDrawButton(targetEl: HTMLElement): void {
 		toolbar.appendChild(placeBtn);
 	}
 
-	// Position toolbar using @floating-ui/dom
-	positionWithFlip(targetEl, toolbar);
+	// Position toolbar using @floating-ui/dom (msgRow added after creation below)
 
 	// ── Message row (below element) ──
 	const msgRow = document.createElement("div");
@@ -242,7 +281,7 @@ export function showDrawButton(targetEl: HTMLElement): void {
 		});
 		msgInput.value = "";
 		msgInput.style.height = "auto";
-		positionWithFlip(targetEl, msgRow, "bottom-start");
+		positionBothMenus(targetEl, toolbar, msgRow);
 		showToast("Message staged");
 	}
 
@@ -264,14 +303,14 @@ export function showDrawButton(targetEl: HTMLElement): void {
 	msgInput.addEventListener("input", () => {
 		msgInput.style.height = "auto";
 		msgInput.style.height = msgInput.scrollHeight + "px";
-		positionWithFlip(targetEl, msgRow, "bottom-start");
+		positionBothMenus(targetEl, toolbar, msgRow);
 	});
 
 	// Prevent clicks on the message row from triggering page click handlers
 	msgRow.addEventListener("click", (e) => e.stopPropagation());
 
-	// Position message row below the element
-	positionWithFlip(targetEl, msgRow, "bottom-start");
+	// Position both toolbar and message row, handling flip overlap
+	positionBothMenus(targetEl, toolbar, msgRow);
 }
 
 function showGroupPicker(
@@ -294,6 +333,12 @@ function showGroupPicker(
 	}
 	const groups = state.cachedNearGroups ?? [];
 
+	// Compute path-match elements (React only)
+	let pathMatch: PathMatchResult | null = null;
+	if (state.currentTargetEl) {
+		pathMatch = findSamePathElements(state.currentTargetEl);
+	}
+
 	const picker = document.createElement("div");
 	picker.className = "el-picker";
 	picker.style.left = "0px";
@@ -301,136 +346,261 @@ function showGroupPicker(
 	state.shadowRoot.appendChild(picker);
 	state.pickerEl = picker;
 
-	// Header
-	const header = document.createElement("div");
-	header.className = "el-picker-header";
-	const title = document.createElement("span");
-	title.className = "el-picker-title";
-	title.textContent = "Selection";
-	header.appendChild(title);
-	picker.appendChild(header);
-
-	// Exact match summary
-	const exactCount = state.currentEquivalentNodes.length;
+	// Current selection summary
 	const exactRow = document.createElement("div");
 	exactRow.className = "el-group-exact";
 	const chip = document.createElement("span");
 	chip.className = "el-count-chip";
-	chip.textContent = String(exactCount);
+	chip.textContent = String(state.currentEquivalentNodes.length);
 	exactRow.appendChild(chip);
 	const exactLabel = document.createElement("span");
-	exactLabel.textContent = `exact match${exactCount !== 1 ? "es" : ""} selected`;
+	exactLabel.textContent = "element selected";
 	exactRow.appendChild(exactLabel);
 	picker.appendChild(exactRow);
 
-	// Divider before similar section
-	const divider = document.createElement("div");
-	divider.className = "el-group-divider";
-	divider.textContent = "Similar";
-	picker.appendChild(divider);
+	// ── "Add more" / "Stop adding" button ──
+	const addBtn = document.createElement("div");
+	addBtn.className = "el-group-row";
+	addBtn.style.cursor = "pointer";
+	addBtn.style.fontWeight = "500";
+	addBtn.style.fontSize = "11px";
 
-	if (groups.length === 0) {
-		const empty = document.createElement("div");
-		empty.className = "el-group-empty";
-		empty.textContent = "No additional similar elements found";
-		picker.appendChild(empty);
-	} else {
-		const list = document.createElement("div");
-		list.className = "el-picker-list";
-		picker.appendChild(list);
-
-		const checkedGroups = new Set<number>();
-		const baseNodes = [...state.currentEquivalentNodes];
-
-		function clearPreviewHighlights() {
-			state.shadowRoot
-				.querySelectorAll(".highlight-preview")
-				.forEach((el) => el.remove());
+	function styleAddBtn(active: boolean) {
+		if (active) {
+			addBtn.textContent = "Stop adding";
+			addBtn.style.color = "#fff";
+			addBtn.style.background = "#00848B";
+			addBtn.style.borderRadius = "4px";
+			addBtn.style.textAlign = "center";
+		} else {
+			addBtn.textContent = "Add more";
+			addBtn.style.color = "#00848B";
+			addBtn.style.background = "";
+			addBtn.style.borderRadius = "";
+			addBtn.style.textAlign = "";
 		}
-
-		function updateSelection() {
-			const allNodes = [...baseNodes];
-			for (const idx of checkedGroups) {
-				for (const el of groups[idx].elements) {
-					if (!allNodes.includes(el)) allNodes.push(el);
-				}
-			}
-			state.currentEquivalentNodes = allNodes;
-			state.shadowRoot
-				.querySelectorAll(".highlight-overlay")
-				.forEach((el) => el.remove());
-			state.currentEquivalentNodes.forEach((n) => highlightElement(n));
-			onCountChange(state.currentEquivalentNodes.length);
-			if (state.currentTargetEl && state.currentBoundary) {
-				sendTo("panel", {
-					type: "ELEMENT_SELECTED",
-					componentName: state.currentBoundary.componentName,
-					instanceCount: state.currentEquivalentNodes.length,
-					classes:
-						typeof state.currentTargetEl.className === "string"
-							? state.currentTargetEl.className
-							: "",
-					tailwindConfig: state.tailwindConfigCache,
-				});
-			}
-		}
-
-		groups.forEach((group, idx) => {
-			const row = document.createElement("label");
-			row.className = "el-group-row";
-
-			const cb = document.createElement("input");
-			cb.type = "checkbox";
-			cb.checked = false;
-			cb.addEventListener("change", () => {
-				if (cb.checked) checkedGroups.add(idx);
-				else checkedGroups.delete(idx);
-				updateSelection();
-			});
-
-			const count = document.createElement("span");
-			count.className = "el-group-count";
-			count.textContent = `(${group.elements.length})`;
-
-			const diff = document.createElement("span");
-			diff.className = "el-group-diff";
-			const parts: string[] = [];
-			for (const a of group.added)
-				parts.push(`<span class="diff-add">+${a}</span>`);
-			for (const r of group.removed)
-				parts.push(`<span class="diff-rem">-${r}</span>`);
-			diff.innerHTML = parts.join(" ");
-
-			row.appendChild(cb);
-			row.appendChild(count);
-			row.appendChild(diff);
-			list.appendChild(row);
-
-			row.addEventListener("mouseenter", () => {
-				clearPreviewHighlights();
-				for (const el of group.elements) {
-					const rect = el.getBoundingClientRect();
-					const preview = document.createElement("div");
-					preview.className = "highlight-preview";
-					preview.style.top = `${rect.top - 3}px`;
-					preview.style.left = `${rect.left - 3}px`;
-					preview.style.width = `${rect.width + 6}px`;
-					preview.style.height = `${rect.height + 6}px`;
-					state.shadowRoot.appendChild(preview);
-				}
-			});
-
-			row.addEventListener("mouseleave", () => {
-				clearPreviewHighlights();
-			});
-		});
 	}
+	styleAddBtn(state.addMode);
+
+	addBtn.addEventListener("click", (e) => {
+		e.stopPropagation();
+		const entering = !state.addMode;
+		setAddMode(entering);
+		styleAddBtn(entering);
+	});
+	picker.appendChild(addBtn);
+
+	// Track checked states for exact/path match
+	let exactMatchChecked = false;
+	let pathMatchChecked = false;
+
+	function clearPreviewHighlights() {
+		state.shadowRoot
+			.querySelectorAll(".highlight-preview")
+			.forEach((el) => el.remove());
+	}
+
+	function updateSelection() {
+		if (!state.currentTargetEl) return;
+		const allNodes = [state.currentTargetEl];
+
+		// Add exact matches if checked
+		if (exactMatchChecked && state.cachedExactMatches) {
+			for (const el of state.cachedExactMatches) {
+				if (!allNodes.includes(el)) allNodes.push(el);
+			}
+		}
+
+		// Add path matches if checked
+		if (pathMatchChecked && pathMatch) {
+			for (const el of pathMatch.elements) {
+				if (!allNodes.includes(el)) allNodes.push(el);
+			}
+		}
+
+		// Add manually added nodes
+		for (const el of state.manuallyAddedNodes) {
+			if (!allNodes.includes(el)) allNodes.push(el);
+		}
+
+		// Add checked near-groups
+		for (const idx of checkedGroups) {
+			for (const el of groups[idx].elements) {
+				if (!allNodes.includes(el)) allNodes.push(el);
+			}
+		}
+
+		state.currentEquivalentNodes = allNodes;
+		state.shadowRoot
+			.querySelectorAll(".highlight-overlay")
+			.forEach((el) => el.remove());
+		state.currentEquivalentNodes.forEach((n) => highlightElement(n));
+
+		// Update the summary chip
+		chip.textContent = String(allNodes.length);
+
+		onCountChange(state.currentEquivalentNodes.length);
+		if (state.currentTargetEl && state.currentBoundary) {
+			sendTo("panel", {
+				type: "ELEMENT_SELECTED",
+				componentName: state.currentBoundary.componentName,
+				instanceCount: state.currentEquivalentNodes.length,
+				classes:
+					typeof state.currentTargetEl.className === "string"
+						? state.currentTargetEl.className
+						: "",
+				tailwindConfig: state.tailwindConfigCache,
+			});
+		}
+	}
+
+	const checkedGroups = new Set<number>();
+
+	// Allow external code (add-mode click handler) to refresh the picker
+	state.pickerRefreshCallback = updateSelection;
+
+	// ── "All exact matches (N)" row ──
+	const exactMatches = state.cachedExactMatches ?? [];
+	if (exactMatches.length > 1) {
+		const row = document.createElement("label");
+		row.className = "el-group-row";
+
+		const cb = document.createElement("input");
+		cb.type = "checkbox";
+		cb.checked = false;
+		cb.addEventListener("change", () => {
+			exactMatchChecked = cb.checked;
+			updateSelection();
+		});
+
+		const label = document.createElement("span");
+		label.className = "el-group-diff";
+		label.textContent = `All exact matches (${exactMatches.length})`;
+		label.style.fontFamily = "inherit";
+
+		row.appendChild(cb);
+		row.appendChild(label);
+		picker.appendChild(row);
+
+		row.addEventListener("mouseenter", () => {
+			clearPreviewHighlights();
+			for (const el of exactMatches) {
+				if (state.currentEquivalentNodes.includes(el)) continue;
+				const rect = el.getBoundingClientRect();
+				const preview = document.createElement("div");
+				preview.className = "highlight-preview";
+				preview.style.top = `${rect.top - 3}px`;
+				preview.style.left = `${rect.left - 3}px`;
+				preview.style.width = `${rect.width + 6}px`;
+				preview.style.height = `${rect.height + 6}px`;
+				state.shadowRoot.appendChild(preview);
+			}
+		});
+		row.addEventListener("mouseleave", () => clearPreviewHighlights());
+	}
+
+	// ── "All [path] (N)" row — React only, hidden if same set as exact matches ──
+	const pathIsDuplicate = pathMatch && exactMatches.length > 1
+		&& pathMatch.elements.length === exactMatches.length
+		&& pathMatch.elements.every((el) => exactMatches.includes(el));
+	if (pathMatch && pathMatch.elements.length > 1 && !pathIsDuplicate) {
+		const row = document.createElement("label");
+		row.className = "el-group-row";
+
+		const cb = document.createElement("input");
+		cb.type = "checkbox";
+		cb.checked = false;
+		cb.addEventListener("change", () => {
+			pathMatchChecked = cb.checked;
+			updateSelection();
+		});
+
+		const label = document.createElement("span");
+		label.className = "el-group-diff";
+		label.textContent = `All ${pathMatch.label} (${pathMatch.elements.length})`;
+		label.style.fontFamily = "inherit";
+
+		row.appendChild(cb);
+		row.appendChild(label);
+		picker.appendChild(row);
+
+		row.addEventListener("mouseenter", () => {
+			clearPreviewHighlights();
+			for (const el of pathMatch!.elements) {
+				if (state.currentEquivalentNodes.includes(el)) continue;
+				const rect = el.getBoundingClientRect();
+				const preview = document.createElement("div");
+				preview.className = "highlight-preview";
+				preview.style.top = `${rect.top - 3}px`;
+				preview.style.left = `${rect.left - 3}px`;
+				preview.style.width = `${rect.width + 6}px`;
+				preview.style.height = `${rect.height + 6}px`;
+				state.shadowRoot.appendChild(preview);
+			}
+		});
+		row.addEventListener("mouseleave", () => clearPreviewHighlights());
+	}
+
+	groups.forEach((group, idx) => {
+		const row = document.createElement("label");
+		row.className = "el-group-row";
+
+		const cb = document.createElement("input");
+		cb.type = "checkbox";
+		cb.checked = false;
+		cb.addEventListener("change", () => {
+			if (cb.checked) checkedGroups.add(idx);
+			else checkedGroups.delete(idx);
+			updateSelection();
+		});
+
+		const count = document.createElement("span");
+		count.className = "el-group-count";
+		count.textContent = `(${group.elements.length})`;
+
+		const diff = document.createElement("span");
+		diff.className = "el-group-diff";
+		const parts: string[] = [];
+		for (const a of group.added)
+			parts.push(`<span class="diff-add">+${a}</span>`);
+		for (const r of group.removed)
+			parts.push(`<span class="diff-rem">-${r}</span>`);
+		diff.innerHTML = parts.join(" ");
+
+		row.appendChild(cb);
+		row.appendChild(count);
+		row.appendChild(diff);
+		picker.appendChild(row);
+
+		row.addEventListener("mouseenter", () => {
+			clearPreviewHighlights();
+			for (const el of group.elements) {
+				const rect = el.getBoundingClientRect();
+				const preview = document.createElement("div");
+				preview.className = "highlight-preview";
+				preview.style.top = `${rect.top - 3}px`;
+				preview.style.left = `${rect.left - 3}px`;
+				preview.style.width = `${rect.width + 6}px`;
+				preview.style.height = `${rect.height + 6}px`;
+				state.shadowRoot.appendChild(preview);
+			}
+		});
+
+		row.addEventListener("mouseleave", () => {
+			clearPreviewHighlights();
+		});
+	});
 
 	// Position
 	positionWithFlip(anchorBtn, picker);
 
 	// Close on outside click
 	const removePicker = () => {
+		// Exit add-mode when closing picker
+		if (state.addMode) {
+			setAddMode(false);
+		}
+		state.pickerRefreshCallback = null;
 		state.shadowRoot
 			.querySelectorAll(".highlight-preview")
 			.forEach((el) => el.remove());
@@ -446,6 +616,8 @@ function showGroupPicker(
 
 	setTimeout(() => {
 		state.pickerCloseHandler = (e: MouseEvent) => {
+			// Don't close the picker while add-mode is active — clicks go to clickHandler
+			if (state.addMode) return;
 			const path = e.composedPath();
 			if (!path.includes(picker) && !path.includes(anchorBtn)) {
 				removePicker();

@@ -27,6 +27,13 @@ export const state = {
 	// Cached near-groups (computed lazily on first + click)
 	cachedNearGroups: null as ElementGroup[] | null,
 
+	// Cached exact matches from findExactMatches (all identical elements)
+	cachedExactMatches: null as HTMLElement[] | null,
+
+	// Add-mode state (click-to-add selection)
+	addMode: false,
+	manuallyAddedNodes: new Set<HTMLElement>(),
+
 	// Hover preview
 	hoverOutlineEl: null as HTMLElement | null,
 	hoverTooltipEl: null as HTMLElement | null,
@@ -49,6 +56,7 @@ export const state = {
 	msgRowEl: null as HTMLElement | null,
 	pickerEl: null as HTMLElement | null,
 	pickerCloseHandler: null as ((e: MouseEvent) => void) | null,
+	pickerRefreshCallback: null as (() => void) | null,
 
 	// Design canvas wrappers
 	designCanvasWrappers: [] as DesignCanvasEntry[],

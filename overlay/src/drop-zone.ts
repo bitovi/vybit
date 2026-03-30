@@ -1,7 +1,8 @@
 // Drop-zone tracking system for component arm-and-place.
 // Runs in the overlay (vanilla DOM — no React).
-// Click-to-arm: user arms a component in the panel, then clicks in the app to place it.
-// Shows a floating cursor label and teal drop indicator while armed.
+//
+// State is modelled as a discriminated union (DropZoneMode) instead of
+// independent boolean flags, making invalid state combinations impossible.
 
 import { send, sendTo } from './ws';
 import { buildContext } from './context';
@@ -11,89 +12,91 @@ import { css, TEAL, TEAL_06, Z_LOCKED, FIXED_OVERLAY, CURSOR_LABEL, INDICATOR_BA
 
 type DropPosition = 'before' | 'after' | 'first-child' | 'last-child';
 
-// Callback for generic insertion (used by canvas insertion)
 type InsertCallback = (target: HTMLElement, position: DropPosition) => void;
-
-// Callback for element-select arming (used by replace mode)
 type ElementSelectCallback = (target: HTMLElement) => void;
 
-// ── State ────────────────────────────────────────────────────────────────
+// ── Discriminated union state ────────────────────────────────────────────
 
-let active = false;
-let componentName = '';
-let storyId = '';
-let ghostHtml = '';
-let componentPath = '';
-let componentArgs: Record<string, unknown> = {};
+type DropZoneMode =
+  | { kind: 'idle' }
+  | {
+      kind: 'component-insert';
+      componentName: string;
+      storyId: string;
+      ghostHtml: string;
+      componentPath: string;
+      componentArgs: Record<string, unknown>;
+    }
+  | { kind: 'generic-insert'; callback: InsertCallback }
+  | { kind: 'element-select'; callback: ElementSelectCallback }
+  | { kind: 'browse'; onLocked: ((target: HTMLElement, position: DropPosition) => void) | null };
 
-let cursorLabelEl: HTMLElement | null = null;
-let indicatorEl: HTMLElement | null = null;
-let arrowLeftEl: HTMLElement | null = null;
-let arrowRightEl: HTMLElement | null = null;
-let currentTarget: HTMLElement | null = null;
-let currentPosition: DropPosition | null = null;
-let overlayHost: HTMLElement | null = null;
+let mode: DropZoneMode = { kind: 'idle' };
 
-// When set, onClick calls this instead of the component-drop flow
-let insertCallback: InsertCallback | null = null;
+// ── Tracked DOM elements ─────────────────────────────────────────────────
 
-// Element-select mode — shows hover outline, click picks an element (no position)
-let elementSelectMode = false;
-let elementSelectCallback: ElementSelectCallback | null = null;
-let elementSelectOutlineEl: HTMLElement | null = null;
+interface DropZoneDOM {
+  overlayHost: HTMLElement | null;
+  cursorLabel: HTMLElement | null;
+  indicator: HTMLElement | null;
+  arrowLeft: HTMLElement | null;
+  arrowRight: HTMLElement | null;
+  outlineEl: HTMLElement | null;
+  currentTarget: HTMLElement | null;
+  currentPosition: DropPosition | null;
+}
 
-// Browse mode — shows indicators, click locks a position
-let browseMode = false;
-let browseOnLocked: ((target: HTMLElement, position: DropPosition) => void) | null = null;
-let lockedTarget: HTMLElement | null = null;
-let lockedPosition: DropPosition | null = null;
-let lockedIndicatorEl: HTMLElement | null = null;
-let lockedArrowLeft: HTMLElement | null = null;
-let lockedArrowRight: HTMLElement | null = null;
+const dom: DropZoneDOM = {
+  overlayHost: null,
+  cursorLabel: null,
+  indicator: null,
+  arrowLeft: null,
+  arrowRight: null,
+  outlineEl: null,
+  currentTarget: null,
+  currentPosition: null,
+};
 
-// ── Public API ───────────────────────────────────────────────────────────
+interface LockedState {
+  target: HTMLElement | null;
+  position: DropPosition | null;
+  indicator: HTMLElement | null;
+  arrowLeft: HTMLElement | null;
+  arrowRight: HTMLElement | null;
+}
+
+const locked: LockedState = {
+  target: null,
+  position: null,
+  indicator: null,
+  arrowLeft: null,
+  arrowRight: null,
+};
+
+// ── Public API (signatures unchanged) ────────────────────────────────────
 
 export function armInsert(
   msg: { componentName: string; storyId: string; ghostHtml: string; componentPath?: string; args?: Record<string, unknown> },
   shadowHost: HTMLElement,
 ): void {
-  if (active) cleanup();
-  active = true;
-  componentName = msg.componentName;
-  storyId = msg.storyId;
-  ghostHtml = msg.ghostHtml;
-  componentPath = msg.componentPath ?? '';
-  componentArgs = msg.args ?? {};
-  overlayHost = shadowHost;
-
-  // Crosshair cursor on the entire page
-  document.documentElement.style.cursor = 'crosshair';
-
-  // Floating cursor label — teal pill that follows the cursor
-  cursorLabelEl = document.createElement('div');
-  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
-  cursorLabelEl.textContent = `Place: ${componentName}`;
-  document.body.appendChild(cursorLabelEl);
-
-  // Drop indicator (reused and repositioned on each move)
-  indicatorEl = document.createElement('div');
-  indicatorEl.style.cssText = css(INDICATOR_BASE);
-  document.body.appendChild(indicatorEl);
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.documentElement.addEventListener('mouseleave', onMouseLeave);
-  document.addEventListener('click', onClick, true); // capture so we can prevent default
-  document.addEventListener('keydown', onKeyDown);
+  arm(
+    {
+      kind: 'component-insert',
+      componentName: msg.componentName,
+      storyId: msg.storyId,
+      ghostHtml: msg.ghostHtml,
+      componentPath: msg.componentPath ?? '',
+      componentArgs: msg.args ?? {},
+    },
+    shadowHost,
+    `Place: ${msg.componentName}`,
+  );
 }
 
 export function cancelInsert(): void {
   cleanup();
 }
 
-/**
- * Directly replace a target element with a component — no hover/click needed.
- * Used by replace mode after element-select picks the target.
- */
 export function replaceElement(
   target: HTMLElement,
   msg: { componentName: string; storyId: string; ghostHtml: string; componentPath?: string; args?: Record<string, unknown> },
@@ -104,7 +107,6 @@ export function replaceElement(
   if (!inserted) return null;
   inserted.dataset.twDroppedComponent = msg.componentName;
 
-  // Replace: insert the ghost before the target, then hide the target
   target.insertAdjacentElement('beforebegin', inserted);
   target.style.display = 'none';
 
@@ -163,102 +165,70 @@ export function replaceElement(
   return inserted;
 }
 
-/**
- * Arm a generic insertion — shows drop-zone indicators, and on click calls the
- * provided callback with the target element and position. Used for canvas insertion.
- */
 export function armGenericInsert(
   label: string,
   shadowHost: HTMLElement,
   callback: InsertCallback,
 ): void {
-  if (active) cleanup();
-  active = true;
-  insertCallback = callback;
-  overlayHost = shadowHost;
-
-  document.documentElement.style.cursor = 'crosshair';
-
-  cursorLabelEl = document.createElement('div');
-  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
-  cursorLabelEl.textContent = label;
-  document.body.appendChild(cursorLabelEl);
-
-  indicatorEl = document.createElement('div');
-  indicatorEl.style.cssText = css(INDICATOR_BASE);
-  document.body.appendChild(indicatorEl);
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.documentElement.addEventListener('mouseleave', onMouseLeave);
-  document.addEventListener('click', onClick, true);
-  document.addEventListener('keydown', onKeyDown);
+  arm({ kind: 'generic-insert', callback }, shadowHost, label);
 }
 
-/**
- * Arm element-select mode — shows a hover outline around elements.
- * On click, calls the provided callback with the target element (no position).
- * Used for replace-mode canvas/component placement where we need to pick an
- * element rather than a drop position.
- */
 export function armElementSelect(
   label: string,
   shadowHost: HTMLElement,
   callback: ElementSelectCallback,
 ): void {
-  if (active) cleanup();
-  active = true;
-  elementSelectMode = true;
-  elementSelectCallback = callback;
-  overlayHost = shadowHost;
-
-  document.documentElement.style.cursor = 'crosshair';
-
-  cursorLabelEl = document.createElement('div');
-  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
-  cursorLabelEl.textContent = label;
-  document.body.appendChild(cursorLabelEl);
-
-  // Outline element (teal dashed border) instead of drop-position indicator
-  elementSelectOutlineEl = document.createElement('div');
-  elementSelectOutlineEl.style.cssText = css({ ...INDICATOR_BASE, ...DASHED_BORDER });
-  document.body.appendChild(elementSelectOutlineEl);
-
-  document.addEventListener('mousemove', onMouseMoveElementSelect);
-  document.documentElement.addEventListener('mouseleave', onMouseLeaveElementSelect);
-  document.addEventListener('click', onClick, true);
-  document.addEventListener('keydown', onKeyDown);
+  arm({ kind: 'element-select', callback }, shadowHost, label);
 }
 
 export function isActive(): boolean {
-  return active;
+  return mode.kind !== 'idle';
 }
 
-/**
- * Start browse mode — shows drop-zone indicators as the user hovers.
- * Clicking locks a target+position (persistent indicator). The locked position
- * can be retrieved with getLockedInsert() for later use (e.g. canvas placement).
- */
 export function startBrowse(
   shadowHost: HTMLElement,
   onLocked?: (target: HTMLElement, position: DropPosition) => void,
 ): void {
-  if (active) cleanup();
   clearLockedInsert();
-  active = true;
-  browseMode = true;
-  browseOnLocked = onLocked ?? null;
-  overlayHost = shadowHost;
+  arm({ kind: 'browse', onLocked: onLocked ?? null }, shadowHost, 'Pick insertion point');
+}
+
+export function getLockedInsert(): { target: HTMLElement; position: DropPosition } | null {
+  if (!locked.target || !locked.position) return null;
+  return { target: locked.target, position: locked.position };
+}
+
+export function clearLockedInsert(): void {
+  locked.target = null;
+  locked.position = null;
+  if (locked.indicator) { locked.indicator.remove(); locked.indicator = null; }
+  if (locked.arrowLeft) { locked.arrowLeft.remove(); locked.arrowLeft = null; }
+  if (locked.arrowRight) { locked.arrowRight.remove(); locked.arrowRight = null; }
+}
+
+// ── Shared arming logic ──────────────────────────────────────────────────
+
+function arm(newMode: DropZoneMode, shadowHost: HTMLElement, label: string): void {
+  if (mode.kind !== 'idle') cleanup();
+  mode = newMode;
+  dom.overlayHost = shadowHost;
 
   document.documentElement.style.cursor = 'crosshair';
 
-  cursorLabelEl = document.createElement('div');
-  cursorLabelEl.style.cssText = css(CURSOR_LABEL);
-  cursorLabelEl.textContent = 'Pick insertion point';
-  document.body.appendChild(cursorLabelEl);
+  dom.cursorLabel = document.createElement('div');
+  dom.cursorLabel.style.cssText = css(CURSOR_LABEL);
+  dom.cursorLabel.textContent = label;
+  document.body.appendChild(dom.cursorLabel);
 
-  indicatorEl = document.createElement('div');
-  indicatorEl.style.cssText = css(INDICATOR_BASE);
-  document.body.appendChild(indicatorEl);
+  if (newMode.kind === 'element-select') {
+    dom.outlineEl = document.createElement('div');
+    dom.outlineEl.style.cssText = css({ ...INDICATOR_BASE, ...DASHED_BORDER });
+    document.body.appendChild(dom.outlineEl);
+  } else {
+    dom.indicator = document.createElement('div');
+    dom.indicator.style.cssText = css(INDICATOR_BASE);
+    document.body.appendChild(dom.indicator);
+  }
 
   document.addEventListener('mousemove', onMouseMove);
   document.documentElement.addEventListener('mouseleave', onMouseLeave);
@@ -266,26 +236,7 @@ export function startBrowse(
   document.addEventListener('keydown', onKeyDown);
 }
 
-/**
- * Get the locked insertion point (target + position) from browse mode.
- */
-export function getLockedInsert(): { target: HTMLElement; position: DropPosition } | null {
-  if (!lockedTarget || !lockedPosition) return null;
-  return { target: lockedTarget, position: lockedPosition };
-}
-
-/**
- * Clear the locked insertion point and remove its indicator.
- */
-export function clearLockedInsert(): void {
-  lockedTarget = null;
-  lockedPosition = null;
-  if (lockedIndicatorEl) { lockedIndicatorEl.remove(); lockedIndicatorEl = null; }
-  if (lockedArrowLeft) { lockedArrowLeft.remove(); lockedArrowLeft = null; }
-  if (lockedArrowRight) { lockedArrowRight.remove(); lockedArrowRight = null; }
-}
-
-// ── Drop position computation (matches Phase 1 useDropZone logic) ────────
+// ── Drop position computation ────────────────────────────────────────────
 
 function getAxis(el: Element): 'vertical' | 'horizontal' {
   const style = getComputedStyle(el);
@@ -313,21 +264,19 @@ function computeDropPosition(
   return 'after';
 }
 
-// ── Hit-test: find the deepest element under cursor ──────────────────────
+// ── Hit-test ─────────────────────────────────────────────────────────────
 
 function findTarget(x: number, y: number): HTMLElement | null {
-  if (indicatorEl) indicatorEl.style.display = 'none';
+  if (dom.indicator) dom.indicator.style.display = 'none';
   const el = document.elementFromPoint(x, y);
-  if (indicatorEl) indicatorEl.style.display = '';
+  if (dom.indicator) dom.indicator.style.display = '';
   if (!el || el === document.documentElement || el === document.body) return null;
-  // Skip overlay elements
-  if (overlayHost && (el === overlayHost || overlayHost.contains(el))) return null;
-  // Skip our own indicator
-  if (indicatorEl && (el === indicatorEl || indicatorEl.contains(el))) return null;
+  if (dom.overlayHost && (el === dom.overlayHost || dom.overlayHost.contains(el))) return null;
+  if (dom.indicator && (el === dom.indicator || dom.indicator.contains(el))) return null;
   return el as HTMLElement;
 }
 
-// ── Pulse animation (injected once into document.head) ───────────────────
+// ── Pulse animation ──────────────────────────────────────────────────────
 
 function ensurePulseStyle(): void {
   if (document.getElementById('tw-drop-pulse-style')) return;
@@ -442,7 +391,6 @@ function renderIndicator(
     });
   }
 
-  // Inward-pointing arrow end-caps (>———<)
   const arrowSize = 5;
   const inset = -2;
 
@@ -480,272 +428,120 @@ function renderIndicator(
   return { arrowLeft, arrowRight };
 }
 
-// ── Indicator rendering (hover — no animation) ──────────────────────────
+// ── Hover indicator helpers ──────────────────────────────────────────────
 
-function showIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
-  if (!indicatorEl) return;
+function showDropIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
+  if (!dom.indicator) return;
 
-  if (arrowLeftEl) { arrowLeftEl.remove(); arrowLeftEl = null; }
-  if (arrowRightEl) { arrowRightEl.remove(); arrowRightEl = null; }
+  if (dom.arrowLeft) { dom.arrowLeft.remove(); dom.arrowLeft = null; }
+  if (dom.arrowRight) { dom.arrowRight.remove(); dom.arrowRight = null; }
 
   const rect = target.getBoundingClientRect();
-  const arrows = renderIndicator(indicatorEl, position, axis, rect, { zIndex: 2147483645 });
-  arrowLeftEl = arrows.arrowLeft;
-  arrowRightEl = arrows.arrowRight;
+  const arrows = renderIndicator(dom.indicator, position, axis, rect, { zIndex: 2147483645 });
+  dom.arrowLeft = arrows.arrowLeft;
+  dom.arrowRight = arrows.arrowRight;
 }
 
-function hideIndicator(): void {
-  if (indicatorEl) indicatorEl.style.display = 'none';
-  if (arrowLeftEl) { arrowLeftEl.remove(); arrowLeftEl = null; }
-  if (arrowRightEl) { arrowRightEl.remove(); arrowRightEl = null; }
-  currentTarget = null;
-  currentPosition = null;
+function hideDropIndicator(): void {
+  if (dom.indicator) dom.indicator.style.display = 'none';
+  if (dom.arrowLeft) { dom.arrowLeft.remove(); dom.arrowLeft = null; }
+  if (dom.arrowRight) { dom.arrowRight.remove(); dom.arrowRight = null; }
+  dom.currentTarget = null;
+  dom.currentPosition = null;
 }
 
-// ── Event handlers ───────────────────────────────────────────────────────
+function showElementSelectOutline(target: HTMLElement): void {
+  if (!dom.outlineEl) return;
+  const rect = target.getBoundingClientRect();
+  dom.outlineEl.style.top = `${rect.top}px`;
+  dom.outlineEl.style.left = `${rect.left}px`;
+  dom.outlineEl.style.width = `${rect.width}px`;
+  dom.outlineEl.style.height = `${rect.height}px`;
+  dom.outlineEl.style.display = 'block';
+}
+
+function hideElementSelectOutline(): void {
+  if (dom.outlineEl) dom.outlineEl.style.display = 'none';
+}
+
+function showLockedIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
+  if (!locked.indicator) return;
+  ensurePulseStyle();
+
+  if (locked.arrowLeft) { locked.arrowLeft.remove(); locked.arrowLeft = null; }
+  if (locked.arrowRight) { locked.arrowRight.remove(); locked.arrowRight = null; }
+
+  const rect = target.getBoundingClientRect();
+  const arrows = renderIndicator(locked.indicator, position, axis, rect, {
+    zIndex: 2147483644,
+    bgTint: TEAL_06,
+    animate: true,
+  });
+  locked.arrowLeft = arrows.arrowLeft;
+  locked.arrowRight = arrows.arrowRight;
+}
+
+// ── Unified event handlers ───────────────────────────────────────────────
+
+function updateCursorLabel(e: MouseEvent): void {
+  if (dom.cursorLabel) {
+    dom.cursorLabel.style.left = `${e.clientX + 14}px`;
+    dom.cursorLabel.style.top = `${e.clientY - 28}px`;
+    dom.cursorLabel.style.opacity = '1';
+  }
+}
 
 function onMouseMove(e: MouseEvent): void {
-  if (!active) return;
+  if (mode.kind === 'idle') return;
 
-  // Move cursor label near the pointer
-  if (cursorLabelEl) {
-    cursorLabelEl.style.left = `${e.clientX + 14}px`;
-    cursorLabelEl.style.top = `${e.clientY - 28}px`;
-    cursorLabelEl.style.opacity = '1';
-  }
-
+  updateCursorLabel(e);
   const target = findTarget(e.clientX, e.clientY);
 
+  if (mode.kind === 'element-select') {
+    if (!target) {
+      hideElementSelectOutline();
+      dom.currentTarget = null;
+      return;
+    }
+    dom.currentTarget = target;
+    showElementSelectOutline(target);
+    return;
+  }
+
+  // component-insert, generic-insert, browse
   if (!target) {
-    hideIndicator();
+    hideDropIndicator();
     return;
   }
 
   const parentAxis = target.parentElement ? getAxis(target.parentElement) : 'vertical';
   const rect = target.getBoundingClientRect();
-  const position = computeDropPosition(
-    { x: e.clientX, y: e.clientY },
-    rect,
-    parentAxis,
-  );
+  const position = computeDropPosition({ x: e.clientX, y: e.clientY }, rect, parentAxis);
 
-  currentTarget = target;
-  currentPosition = position;
-  showIndicator(target, position, parentAxis);
+  dom.currentTarget = target;
+  dom.currentPosition = position;
+  showDropIndicator(target, position, parentAxis);
 }
 
 function onMouseLeave(): void {
-  hideIndicator();
-  if (cursorLabelEl) cursorLabelEl.style.opacity = '0';
-}
-
-// ── Element-select mouse handlers ────────────────────────────────────────
-
-function onMouseMoveElementSelect(e: MouseEvent): void {
-  if (!active || !elementSelectMode) return;
-
-  if (cursorLabelEl) {
-    cursorLabelEl.style.left = `${e.clientX + 14}px`;
-    cursorLabelEl.style.top = `${e.clientY - 28}px`;
-    cursorLabelEl.style.opacity = '1';
-  }
-
-  const target = findTarget(e.clientX, e.clientY);
-  if (!target) {
+  if (mode.kind === 'element-select') {
     hideElementSelectOutline();
-    currentTarget = null;
-    return;
+    dom.currentTarget = null;
+  } else {
+    hideDropIndicator();
   }
-
-  currentTarget = target;
-  showElementSelectOutline(target);
-}
-
-function onMouseLeaveElementSelect(): void {
-  hideElementSelectOutline();
-  currentTarget = null;
-  if (cursorLabelEl) cursorLabelEl.style.opacity = '0';
-}
-
-function showElementSelectOutline(target: HTMLElement): void {
-  if (!elementSelectOutlineEl) return;
-  const rect = target.getBoundingClientRect();
-  elementSelectOutlineEl.style.top = `${rect.top}px`;
-  elementSelectOutlineEl.style.left = `${rect.left}px`;
-  elementSelectOutlineEl.style.width = `${rect.width}px`;
-  elementSelectOutlineEl.style.height = `${rect.height}px`;
-  elementSelectOutlineEl.style.display = 'block';
-}
-
-function hideElementSelectOutline(): void {
-  if (elementSelectOutlineEl) elementSelectOutlineEl.style.display = 'none';
+  if (dom.cursorLabel) dom.cursorLabel.style.opacity = '0';
 }
 
 function onClick(e: MouseEvent): void {
-  if (!active) return;
+  if (mode.kind === 'idle') return;
 
-  // Element-select mode — pick the element, no position needed
-  if (elementSelectMode) {
-    if (!currentTarget) return; // clicked empty area, keep waiting
-    e.preventDefault();
-    e.stopPropagation();
-    const target = currentTarget;
-    const cb = elementSelectCallback;
-    cleanup();
-    sendTo('panel', { type: 'COMPONENT_DISARMED' });
-    if (cb) cb(target);
-    return;
+  switch (mode.kind) {
+    case 'element-select': return handleElementSelectClick(e);
+    case 'browse': return handleBrowseClick(e);
+    case 'generic-insert': return handleGenericInsertClick(e);
+    case 'component-insert': return handleComponentInsertClick(e);
   }
-
-  if (!currentTarget || !currentPosition) {
-    if (browseMode) {
-      // Clicked in empty area during browse — just ignore, keep browsing
-      return;
-    }
-    cleanup();
-    sendTo('panel', { type: 'COMPONENT_DISARMED' });
-    return;
-  }
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  // Browse mode — lock the position and keep a persistent indicator
-  if (browseMode) {
-    clearLockedInsert();
-    lockedTarget = currentTarget;
-    lockedPosition = currentPosition;
-
-    // Create a persistent indicator at the locked position
-    const parentAxis = currentTarget.parentElement ? getAxis(currentTarget.parentElement) : 'vertical';
-    lockedIndicatorEl = document.createElement('div');
-    lockedIndicatorEl.style.cssText = css({ ...FIXED_OVERLAY, zIndex: Z_LOCKED });
-    document.body.appendChild(lockedIndicatorEl);
-    showLockedIndicator(currentTarget, currentPosition, parentAxis);
-
-    // Resolve target component name for the panel label
-    const fiber = getFiber(currentTarget);
-    const boundary = fiber ? findComponentBoundary(fiber) : null;
-    const targetName = boundary?.componentName ?? currentTarget.tagName.toLowerCase();
-
-    // Notify panel of the locked insertion point
-    sendTo('panel', {
-      type: 'INSERT_POINT_LOCKED',
-      position: currentPosition,
-      targetName,
-      targetTag: currentTarget.tagName.toLowerCase(),
-    });
-
-    // End browse mode (stop tracking mouse) but keep the locked indicator
-    const lockedEl = currentTarget;
-    const lockedPos = currentPosition;
-    const cb = browseOnLocked;
-    cleanup();
-
-    // Notify callback so the overlay can show toolbar at the locked target
-    if (cb) cb(lockedEl, lockedPos);
-    return;
-  }
-
-  // Generic insertion mode (e.g. canvas) — delegate to callback
-  if (insertCallback) {
-    const target = currentTarget;
-    const position = currentPosition;
-    const cb = insertCallback;
-    cleanup();
-    cb(target, position);
-    return;
-  }
-
-  // Insert the component HTML directly (no wrapper div — preserves inline flow)
-  const template = document.createElement('template');
-  template.innerHTML = ghostHtml.trim();
-  const inserted = template.content.firstElementChild as HTMLElement | null;
-  if (!inserted) {
-    cleanup();
-    sendTo('panel', { type: 'COMPONENT_DISARMED' });
-    return;
-  }
-  inserted.dataset.twDroppedComponent = componentName;
-
-  switch (currentPosition) {
-    case 'before':
-      currentTarget.insertAdjacentElement('beforebegin', inserted);
-      break;
-    case 'after':
-      currentTarget.insertAdjacentElement('afterend', inserted);
-      break;
-    case 'first-child':
-      currentTarget.insertAdjacentElement('afterbegin', inserted);
-      break;
-    case 'last-child':
-      currentTarget.appendChild(inserted);
-      break;
-  }
-
-  // Build a CSS selector for the target element
-  const targetSelector = buildSelector(currentTarget);
-
-  // Detect if the drop target is a ghost from an earlier component-drop
-  const isGhostTarget = !!currentTarget.dataset.twDroppedComponent;
-  const ghostTargetPatchId = currentTarget.dataset.twDroppedPatchId;
-  const ghostTargetName = currentTarget.dataset.twDroppedComponent;
-
-  // Also detect when the drop target is a child element INSIDE a ghost
-  const ghostAncestor = !isGhostTarget ? findGhostAncestor(currentTarget) : null;
-  const effectiveGhostName = isGhostTarget ? ghostTargetName : ghostAncestor?.dataset.twDroppedComponent;
-  const effectiveGhostPatchId = isGhostTarget ? ghostTargetPatchId : ghostAncestor?.dataset.twDroppedPatchId;
-
-  // Build rich context HTML (same as class-change and design patches)
-  const context = effectiveGhostName
-    ? `Place "${componentName}" ${currentPosition} the <${effectiveGhostName} /> component (pending insertion from an earlier drop)`
-    : buildContext(currentTarget, '', '', new Map());
-
-  // Resolve the parent React component via fiber walking
-  let parentComponent: { name: string } | undefined;
-  const fiber = getFiber(currentTarget);
-  if (fiber) {
-    const boundary = findComponentBoundary(fiber);
-    if (boundary) {
-      parentComponent = { name: boundary.componentName };
-    }
-  }
-
-  // Stage a component-drop patch
-  const patch: Patch = {
-    id: crypto.randomUUID(),
-    kind: 'component-drop',
-    elementKey: targetSelector,
-    status: 'staged',
-    originalClass: '',
-    newClass: '',
-    property: 'component-drop',
-    timestamp: new Date().toISOString(),
-    component: { name: componentName },
-    target: isGhostTarget
-      ? { tag: ghostTargetName?.toLowerCase() ?? 'unknown', classes: '', innerText: '' }
-      : {
-          tag: currentTarget.tagName.toLowerCase(),
-          classes: currentTarget.className,
-          innerText: currentTarget.innerText.slice(0, 100),
-        },
-    ghostHtml,
-    componentStoryId: storyId,
-    componentPath: componentPath || undefined,
-    componentArgs: Object.keys(componentArgs).length > 0 ? componentArgs : undefined,
-    parentComponent,
-    insertMode: currentPosition,
-    context,
-    ...(effectiveGhostPatchId ? { targetPatchId: effectiveGhostPatchId, targetComponentName: effectiveGhostName } : {}),
-  };
-
-  // Stamp the ghost with the patch ID so subsequent drops can reference it
-  inserted.dataset.twDroppedPatchId = patch.id;
-
-  send({ type: 'COMPONENT_DROPPED', patch });
-  sendTo('panel', { type: 'COMPONENT_DISARMED' });
-
-  cleanup();
 }
 
 function onKeyDown(e: KeyboardEvent): void {
@@ -755,23 +551,162 @@ function onKeyDown(e: KeyboardEvent): void {
   }
 }
 
-// ── Locked indicator (persistent, pulsing, used by browse mode) ──────────
+// ── Per-mode click handlers ──────────────────────────────────────────────
 
-function showLockedIndicator(target: HTMLElement, position: DropPosition, axis: 'vertical' | 'horizontal'): void {
-  if (!lockedIndicatorEl) return;
-  ensurePulseStyle();
+function handleElementSelectClick(e: MouseEvent): void {
+  if (!dom.currentTarget) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const target = dom.currentTarget;
+  const cb = mode.kind === 'element-select' ? mode.callback : null;
+  cleanup();
+  sendTo('panel', { type: 'COMPONENT_DISARMED' });
+  if (cb) cb(target);
+}
 
-  if (lockedArrowLeft) { lockedArrowLeft.remove(); lockedArrowLeft = null; }
-  if (lockedArrowRight) { lockedArrowRight.remove(); lockedArrowRight = null; }
+function handleBrowseClick(e: MouseEvent): void {
+  if (!dom.currentTarget || !dom.currentPosition) return;
+  e.preventDefault();
+  e.stopPropagation();
 
-  const rect = target.getBoundingClientRect();
-  const arrows = renderIndicator(lockedIndicatorEl, position, axis, rect, {
-    zIndex: 2147483644,
-    bgTint: TEAL_06,
-    animate: true,
+  clearLockedInsert();
+  locked.target = dom.currentTarget;
+  locked.position = dom.currentPosition;
+
+  const parentAxis = dom.currentTarget.parentElement ? getAxis(dom.currentTarget.parentElement) : 'vertical';
+  locked.indicator = document.createElement('div');
+  locked.indicator.style.cssText = css({ ...FIXED_OVERLAY, zIndex: Z_LOCKED });
+  document.body.appendChild(locked.indicator);
+  showLockedIndicator(dom.currentTarget, dom.currentPosition, parentAxis);
+
+  const fiber = getFiber(dom.currentTarget);
+  const boundary = fiber ? findComponentBoundary(fiber) : null;
+  const targetName = boundary?.componentName ?? dom.currentTarget.tagName.toLowerCase();
+
+  sendTo('panel', {
+    type: 'INSERT_POINT_LOCKED',
+    position: dom.currentPosition,
+    targetName,
+    targetTag: dom.currentTarget.tagName.toLowerCase(),
   });
-  lockedArrowLeft = arrows.arrowLeft;
-  lockedArrowRight = arrows.arrowRight;
+
+  const lockedEl = dom.currentTarget;
+  const lockedPos = dom.currentPosition;
+  const cb = mode.kind === 'browse' ? mode.onLocked : null;
+  cleanup();
+  if (cb) cb(lockedEl, lockedPos);
+}
+
+function handleGenericInsertClick(e: MouseEvent): void {
+  if (!dom.currentTarget || !dom.currentPosition) {
+    cleanup();
+    sendTo('panel', { type: 'COMPONENT_DISARMED' });
+    return;
+  }
+  e.preventDefault();
+  e.stopPropagation();
+
+  const target = dom.currentTarget;
+  const position = dom.currentPosition;
+  const cb = mode.kind === 'generic-insert' ? mode.callback : null;
+  cleanup();
+  if (cb) cb(target, position);
+}
+
+function handleComponentInsertClick(e: MouseEvent): void {
+  if (!dom.currentTarget || !dom.currentPosition) {
+    cleanup();
+    sendTo('panel', { type: 'COMPONENT_DISARMED' });
+    return;
+  }
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (mode.kind !== 'component-insert') return;
+
+  const { componentName: cName, storyId: sId, ghostHtml: gHtml, componentPath: cPath, componentArgs: cArgs } = mode;
+
+  const template = document.createElement('template');
+  template.innerHTML = gHtml.trim();
+  const inserted = template.content.firstElementChild as HTMLElement | null;
+  if (!inserted) {
+    cleanup();
+    sendTo('panel', { type: 'COMPONENT_DISARMED' });
+    return;
+  }
+  inserted.dataset.twDroppedComponent = cName;
+
+  const target = dom.currentTarget;
+  const position = dom.currentPosition;
+
+  switch (position) {
+    case 'before':
+      target.insertAdjacentElement('beforebegin', inserted);
+      break;
+    case 'after':
+      target.insertAdjacentElement('afterend', inserted);
+      break;
+    case 'first-child':
+      target.insertAdjacentElement('afterbegin', inserted);
+      break;
+    case 'last-child':
+      target.appendChild(inserted);
+      break;
+  }
+
+  const targetSelector = buildSelector(target);
+
+  const isGhostTarget = !!target.dataset.twDroppedComponent;
+  const ghostTargetPatchId = target.dataset.twDroppedPatchId;
+  const ghostTargetName = target.dataset.twDroppedComponent;
+  const ghostAncestor = !isGhostTarget ? findGhostAncestor(target) : null;
+  const effectiveGhostName = isGhostTarget ? ghostTargetName : ghostAncestor?.dataset.twDroppedComponent;
+  const effectiveGhostPatchId = isGhostTarget ? ghostTargetPatchId : ghostAncestor?.dataset.twDroppedPatchId;
+
+  const context = effectiveGhostName
+    ? `Place "${cName}" ${position} the <${effectiveGhostName} /> component (pending insertion from an earlier drop)`
+    : buildContext(target, '', '', new Map());
+
+  let parentComponent: { name: string } | undefined;
+  const fiber = getFiber(target);
+  if (fiber) {
+    const boundary = findComponentBoundary(fiber);
+    if (boundary) parentComponent = { name: boundary.componentName };
+  }
+
+  const patch: Patch = {
+    id: crypto.randomUUID(),
+    kind: 'component-drop',
+    elementKey: targetSelector,
+    status: 'staged',
+    originalClass: '',
+    newClass: '',
+    property: 'component-drop',
+    timestamp: new Date().toISOString(),
+    component: { name: cName },
+    target: isGhostTarget
+      ? { tag: ghostTargetName?.toLowerCase() ?? 'unknown', classes: '', innerText: '' }
+      : {
+          tag: target.tagName.toLowerCase(),
+          classes: target.className,
+          innerText: target.innerText.slice(0, 100),
+        },
+    ghostHtml: gHtml,
+    componentStoryId: sId,
+    componentPath: cPath || undefined,
+    componentArgs: Object.keys(cArgs).length > 0 ? cArgs : undefined,
+    parentComponent,
+    insertMode: position,
+    context,
+    ...(effectiveGhostPatchId ? { targetPatchId: effectiveGhostPatchId, targetComponentName: effectiveGhostName } : {}),
+  };
+
+  inserted.dataset.twDroppedPatchId = patch.id;
+
+  send({ type: 'COMPONENT_DROPPED', patch });
+  sendTo('panel', { type: 'COMPONENT_DISARMED' });
+
+  cleanup();
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -792,31 +727,22 @@ function buildSelector(el: HTMLElement): string {
   return classes ? `${tag}.${classes}` : tag;
 }
 
+// ── Cleanup (mode-agnostic) ──────────────────────────────────────────────
+
 function cleanup(): void {
-  const wasElementSelect = elementSelectMode;
-  active = false;
-  browseMode = false;
-  browseOnLocked = null;
-  insertCallback = null;
-  elementSelectMode = false;
-  elementSelectCallback = null;
+  mode = { kind: 'idle' };
   document.documentElement.style.cursor = '';
 
-  if (wasElementSelect) {
-    document.removeEventListener('mousemove', onMouseMoveElementSelect);
-    document.documentElement.removeEventListener('mouseleave', onMouseLeaveElementSelect);
-  } else {
-    document.removeEventListener('mousemove', onMouseMove);
-    document.documentElement.removeEventListener('mouseleave', onMouseLeave);
-  }
+  document.removeEventListener('mousemove', onMouseMove);
+  document.documentElement.removeEventListener('mouseleave', onMouseLeave);
   document.removeEventListener('click', onClick, true);
   document.removeEventListener('keydown', onKeyDown);
 
-  if (cursorLabelEl) { cursorLabelEl.remove(); cursorLabelEl = null; }
-  if (indicatorEl) { indicatorEl.remove(); indicatorEl = null; }
-  if (elementSelectOutlineEl) { elementSelectOutlineEl.remove(); elementSelectOutlineEl = null; }
-  arrowLeftEl = null;
-  arrowRightEl = null;
-  currentTarget = null;
-  currentPosition = null;
+  if (dom.cursorLabel) { dom.cursorLabel.remove(); dom.cursorLabel = null; }
+  if (dom.indicator) { dom.indicator.remove(); dom.indicator = null; }
+  if (dom.outlineEl) { dom.outlineEl.remove(); dom.outlineEl = null; }
+  dom.arrowLeft = null;
+  dom.arrowRight = null;
+  dom.currentTarget = null;
+  dom.currentPosition = null;
 }

@@ -25,7 +25,7 @@ import {
 import { connect, onMessage, send, sendTo } from "./ws";
 import { state, resolveTab } from "./overlay-state";
 import { highlightElement, clearHighlights, clearHoverPreview, mouseMoveHandler } from "./element-highlight";
-import { showDrawButton, positionWithFlip, initToolbar } from "./element-toolbar";
+import { showDrawButton, positionWithFlip, positionBothMenus, initToolbar } from "./element-toolbar";
 import { injectDesignCanvas, handleCaptureScreenshot, handleDesignSubmitted, handleDesignClose, initDesignCanvasManager } from "./design-canvas-manager";
 import { RecordingEngine } from "./recording/recording-engine";
 import type { BugReportElement } from "../../shared/types";
@@ -165,30 +165,98 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 	const classString =
 		typeof targetEl.className === "string" ? targetEl.className : "";
 
-	// Use the new exact-match grouping logic
+	// ── Add-mode: toggle element in/out of selection ──
+	if (state.addMode) {
+		if (state.manuallyAddedNodes.has(targetEl)) {
+			state.manuallyAddedNodes.delete(targetEl);
+		} else {
+			state.manuallyAddedNodes.add(targetEl);
+		}
+		// Update highlights without rebuilding the toolbar/picker
+		if (!state.currentTargetEl) return;
+		const allNodes = [state.currentTargetEl];
+		for (const n of state.manuallyAddedNodes) {
+			if (!allNodes.includes(n)) allNodes.push(n);
+		}
+		state.currentEquivalentNodes = allNodes;
+		// Remove only highlight overlays — NOT the toolbar/picker
+		state.shadowRoot
+			.querySelectorAll(".highlight-overlay")
+			.forEach((el) => el.remove());
+		for (const n of allNodes) {
+			highlightElement(n);
+		}
+		if (state.currentBoundary) {
+			sendTo("panel", {
+				type: "ELEMENT_SELECTED",
+				componentName: state.currentBoundary.componentName,
+				instanceCount: allNodes.length,
+				classes:
+					typeof state.currentTargetEl.className === "string"
+						? state.currentTargetEl.className
+						: "",
+				tailwindConfig: state.tailwindConfigCache,
+			});
+		}
+		// Refresh picker UI (count chip, etc.) if open
+		state.pickerRefreshCallback?.();
+		return;
+	}
+
+	// ── Shift+click: toggle element in/out of current selection ──
+	if (e.shiftKey && state.currentTargetEl) {
+		const idx = state.currentEquivalentNodes.indexOf(targetEl);
+		if (idx !== -1) {
+			state.currentEquivalentNodes.splice(idx, 1);
+		} else {
+			state.currentEquivalentNodes.push(targetEl);
+			state.manuallyAddedNodes.add(targetEl);
+		}
+		clearHighlights();
+		for (const node of state.currentEquivalentNodes) {
+			highlightElement(node);
+		}
+		showDrawButton(state.currentTargetEl);
+		if (state.currentBoundary) {
+			sendTo("panel", {
+				type: "ELEMENT_SELECTED",
+				componentName: state.currentBoundary.componentName,
+				instanceCount: state.currentEquivalentNodes.length,
+				classes:
+					typeof state.currentTargetEl.className === "string"
+						? state.currentTargetEl.className
+						: "",
+				tailwindConfig: state.tailwindConfigCache,
+			});
+		}
+		return;
+	}
+
+	// ── Normal click: select single element ──
 	const result = findExactMatches(targetEl, state.shadowHost);
 	const componentName = result.componentName ?? targetEl.tagName.toLowerCase();
 
 	clearHighlights();
-	for (const node of result.exactMatch) {
-		highlightElement(node);
-	}
+	// Only highlight the clicked element (not all exact matches)
+	highlightElement(targetEl);
 
 	// Fetch tailwind config (cached after first fetch)
 	const config = await fetchTailwindConfig();
 
-	// Store selection state for Patcher WS handlers
-	state.currentEquivalentNodes = result.exactMatch;
+	// Store selection state — single element only
+	state.currentEquivalentNodes = [targetEl];
 	state.currentTargetEl = targetEl;
 	state.currentBoundary = { componentName };
-	state.cachedNearGroups = null; // Reset cached groups for new selection
+	state.cachedNearGroups = null;
+	state.cachedExactMatches = result.exactMatch;
+	state.manuallyAddedNodes = new Set<HTMLElement>();
 
 	// Build instances metadata for context
-	state.currentInstances = result.exactMatch.map((node, i) => ({
-		index: i,
-		label: (node.innerText || "").trim().slice(0, 40) || `#${i + 1}`,
-		parent: node.parentElement?.tagName.toLowerCase() ?? "",
-	}));
+	state.currentInstances = [{
+		index: 0,
+		label: (targetEl.innerText || "").trim().slice(0, 40) || `#1`,
+		parent: targetEl.parentElement?.tagName.toLowerCase() ?? "",
+	}];
 
 	// Selection complete — deactivate hover preview and selection mode cursor
 	clearHoverPreview();
@@ -211,11 +279,43 @@ async function clickHandler(e: MouseEvent): Promise<void> {
 	sendTo("panel", {
 		type: "ELEMENT_SELECTED",
 		componentName,
-		instanceCount: result.exactMatch.length,
+		instanceCount: 1,
 		classes: classString,
 		tailwindConfig: resolvedConfig,
 	});
 }
+
+/**
+ * Rebuild currentEquivalentNodes from the base target + manually added nodes.
+ * Used by add-mode and the group picker to unify all selection sources.
+ */
+function rebuildSelectionFromSources(): void {
+	if (!state.currentTargetEl) return;
+	const allNodes = [state.currentTargetEl];
+	for (const n of state.manuallyAddedNodes) {
+		if (!allNodes.includes(n)) allNodes.push(n);
+	}
+	state.currentEquivalentNodes = allNodes;
+	clearHighlights();
+	for (const n of allNodes) {
+		highlightElement(n);
+	}
+	showDrawButton(state.currentTargetEl);
+	if (state.currentBoundary) {
+		sendTo("panel", {
+			type: "ELEMENT_SELECTED",
+			componentName: state.currentBoundary.componentName,
+			instanceCount: allNodes.length,
+			classes:
+				typeof state.currentTargetEl.className === "string"
+					? state.currentTargetEl.className
+					: "",
+			tailwindConfig: state.tailwindConfigCache,
+		});
+	}
+}
+
+export { rebuildSelectionFromSources };
 
 function setSelectMode(on: boolean): void {
 	state.selectModeOn = on;
@@ -230,6 +330,24 @@ function setSelectMode(on: boolean): void {
 		clearHoverPreview();
 	}
 	sendTo("panel", { type: "SELECT_MODE_CHANGED", active: on });
+}
+
+/**
+ * Enter or exit add-mode: registers click + hover handlers so the user
+ * can click elements to add them to the selection.
+ */
+function setAddMode(on: boolean): void {
+	state.addMode = on;
+	if (on) {
+		document.documentElement.style.cursor = "crosshair";
+		document.addEventListener("click", clickHandler, { capture: true });
+		document.addEventListener("mousemove", mouseMoveHandler, { passive: true });
+	} else {
+		document.documentElement.style.cursor = "";
+		document.removeEventListener("click", clickHandler, { capture: true });
+		document.removeEventListener("mousemove", mouseMoveHandler);
+		clearHoverPreview();
+	}
 }
 
 const PANEL_OPEN_KEY = "tw-inspector-panel-open";
@@ -310,7 +428,7 @@ function init(): void {
 	state.shadowRoot.appendChild(style);
 
 	// Wire up toolbar callbacks (avoids circular deps)
-	initToolbar({ setSelectMode, showToast, onBrowseLocked });
+	initToolbar({ setSelectMode, showToast, onBrowseLocked, rebuildSelectionFromSources, setAddMode });
 	initDesignCanvasManager({ serverOrigin: SERVER_ORIGIN, showToast });
 
 	// Initialize containers
@@ -332,9 +450,14 @@ function init(): void {
 	}
 	state.shadowRoot.appendChild(btn);
 
-	// Escape key — deselect element (keep mode), or deactivate mode if no element
+	// Escape key — exit add-mode, deselect element (keep mode), or deactivate mode
 	document.addEventListener("keydown", (e) => {
 		if (e.key === "Escape") {
+			// Exit add-mode first if active
+			if (state.addMode) {
+				setAddMode(false);
+				return;
+			}
 			if (state.currentTargetEl) {
 				// Deselect element, stay in current mode
 				revertPreview();
@@ -343,6 +466,9 @@ function init(): void {
 				state.currentTargetEl = null;
 				state.currentBoundary = null;
 				state.cachedNearGroups = null;
+				state.cachedExactMatches = null;
+				state.manuallyAddedNodes = new Set<HTMLElement>();
+				state.addMode = false;
 				sendTo("panel", { type: "RESET_SELECTION" });
 				// Re-enter selection/browse mode
 				if (state.currentMode === 'select') {
@@ -646,7 +772,7 @@ function init(): void {
 			state.currentEquivalentNodes.forEach((n) => highlightElement(n));
 		}
 		if (state.toolbarEl && state.currentTargetEl) {
-			positionWithFlip(state.currentTargetEl, state.toolbarEl);
+			positionBothMenus(state.currentTargetEl, state.toolbarEl, state.msgRowEl);
 		}
 	});
 
@@ -660,7 +786,7 @@ function init(): void {
 				state.currentEquivalentNodes.forEach((n) => highlightElement(n));
 			}
 			if (state.toolbarEl && state.currentTargetEl) {
-				positionWithFlip(state.currentTargetEl, state.toolbarEl);
+				positionBothMenus(state.currentTargetEl, state.toolbarEl, state.msgRowEl);
 			}
 		},
 		{ capture: true, passive: true },

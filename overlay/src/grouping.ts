@@ -8,6 +8,9 @@ import {
   getRootFiberFrom,
   findAllInstances,
   getDOMNode,
+  getChildPath,
+  resolvePathToDOM,
+  buildPathLabel,
 } from './fiber';
 
 export interface ElementGroup {
@@ -265,4 +268,40 @@ function collectHostNodes(fiber: any, tagName: string, out: HTMLElement[]): void
 function isInShadowHost(el: HTMLElement, shadowHost: HTMLElement | null): boolean {
   if (!shadowHost) return false;
   return shadowHost.contains(el);
+}
+
+export interface PathMatchResult {
+  elements: HTMLElement[];
+  label: string;
+}
+
+/**
+ * Find all elements at the same structural position (child-index path) across
+ * all instances of the same React component. Returns null for non-React elements.
+ */
+export function findSamePathElements(
+  clickedEl: HTMLElement,
+): PathMatchResult | null {
+  const fiber = getFiber(clickedEl);
+  if (!fiber) return null;
+
+  const boundary = findComponentBoundary(fiber);
+  if (!boundary) return null;
+
+  const { label, path } = buildPathLabel(fiber, boundary);
+
+  const rootFiber = getRootFiberFrom(boundary.componentFiber) ?? getRootFiber();
+  if (!rootFiber) return null;
+
+  const instances = findAllInstances(rootFiber, boundary.componentType);
+  const elements: HTMLElement[] = [];
+
+  for (const inst of instances) {
+    const node = resolvePathToDOM(inst, path);
+    if (node && !elements.includes(node)) {
+      elements.push(node);
+    }
+  }
+
+  return elements.length > 0 ? { elements, label } : null;
 }

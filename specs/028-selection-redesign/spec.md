@@ -9,20 +9,20 @@ Clicking an element currently auto-selects all exact className matches within th
 
 The existing `+` dropdown shows "near groups" based on class diffs, but in practice the variant buttons never appear — the React-scoped candidate collection finds them, but the user reports zero results despite `MAX_DIFF = 10`. The root cause is under investigation (see Debugging section).
 
-## Current Behavior (as of v0.11.3)
+## Current Behavior
 
-1. **Click** → `findExactMatches()` runs immediately, finds all elements with identical `tagName + className` within the same React component scope (or page-wide for non-React).
-2. All exact matches are highlighted with teal pulsing borders.
-3. Toolbar shows `N +` badge.
-4. Clicking `+` → `computeNearGroups()` runs lazily, grouping candidates by class diff signature, filtered to `totalDiff ≤ MAX_DIFF (10)`.
-5. Dropdown shows groups with diff tokens (`+added -removed`); hover previews; checkbox toggles add to selection.
+1. **Click** → `clickHandler()` in `overlay/src/index.ts` (~L143) calls `findExactMatches()` from `overlay/src/grouping.ts`, finds all elements with identical `tagName + className` within the same React component scope (or page-wide for non-React).
+2. All exact matches are highlighted — `state.currentEquivalentNodes` is set to the full `result.exactMatch` array.
+3. Toolbar shows `N +` badge via `showDrawButton()` from `overlay/src/element-toolbar.ts`.
+4. Clicking `+` → `showGroupPicker()` (~L277 in `element-toolbar.ts`) calls `computeNearGroups()` lazily, grouping candidates by class diff signature, filtered to `totalDiff ≤ MAX_DIFF (10)`.
+5. Dropdown shows exact-match summary, "Similar" divider, then group rows with diff tokens (`+added -removed`); hover previews; checkbox toggles add to selection via `updateSelection()`.
 
 ### Known Issues Being Debugged
 
 - Button variants (Primary, Secondary, Ghost, etc.) that are all `<Button> button[0]` but with different classNames **do not appear** in the "Similar" dropdown despite having diffs of 6–8 (well within `MAX_DIFF=10`).
 - Suspected causes:
   1. `findComponentBoundary` resolves to a wrapper component (not `Button`) that has only one instance — so all variant buttons are candidates, but the React-scoped scan finds them within a single instance and the diff/filter logic is correct, yet something else prevents them from showing.
-  2. CSS selector escaping fails for special Tailwind chars (`[`, `/`, `var()`) in the non-React path.
+  2. CSS selector escaping fails for special Tailwind chars (`[`, `/`, `var()`) in the non-React path — though `grouping.ts` now has a `cssEscape()` helper with `CSS.escape` + regex fallback.
   3. The component detection fails entirely on the user's app and falls into the non-React path, where `MAX_CANDIDATES = 200` is hit before the relevant elements are reached.
 
 ---
@@ -82,12 +82,12 @@ Shift+clicking a currently-selected element removes it from the selection (toggl
 
 ### Phase 1 — Single-element selection on click
 
-**File:** `overlay/src/index.ts` — `clickHandler()` (~L1087)
+**File:** `overlay/src/index.ts` — `clickHandler()` (~L143)
 
 - Set `currentEquivalentNodes = [targetEl]` (not `result.exactMatch`)
 - Highlight only the clicked element
 - Send `ELEMENT_SELECTED` with `instanceCount: 1`
-- Cache `result` as `cachedGroupingResult` so the dropdown can reuse it
+- Cache `result.exactMatch` in a new `state.cachedExactMatches` field so the dropdown can offer "All exact matches (N)" without re-computing
 
 ### Phase 2 — Structural path matching
 
@@ -97,6 +97,8 @@ Shift+clicking a currently-selected element removes it from the selection (toggl
 - Build label like `Button > button[0] > span[0]`
 - Return `{ label: string, path: number[] }`
 
+> **Existing code to leverage:** `getChildPath()` already returns `number[]` of sibling indices. `resolvePathToDOM()` follows that path within another instance. `findDOMEquivalents()` (~L319) already locates equivalent DOM nodes across component instances using tag+className descent — this could be adapted or called as a fallback. `findInlineRepeatedNodes()` (~L235) handles the inline `.map()` case.
+
 **File:** `overlay/src/grouping.ts` — new `findSamePathElements()`
 - Use `getFiber` + `findComponentBoundary` to get component scope
 - Use `getChildPath` for the structural path
@@ -105,20 +107,25 @@ Shift+clicking a currently-selected element removes it from the selection (toggl
 
 ### Phase 3 — Rebuild `+` dropdown
 
-**File:** `overlay/src/index.ts` — `showGroupPicker()` (~L686)
-- Add "All exact matches" row with toggle checkbox
+**File:** `overlay/src/element-toolbar.ts` — `showGroupPicker()` (~L277)
+- Add "All exact matches" row with toggle checkbox (below the current exact match summary or replacing it)
 - Add "All [path]" row with toggle checkbox (React only)
 - Add "Click to add…" button
 - Keep existing "Similar" section below
-- `updateSelection()` unions element sets from exact-match, path-match, manual-add, and near-groups
+- `updateSelection()` (~L365 in same file) unions element sets from exact-match, path-match, manual-add, and near-groups
 
 ### Phase 4 — Click-to-add mode + shift+click
 
-**File:** `overlay/src/index.ts`
-- New state: `addMode: boolean`, `manuallyAddedNodes: Set<HTMLElement>`
-- Add-mode: clicking adds/removes elements (toggle), cursor becomes crosshair
-- Shift+click: always adds/removes regardless of add-mode
-- Exit add-mode: Escape key or `+` button re-click
+**File:** `overlay/src/overlay-state.ts` — add new state fields:
+- `addMode: boolean` (default `false`)
+- `manuallyAddedNodes: Set<HTMLElement>` (default empty)
+- `cachedExactMatches: HTMLElement[] | null` (stores full exact-match set from Phase 1)
+
+**File:** `overlay/src/index.ts` — modify `clickHandler()` (~L143):
+- If `state.addMode` is true: toggle clicked element in `manuallyAddedNodes`, update highlights, skip normal select flow
+- If `e.shiftKey`: toggle clicked element in current selection (add if absent, remove if present)
+- Reuse existing `setSelectMode()` (~L215) to toggle crosshair cursor
+- Exit add-mode: Escape key (modify keydown handler ~L336) or `+` button re-click
 
 ### Phase 5 — Update E2E tests
 
@@ -150,36 +157,26 @@ Shift+clicking a currently-selected element removes it from the selection (toggl
 
 ## Debugging: Why Don't Similar Groups Appear?
 
-Before implementing the redesign, we need to understand why button variants don't appear in the current "Similar" dropdown.
+> **Status:** Console logs are already in place in `grouping.ts` (~L160–174). The React path logs component name, tag, and candidate count. The non-React path logs tag and candidate count. No additional instrumentation needed — just open DevTools and reproduce.
 
 ### What to check
 
 1. **Does `findComponentBoundary` find `Button` or a wrapper?**
-
-   Open the browser console on your app, select a button, and run:
-   ```js
-   // After clicking, in the overlay's execution context:
-   // Check what componentName is sent to panel — if it's not "Button"
-   // the boundary resolved to a wrapper with only 1 instance
-   ```
-   Check the "component name" shown in the panel header after clicking.
+   Check the component name shown in the panel header after clicking. In the console, look for `[grouping] React path — component: <name>` to confirm.
 
 2. **Does `computeNearGroups` find any candidates?**
-
-   Add a temporary `console.log` in `grouping.ts` after the `candidates` array is built (line ~170) to see how many candidates are found and what their tagNames are.
+   Console already logs candidate counts. Look for `[grouping] React path` or `[grouping] Non-React path` messages.
 
 3. **Is the React path or non-React path taken?**
-
-   Check whether `getFiber(clickedEl)` returns non-null. If fiber detection fails (e.g. on an Astro page or an app using a different React root ID), the code falls into the non-React path where `MAX_CANDIDATES = 200` may be exhausted.
+   If you see `[grouping] React path`, fiber detection succeeded. If `[grouping] Non-React path`, fiber detection failed (e.g. Astro, non-standard React root ID). The non-React path caps at `MAX_CANDIDATES = 200`.
 
 4. **CSS escape issue in non-React path?**
-
-   The non-React path builds selectors like `button.inline-flex.items-center.tracking-\[0\.03em\]`. Special Tailwind chars (`[`, `]`, `/`, `,`) must be escaped via `CSS.escape`. Verify `CSS.escape` is available in the context.
+   `grouping.ts` has a `cssEscape()` helper (~L33) that uses `CSS.escape` with a regex fallback. This should handle Tailwind's special chars.
 
 ### Recommended debug steps
 
 1. Click a Primary button in your app
 2. Open DevTools console
 3. Check the component name shown in the panel — is it `Button` or something else?
-4. Open `+ ▲` dropdown — are there zero rows in the "Similar" section?
-5. Add `console.log('candidates:', candidates.length, candidates.map(n => n.tagName + '.' + [...n.classList].join('.')))` after line 170 in `grouping.ts`, rebuild, and repeat
+4. Open `+ ▼` dropdown — are there zero rows in the "Similar" section?
+5. Read the console logs for candidate count and component path info

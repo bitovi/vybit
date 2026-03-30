@@ -112,6 +112,38 @@ export function findAllInstances(rootFiber: any, componentType: any): any[] {
 }
 
 /**
+ * Build a human-readable structural path label from a target fiber up to the component boundary.
+ * Example output: `Button > button[0] > span[0]`
+ * Returns `{ label, path }` where path is the numeric child-index array.
+ */
+export function buildPathLabel(
+  targetFiber: any,
+  boundary: ComponentInfo,
+): { label: string; path: number[] } {
+  const path = getChildPath(boundary.componentFiber, targetFiber);
+
+  // Walk from component boundary down to target, collecting tag names
+  const segments: string[] = [boundary.componentName];
+  let current = boundary.componentFiber;
+  for (const index of path) {
+    current = current.child;
+    if (!current) break;
+    for (let i = 0; i < index; i++) {
+      if (!current) break;
+      current = current.sibling;
+    }
+    if (!current) break;
+    // Use the tag name (for host elements) or component name
+    const tag = typeof current.type === 'string'
+      ? current.type
+      : current.type?.displayName || current.type?.name || '?';
+    segments.push(`${tag}[${index}]`);
+  }
+
+  return { label: segments.join(' > '), path };
+}
+
+/**
  * Compute the child-index path from componentFiber down to targetFiber.
  * Walk from targetFiber up via .return, recording the sibling index at each level.
  */
