@@ -137,7 +137,7 @@ export function PatchPopover({
 
 			{open && (
 				<div
-					className="absolute bottom-full mb-1 min-w-[220px] bg-bv-surface border border-bv-border rounded-lg shadow-lg overflow-hidden flex flex-col z-[9999]"
+					className="absolute bottom-full mb-1 min-w-[220px] max-w-[calc(100vw-24px)] w-max bg-bv-surface border border-bv-border rounded-lg shadow-lg overflow-hidden flex flex-col z-[9999]"
 					style={
 						popoverLeft !== undefined ? { left: `${popoverLeft}px` } : undefined
 					}
@@ -159,18 +159,31 @@ export function PatchPopover({
 								const isDesign = "kind" in item && item.kind === "design";
 								const isComponentDrop = "kind" in item && item.kind === "component-drop";
 								const isTextChange = "kind" in item && item.kind === "text-change";
+								const isBugReport = "kind" in item && item.kind === "bug-report";
 								return (
 									<div
 										key={item.id}
 										className="flex items-center gap-1.5 px-3 py-1.5 border-b border-bv-border last:border-b-0 group"
 									>
 										<div className="flex-1 min-w-0">
-											{!isMessage && !isDesign && !isComponentDrop && !isTextChange && item.component?.name && (
+											{!isMessage && !isDesign && !isComponentDrop && !isTextChange && !isBugReport && item.component?.name && (
 												<div className="text-[10px] text-bv-muted truncate">
 													{item.component.name}
 												</div>
 											)}
-											{isComponentDrop ? (
+											{isBugReport ? (
+												<div className="text-[11px] text-bv-text">
+													<div className="flex items-center gap-1.5">
+														<span>🐛</span>
+														<span className="font-semibold">Bug Report</span>
+													</div>
+													{"bugDescription" in item && item.bugDescription && (
+														<div className="text-[10px] text-bv-muted mt-0.5 whitespace-pre-wrap break-words line-clamp-3">
+															{(item.bugDescription as string).slice(0, 200)}
+														</div>
+													)}
+												</div>
+											) : isComponentDrop ? (
 												<div className="text-[11px] text-bv-text truncate">
 												{describeComponentDrop(item)}
 												</div>

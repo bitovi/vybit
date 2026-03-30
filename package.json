@@ -55,6 +55,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "cors": "^2.8.5",
+    "diff": "^8.0.4",
     "express": "^4.21.0",
     "http-proxy-middleware": "^3.0.5",
     "tsx": "^4.21.0",
@@ -64,9 +65,11 @@
   "devDependencies": {
     "@floating-ui/dom": "^1.6.0",
     "@types/cors": "^2.8.0",
+    "@types/diff": "^7.0.2",
     "@types/express": "^5.0.0",
     "@types/ws": "^8.5.0",
     "esbuild": "^0.27.4",
+    "fake-indexeddb": "^6.2.5",
     "html-to-image": "^1.11.13",
     "jsdom": "^29.0.1",
     "typescript": "^5.6.0",

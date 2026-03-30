@@ -6,6 +6,7 @@ import { ContainerSwitcher } from "./components/ContainerSwitcher";
 import { DrawTab } from "./components/DrawTab";
 import { ModeToggle } from "./components/ModeToggle";
 import { PatchPopover } from "./components/PatchPopover";
+import { BugReportMode } from "./components/BugReportMode";
 import type { Tab } from "./components/TabBar";
 import { TabBar } from "./components/TabBar";
 import { usePatchManager } from "./hooks/usePatchManager";
@@ -16,6 +17,7 @@ import {
 	onConnect,
 	onDisconnect,
 	onMessage,
+	send,
 	sendTo,
 } from "./ws";
 
@@ -396,6 +398,7 @@ function InspectorApp() {
 					count={committed}
 					items={committedCommits.flatMap((c) => c.patches)}
 					activeColor="text-bv-orange"
+					onDiscard={(id: string) => patchManager.discardCommit(id)}
 				/>
 				<PatchPopover
 					label="implementing"
@@ -474,7 +477,74 @@ function InspectorApp() {
 								Insert to add new content
 							</span>
 						</button>
+						<button
+							onClick={() => handleModeChange('bug-report')}
+							className="w-full flex flex-col items-center gap-3 px-6 py-4 rounded-lg border border-bv-border bg-bv-surface hover:border-bv-teal hover:bg-bv-teal/5 transition-all cursor-pointer"
+						>
+							<div className="w-14 h-14 rounded-full bg-bv-teal/10 text-bv-teal flex items-center justify-center">
+								<svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+									<path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/>
+									<rect x="3" y="8" width="10" height="6" rx="2"/>
+									<path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/>
+									<path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/>
+									<path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/>
+									<path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/>
+									<path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/>
+									<path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/>
+									<rect x="7" y="9" width="2" height="4" rx=".5"/>
+								</svg>
+							</div>
+							<span className="text-[13px] text-bv-text font-medium">
+								Report a bug
+							</span>
+							<span className="text-[11px] text-bv-text-mid text-center leading-relaxed">
+								Select events from recording history and describe the issue
+							</span>
+						</button>
 					</div>
+					{queueFooter}
+				</div>
+			);
+		}
+
+		// Bug Report mode — full-panel timeline UI (no element selection needed)
+		if (mode === 'bug-report') {
+			return (
+				<div className="h-full flex flex-col">
+					<div className="px-3 pt-3 pb-2 border-b border-bv-border">
+						<div className="flex items-center justify-between gap-2">
+							<ModeToggle
+								mode={mode}
+								onModeChange={handleModeChange}
+							/>
+							<div className="flex-1 min-w-0">
+								<span className="font-[family-name:var(--font-display)] font-bold text-[13px] text-bv-text leading-tight">
+									Bug Report
+								</span>
+							</div>
+							{!isEmbeddedInStorybook && <ContainerSwitcher />}
+						</div>
+					</div>
+					<BugReportMode
+						onSubmit={(data) => {
+							const patch = {
+								id: crypto.randomUUID(),
+								kind: 'bug-report' as const,
+								elementKey: data.bugElement?.selectorPath ?? 'bug-report',
+								status: 'staged' as const,
+								originalClass: '',
+								newClass: '',
+								property: 'bug-report',
+								timestamp: new Date().toISOString(),
+								bugDescription: data.bugDescription,
+								bugScreenshots: data.bugScreenshots,
+								bugTimeline: data.bugTimeline,
+								bugTimeRange: data.bugTimeRange,
+								bugElement: data.bugElement,
+							};
+							send({ type: 'BUG_REPORT_STAGE', patch });
+						}}
+					/>
 					{queueFooter}
 				</div>
 			);

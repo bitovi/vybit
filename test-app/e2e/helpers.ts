@@ -74,11 +74,11 @@ export async function clickSelectElementButton(frame: Frame): Promise<void> {
 
     if (foundContentBtn) return;
 
-    // Try ModeToggle's "Select" button (aria-pressed, exact text match)
+    // Try ModeToggle's "Select" button (aria-pressed, title-based match for icon-only buttons)
     const foundModeToggle = await frame.evaluate(() => {
       const btns = document.querySelectorAll('button[aria-pressed]');
       for (const b of btns) {
-        if (b.textContent?.trim() === 'Select') {
+        if (b.textContent?.trim() === 'Select' || b.getAttribute('title')?.includes('Select')) {
           (b as HTMLButtonElement).click();
           return true;
         }

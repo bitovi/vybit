@@ -28,7 +28,7 @@ export interface CanvasComponent {
   height: number;
 }
 
-export type PatchKind = 'class-change' | 'message' | 'design' | 'component-drop' | 'text-change';
+export type PatchKind = 'class-change' | 'message' | 'design' | 'component-drop' | 'text-change' | 'bug-report';
 
 export type PatchStatus = 'staged' | 'committed' | 'implementing' | 'implemented' | 'error';
 
@@ -67,6 +67,12 @@ export interface Patch {
   parentComponent?: { name: string }; // React component that contains the drop target
   targetPatchId?: string;    // If target is a ghost from an earlier drop, references that patch
   targetComponentName?: string; // Name of the ghost component being referenced
+  // Bug-report fields (used when kind === 'bug-report'):
+  bugDescription?: string;
+  bugScreenshots?: string[];
+  bugTimeline?: BugTimelineEntry[];
+  bugTimeRange?: { start: string; end: string };
+  bugElement?: BugReportElement | null;
   // Commit reference:
   commitId?: string;         // Set when committed into a Commit
 }
@@ -103,6 +109,8 @@ export interface PatchSummary {
   // Text-change display fields:
   originalHtml?: string;
   newHtml?: string;
+  // Bug-report display fields:
+  bugDescription?: string;
 }
 
 export interface CommitSummary {
@@ -368,7 +376,7 @@ export interface ComponentDisarmedMessage {
 // Mode sync messages
 // ---------------------------------------------------------------------------
 
-export type AppMode = 'select' | 'insert' | null;
+export type AppMode = 'select' | 'insert' | 'bug-report' | null;
 export type SelectTab = 'design' | 'replace';
 export type InsertTab = 'place';
 export type PanelTab = SelectTab | InsertTab;
@@ -476,4 +484,196 @@ export type AnyMessage =
   | TextEditActiveMessage
   | TextEditDoneMessage
   | PingMessage
-  | PongMessage;
+  | PongMessage
+  | RecordingGetHistoryMessage
+  | RecordingHistoryMessage
+  | RecordingGetSnapshotMessage
+  | RecordingSnapshotMessage
+  | RecordingGetRangeMessage
+  | RecordingRangeMessage
+  | RecordingSnapshotMetaMessage
+  | BugReportPickElementMessage
+  | BugReportElementPickedMessage
+  | BugReportPickCancelledMessage
+  | BugReportStageMessage;
+
+// ---------------------------------------------------------------------------
+// Recording / Bug Report types
+// ---------------------------------------------------------------------------
+
+export interface ConsoleEntry {
+  level: 'log' | 'warn' | 'error' | 'info';
+  args: string[];
+  timestamp: string;
+  stack?: string;
+}
+
+export interface NetworkError {
+  url: string;
+  method: string;
+  status?: number;
+  statusText?: string;
+  errorMessage?: string;
+  timestamp: string;
+}
+
+export interface BugReportElement {
+  tag: string;
+  id?: string;
+  classes: string;
+  selectorPath: string;
+  componentName?: string;
+  outerHTML: string;
+  boundingBox: { x: number; y: number; width: number; height: number };
+  screenshot?: string;
+}
+
+export type SnapshotTrigger = 'mutation' | 'click' | 'error' | 'navigation' | 'page-load';
+
+export interface NavigationInfo {
+  from: string;
+  to: string | null;
+  method: 'pushState' | 'replaceState' | 'popstate' | 'full-page';
+}
+
+/** A structured description of a single DOM mutation */
+export interface DomChange {
+  type: 'attribute' | 'text' | 'childList';
+  selector: string;
+  componentName?: string;
+  /** attribute changes */
+  attributeName?: string;
+  oldValue?: string;
+  newValue?: string;
+  /** text changes */
+  oldText?: string;
+  newText?: string;
+  /** childList changes */
+  addedCount?: number;
+  removedCount?: number;
+  addedHTML?: string;
+  removedHTML?: string;
+}
+
+/** A single chronological event in a bug report timeline */
+export interface BugTimelineEntry {
+  timestamp: string;
+  trigger: SnapshotTrigger;
+  url: string;
+  consoleLogs?: ConsoleEntry[];
+  networkErrors?: NetworkError[];
+  domChanges?: DomChange[];
+  domSnapshot?: string;
+  domDiff?: string;
+  hasScreenshot?: boolean;
+  elementInfo?: { tag: string; classes: string; id?: string; innerText?: string; componentName?: string };
+  navigationInfo?: NavigationInfo;
+}
+
+export interface RecordingSnapshot {
+  id?: number;
+  timestamp: string;
+  trigger: SnapshotTrigger;
+  isKeyframe: boolean;
+  domSnapshot?: string;
+  domDiff?: string;
+  domChanges?: DomChange[];
+  screenshot?: string;
+  thumbnail?: string;
+  consoleLogs: ConsoleEntry[];
+  networkErrors: NetworkError[];
+  url: string;
+  scrollPosition: { x: number; y: number };
+  viewportSize: { width: number; height: number };
+  elementInfo?: { tag: string; classes: string; id?: string; innerText?: string; componentName?: string };
+  navigationInfo?: NavigationInfo;
+}
+
+export interface SnapshotMeta {
+  id: number;
+  timestamp: string;
+  trigger: SnapshotTrigger;
+  isKeyframe: boolean;
+  thumbnail?: string;
+  elementInfo?: RecordingSnapshot['elementInfo'];
+  consoleErrorCount: number;
+  networkErrorCount: number;
+  url: string;
+}
+
+// ---------------------------------------------------------------------------
+// Recording / Bug Report WebSocket messages
+// ---------------------------------------------------------------------------
+
+/** Panel → Overlay (via server relay): request recording history */
+export interface RecordingGetHistoryMessage {
+  type: 'RECORDING_GET_HISTORY';
+  to: 'overlay';
+}
+
+/** Overlay → Panel (via server relay): recording history response */
+export interface RecordingHistoryMessage {
+  type: 'RECORDING_HISTORY';
+  to: 'panel';
+  snapshots: SnapshotMeta[];
+}
+
+/** Panel → Overlay (via server relay): request full snapshot by ID */
+export interface RecordingGetSnapshotMessage {
+  type: 'RECORDING_GET_SNAPSHOT';
+  to: 'overlay';
+  snapshotId: number;
+}
+
+/** Overlay → Panel (via server relay): full snapshot response */
+export interface RecordingSnapshotMessage {
+  type: 'RECORDING_SNAPSHOT';
+  to: 'panel';
+  snapshot: RecordingSnapshot;
+}
+
+/** Panel → Overlay (via server relay): request range of snapshots */
+export interface RecordingGetRangeMessage {
+  type: 'RECORDING_GET_RANGE';
+  to: 'overlay';
+  ids: number[];
+}
+
+/** Overlay → Panel (via server relay): range of full snapshots */
+export interface RecordingRangeMessage {
+  type: 'RECORDING_RANGE';
+  to: 'panel';
+  snapshots: RecordingSnapshot[];
+}
+
+/** Overlay → Panel (via server relay): live push of new snapshot meta */
+export interface RecordingSnapshotMetaMessage {
+  type: 'RECORDING_SNAPSHOT_META';
+  to: 'panel';
+  meta: SnapshotMeta;
+}
+
+/** Panel → Overlay: enter element pick mode for bug report */
+export interface BugReportPickElementMessage {
+  type: 'BUG_REPORT_PICK_ELEMENT';
+  to: 'overlay';
+}
+
+/** Overlay → Panel: element was picked for bug report */
+export interface BugReportElementPickedMessage {
+  type: 'BUG_REPORT_ELEMENT_PICKED';
+  to: 'panel';
+  element: BugReportElement;
+}
+
+/** Overlay → Panel: pick mode was cancelled */
+export interface BugReportPickCancelledMessage {
+  type: 'BUG_REPORT_PICK_CANCELLED';
+  to: 'panel';
+}
+
+/** Panel → Server: stage a bug-report patch */
+export interface BugReportStageMessage {
+  type: 'BUG_REPORT_STAGE';
+  patch: Patch;
+}

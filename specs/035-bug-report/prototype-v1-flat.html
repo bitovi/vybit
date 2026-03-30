@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>035 · Bug Report Mode — Panel UX Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --red:          #ef4444;
+      --red-dim:      rgba(239, 68, 68, 0.12);
+      --yellow:       #fbbf24;
+      --green:        #2E7229;
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+      --toolbar-bg:   #1a1a1a;
+      --toolbar-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a1a;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px 40px 120px;
+    }
+
+    .page-header {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 40px;
+      line-height: 1.7;
+      max-width: 800px;
+    }
+
+    .page-subtitle strong { color: var(--text-mid); }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+      max-width: 700px;
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 48px 0 32px;
+    }
+
+    .variations {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      max-width: 460px;
+    }
+
+    .col-description {
+      font-size: 11px;
+      color: var(--text-mid);
+      max-width: 460px;
+      line-height: 1.55;
+      margin-bottom: 6px;
+    }
+
+    /* ─── PANEL ──────────────────────────────────────────── */
+    .panel {
+      width: 320px;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: var(--font-ui);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── MODE TOGGLE ────────────────────────────────────── */
+    .mode-toggle {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 6px;
+      background: #1a1a1a;
+      padding: 2px;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .mode-toggle button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 28px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .mode-toggle button:hover { color: var(--text-mid); }
+
+    .mode-toggle button.active {
+      background: var(--teal-dark);
+      color: #5fd4da;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .mode-toggle button svg { width: 14px; height: 14px; }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panel-title .dim {
+      font-family: var(--font-ui);
+      font-weight: 400;
+      color: var(--text-mid);
+    }
+
+    .panel-container-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .panel-container-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .panel-container-btn svg { width: 14px; height: 14px; }
+
+    /* ─── PANEL BODY ─────────────────────────────────────── */
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── QUEUE FOOTER ───────────────────────────────────── */
+    .panel-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .footer-stat { color: var(--muted); }
+    .footer-stat .count { font-weight: 700; margin-right: 2px; }
+    .footer-stat .count.active { color: var(--yellow); }
+
+    /* ─── BUG REPORT HISTORY LIST ────────────────────────── */
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      cursor: pointer;
+      transition: background var(--t-fast);
+      position: relative;
+    }
+
+    .history-item:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .history-item.in-range {
+      background: var(--teal-dim);
+      border-left: 2px solid var(--teal);
+      padding-left: 10px;
+    }
+
+    .history-item.in-range.excluded {
+      background: rgba(255,255,255,0.02);
+      border-left-color: #555;
+      opacity: 0.5;
+    }
+
+    .history-item.range-start { border-top: 1px solid rgba(0,132,139,0.3); }
+    .history-item.range-end { border-bottom: 1px solid rgba(0,132,139,0.3); }
+
+    .history-thumb {
+      width: 40px;
+      height: 28px;
+      border-radius: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .history-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    .history-thumb .trigger-icon {
+      font-size: 12px;
+      opacity: 0.5;
+    }
+
+    .history-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .history-meta-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-time {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-mid);
+      font-weight: 500;
+    }
+
+    .history-trigger {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .trigger-click { background: rgba(0,132,139,0.15); color: #5fd4da; }
+    .trigger-mutation { background: rgba(255,255,255,0.06); color: var(--text-mid); }
+    .trigger-error { background: var(--red-dim); color: #f87171; }
+    .trigger-network { background: rgba(251,191,36,0.12); color: var(--yellow); }
+    .trigger-pageload { background: rgba(59,130,246,0.12); color: #60a5fa; }
+    .trigger-nav { background: rgba(168,85,247,0.12); color: #c084fc; }
+
+    .history-keyframe {
+      font-size: 8px;
+      color: var(--teal);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .history-summary {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-badges {
+      display: flex;
+      gap: 4px;
+      margin-top: 3px;
+    }
+
+    .badge-error {
+      font-size: 9px;
+      padding: 0px 4px;
+      border-radius: 3px;
+      background: var(--red-dim);
+      color: #f87171;
+      font-weight: 600;
+    }
+
+    .badge-network {
+      font-size: 9px;
+      padding: 0px 4px;
+      border-radius: 3px;
+      background: rgba(251,191,36,0.12);
+      color: var(--yellow);
+      font-weight: 600;
+    }
+
+    .history-exclude-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: none;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 9px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .history-item.in-range .history-exclude-btn { display: flex; }
+    .history-item.in-range .history-exclude-btn:hover { background: rgba(255,255,255,0.15); color: var(--text); }
+
+    /* ─── EXPANDED INLINE DETAIL ─────────────────────────── */
+    .history-detail {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .detail-screenshot {
+      width: 100%;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      height: 80px;
+      margin-bottom: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-screenshot .placeholder-text {
+      font-size: 10px;
+      color: #555;
+    }
+
+    .detail-logs {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detail-log-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .log-error { background: var(--red-dim); color: #f87171; }
+    .log-warn { background: rgba(251,191,36,0.08); color: var(--yellow); }
+    .log-info { background: rgba(255,255,255,0.03); color: var(--text-mid); }
+
+    .detail-log-level {
+      font-weight: 700;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      font-size: 8px;
+      padding-top: 1px;
+    }
+
+    .detail-log-msg {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .detail-network {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(251,191,36,0.08);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--yellow);
+      margin-top: 2px;
+    }
+
+    .detail-network .status {
+      font-weight: 700;
+      color: var(--red);
+    }
+
+    .detail-dom-diff {
+      margin-top: 4px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.03);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    .diff-add { color: #4ade80; }
+    .diff-del { color: #f87171; text-decoration: line-through; }
+
+    /* ─── BOTTOM FORM ────────────────────────────────────── */
+    .report-form {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .report-summary {
+      font-size: 10px;
+      color: var(--text-mid);
+    }
+
+    .report-summary .count { font-weight: 700; color: var(--teal); }
+    .report-summary .excluded { color: var(--muted); }
+    .report-summary .time-range { color: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+
+    .report-textarea {
+      width: 100%;
+      min-height: 56px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      transition: border-color var(--t-fast);
+    }
+
+    .report-textarea::placeholder { color: #666; }
+    .report-textarea:focus { border-color: var(--teal); }
+
+    .report-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 0;
+      border-radius: var(--radius);
+      border: none;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .report-btn.enabled {
+      background: var(--orange);
+      color: white;
+    }
+
+    .report-btn.enabled:hover {
+      background: #e04420;
+    }
+
+    .report-btn.disabled {
+      background: var(--surface);
+      color: #555;
+      cursor: not-allowed;
+    }
+
+    .report-btn svg { width: 14px; height: 14px; }
+
+    /* ─── ELEMENT PICKER ROW ────────────────────────────── */
+    .element-picker-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pick-element-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+      background: transparent;
+      color: var(--text-mid);
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      white-space: nowrap;
+    }
+
+    .pick-element-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .pick-element-btn.picking {
+      border-color: var(--teal);
+      border-style: solid;
+      color: var(--teal);
+      background: var(--teal-dim);
+      animation: pulse-border 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { border-color: var(--teal); }
+      50% { border-color: rgba(0,132,139,0.3); }
+    }
+
+    .pick-element-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+    .picked-element-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text);
+    }
+
+    .picked-element-chip .el-tag { color: var(--teal); font-weight: 600; }
+    .picked-element-chip .el-sel { color: var(--muted); }
+
+    .picked-element-chip .el-component {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--text-mid);
+      background: rgba(0,132,139,0.1);
+      padding: 0 4px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+
+    .picked-element-clear {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: none;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .picked-element-clear:hover {
+      background: rgba(255,255,255,0.15);
+      color: var(--text);
+    }
+
+    /* ─── LANDING CTA CARDS ──────────────────────────────── */
+    .landing-cards {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 20px 16px;
+    }
+
+    .cta-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      text-align: left;
+    }
+
+    .cta-card:hover {
+      border-color: var(--teal);
+      background: var(--teal-dim);
+    }
+
+    .cta-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--teal);
+    }
+
+    .cta-icon svg { width: 18px; height: 18px; }
+
+    .cta-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .cta-label {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .cta-desc {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ─── ICON GALLERY ───────────────────────────────────── */
+    .icon-gallery {
+      display: flex;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 6px;
+    }
+
+    .icon-gallery-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-gallery-item .icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+    }
+
+    .icon-gallery-item .icon-box svg { width: 18px; height: 18px; }
+
+    .icon-gallery-item .icon-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── TAB BAR ────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+    }
+
+    .tab-bar button {
+      position: relative;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: var(--font-ui);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-mid);
+      transition: color var(--t-fast);
+    }
+
+    .tab-bar button:hover { color: var(--text); }
+
+    .tab-bar button.active { color: var(--text); }
+
+    .tab-bar button.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--teal);
+    }
+
+    /* ─── DESIGN TAB MOCK ────────────────────────────────── */
+    .design-group { margin-bottom: 14px; }
+
+    .design-group-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-family: var(--font-mono);
+    }
+
+    .design-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .design-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      font-family: var(--font-mono);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .design-chip .prefix { color: var(--muted); }
+
+    .design-chip .color-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1 class="page-header">035 · Bug Report Mode</h1>
+<p class="page-subtitle">
+  A new <strong>Bug Report</strong> mode joins <strong>Select</strong> and <strong>Insert</strong>
+  in the panel header. Always-on background recording captures DOM mutations, screenshots, console logs,
+  and network errors. Users switch to Bug Report mode, select a range of snapshots, describe the issue,
+  and submit it as a bug-report patch to the AI agent.<br><br>
+  The <strong>ModeToggle</strong> converts to <strong>icon-only buttons</strong> (with tooltips)
+  to fit three modes without crowding. A custom <strong>bug icon</strong> is drawn in the same
+  geometric, filled-path style as the existing Select and Insert icons.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 0. ICON GALLERY — Bug icon alongside existing icons        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<div class="section-title">Icon Gallery — Bug Icon in Context</div>
+<p class="section-subtitle">
+  The new bug icon matches the existing icon family: <strong>16×16 viewBox</strong>,
+  <strong>fill="currentColor"</strong>, bold geometric silhouettes. 
+  Shown here at 18px for visibility alongside Select and Insert.
+</p>
+
+<div class="icon-gallery">
+  <div class="icon-gallery-item">
+    <div class="icon-box">
+      <!-- SELECT (reselect) icon — existing -->
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+    </div>
+    <span class="icon-label">Select</span>
+  </div>
+  <div class="icon-gallery-item">
+    <div class="icon-box">
+      <!-- INSERT icon — existing -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+    </div>
+    <span class="icon-label">Insert</span>
+  </div>
+  <div class="icon-gallery-item">
+    <div class="icon-box">
+      <!-- BUG icon — NEW, drawn in same style as Select/Insert -->
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+    </div>
+    <span class="icon-label">Bug Report</span>
+  </div>
+  <div class="icon-gallery-item">
+    <div class="icon-box">
+      <!-- DESIGN icon — existing -->
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M15,0H1C0.448,0,0,0.448,0,1v9c0,0.552,0.448,1,1,1h2.882l-1.776,3.553c-0.247,0.494-0.047,1.095,0.447,1.342C2.696,15.966,2.849,16,2.999,16c0.367,0,0.72-0.202,0.896-0.553L4.618,14h6.764l0.724,1.447C12.281,15.798,12.634,16,13.001,16c0.15,0,0.303-0.034,0.446-0.105c0.494-0.247,0.694-0.848,0.447-1.342L12.118,11H15c0.552,0,1-0.448,1-1V1C16,0.448,15.552,0,15,0z M5.618,12l0.5-1h3.764l0.5,1H5.618z M14,9H2V2h12V9z"/></svg>
+    </div>
+    <span class="icon-label">Design</span>
+  </div>
+  <div class="icon-gallery-item">
+    <div class="icon-box">
+      <!-- TEXT icon — existing -->
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14.895,2.553l-1-2c-.169-.339-.516-.553-.895-.553H3c-.379,0-.725,.214-.895,.553L1.105,2.553c-.247,.494-.047,1.095,.447,1.342,.496,.248,1.095,.046,1.342-.447l.724-1.447h3.382V14h-2c-.552,0-1,.448-1,1s.448,1,1,1h6c.552,0,1-.448,1-1s-.448-1-1-1h-2V2h3.382l.724,1.447c.175,.351,.528,.553,.896,.553,.15,0,.303-.034,.446-.105,.494-.247,.694-.848,.447-1.342Z"/></svg>
+    </div>
+    <span class="icon-label">Text</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 1. LANDING STATE — Three CTA cards                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Landing State — Three CTA Cards</div>
+<p class="section-subtitle">
+  When no mode is active (<code>mode === null</code>), the panel shows three large CTA cards.
+  The ModeToggle in the header uses <strong>icon-only buttons</strong> with tooltips.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Panel — no mode active</span>
+    <div class="panel" style="height: 360px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16-.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+          </button>
+          <button title="Insert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+          </button>
+          <button title="Bug Report">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+          </button>
+        </div>
+        <div class="panel-title dim" style="font-weight: 400; font-size: 11px; color: var(--text-mid);">
+          Choose a mode
+        </div>
+        <button class="panel-container-btn" title="Container layout">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+        </button>
+      </div>
+      <div class="panel-body">
+        <div class="landing-cards">
+          <button class="cta-card">
+            <div class="cta-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </div>
+            <div class="cta-text">
+              <span class="cta-label">Select an element</span>
+              <span class="cta-desc">Change its design, text, or replace it</span>
+            </div>
+          </button>
+          <button class="cta-card">
+            <div class="cta-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+            </div>
+            <div class="cta-text">
+              <span class="cta-label">Insert to add content</span>
+              <span class="cta-desc">Place a new component on the page</span>
+            </div>
+          </button>
+          <button class="cta-card">
+            <div class="cta-icon" style="color: var(--orange);">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+            </div>
+            <div class="cta-text">
+              <span class="cta-label">Report a bug</span>
+              <span class="cta-desc">Select events from recording history and describe the issue</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count">0</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 2. BUG REPORT MODE — History + range selection + form      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Bug Report Mode — Range Selected, One Expanded</div>
+<p class="section-subtitle">
+  User has clicked Bug Report mode. The history list shows snapshot entries from background recording.
+  A <strong>range is selected</strong> (teal left border) from 12:04:34 to 12:04:38. One entry
+  (12:04:36 mutation) has been <strong>excluded</strong> (dimmed). One entry (12:04:35 error)
+  is <strong>expanded</strong> inline showing screenshot, console errors, and a network failure.
+  The description textarea and Report Bug button are at the bottom.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Panel — Bug Report mode, range selected</span>
+    <div class="panel" style="height: 580px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+          </button>
+          <button title="Insert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+          </button>
+          <button class="active" title="Bug Report">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+          </button>
+        </div>
+        <div class="panel-title">Bug Report</div>
+        <button class="panel-container-btn" title="Container layout">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+        </button>
+      </div>
+
+      <div class="panel-body">
+        <!-- HISTORY LIST -->
+        <div class="history-list" style="max-height: 320px;">
+
+          <!-- 1: page load (outside range) -->
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">📄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:32</span>
+                <span class="history-trigger trigger-pageload">page-load</span>
+                <span class="history-keyframe">◆</span>
+              </div>
+              <div class="history-summary">Initial page load — localhost:5173</div>
+            </div>
+          </div>
+
+          <!-- 1b: SPA navigation (outside range) -->
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">🔗</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:32</span>
+                <span class="history-trigger trigger-nav">navigation</span>
+                <span class="history-keyframe">◆</span>
+              </div>
+              <div class="history-summary">pushState /dashboard → /comments</div>
+            </div>
+          </div>
+
+          <!-- 2: mutation (outside range) -->
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">🔄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:33</span>
+                <span class="history-trigger trigger-mutation">mutation</span>
+              </div>
+              <div class="history-summary">class change on div.card</div>
+            </div>
+          </div>
+
+          <!-- 3: click (range start) -->
+          <div class="history-item in-range range-start">
+            <div class="history-thumb"><span class="trigger-icon">🖱️</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:34</span>
+                <span class="history-trigger trigger-click">click</span>
+              </div>
+              <div class="history-summary">Click on button.submit-btn</div>
+            </div>
+            <button class="history-exclude-btn" title="Exclude">✕</button>
+          </div>
+
+          <!-- 4: error (in range, expanded) -->
+          <div class="history-item in-range">
+            <div class="history-thumb"><span class="trigger-icon">❌</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:35</span>
+                <span class="history-trigger trigger-error">error</span>
+                <span class="history-keyframe">◆</span>
+              </div>
+              <div class="history-summary">Uncaught TypeError in handleSubmit</div>
+              <div class="history-badges">
+                <span class="badge-error">2 errors</span>
+                <span class="badge-network">1 network</span>
+              </div>
+
+              <!-- EXPANDED DETAIL -->
+              <div class="history-detail">
+                <div class="detail-screenshot">
+                  <span class="placeholder-text">[ viewport screenshot ]</span>
+                </div>
+                <div class="detail-logs">
+                  <div class="detail-log-entry log-error">
+                    <span class="detail-log-level">err</span>
+                    <span class="detail-log-msg">TypeError: Cannot read properties of undefined (reading 'map')</span>
+                  </div>
+                  <div class="detail-log-entry log-error">
+                    <span class="detail-log-level">err</span>
+                    <span class="detail-log-msg">Uncaught (in promise) TypeError: data.items is not iterable</span>
+                  </div>
+                  <div class="detail-log-entry log-warn">
+                    <span class="detail-log-level">wrn</span>
+                    <span class="detail-log-msg">React does not recognize the `orderBy` prop</span>
+                  </div>
+                </div>
+                <div class="detail-network">
+                  <span class="status">500</span>
+                  <span>POST /api/comments — Internal Server Error</span>
+                </div>
+                <div class="detail-dom-diff">
+                  <span class="diff-del">- &lt;div class="card-list loaded"&gt;</span><br>
+                  <span class="diff-add">+ &lt;div class="card-list error"&gt;</span><br>
+                  <span class="diff-add">+   &lt;p class="error-msg"&gt;Something went wrong&lt;/p&gt;</span>
+                </div>
+              </div>
+            </div>
+            <button class="history-exclude-btn" title="Exclude">✕</button>
+          </div>
+
+          <!-- 5: mutation (in range, EXCLUDED) -->
+          <div class="history-item in-range excluded">
+            <div class="history-thumb"><span class="trigger-icon">🔄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:36</span>
+                <span class="history-trigger trigger-mutation">mutation</span>
+              </div>
+              <div class="history-summary">attr change on div.spinner (excluded)</div>
+            </div>
+            <button class="history-exclude-btn" title="Re-include" style="display: flex;">✓</button>
+          </div>
+
+          <!-- 6: mutation (in range) -->
+          <div class="history-item in-range">
+            <div class="history-thumb"><span class="trigger-icon">🔄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:37</span>
+                <span class="history-trigger trigger-mutation">mutation</span>
+              </div>
+              <div class="history-summary">childList change on ul.comment-list</div>
+            </div>
+            <button class="history-exclude-btn" title="Exclude">✕</button>
+          </div>
+
+          <!-- 7: click (range end) -->
+          <div class="history-item in-range range-end">
+            <div class="history-thumb"><span class="trigger-icon">🖱️</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:38</span>
+                <span class="history-trigger trigger-click">click</span>
+              </div>
+              <div class="history-summary">Click on button.retry-btn</div>
+            </div>
+            <button class="history-exclude-btn" title="Exclude">✕</button>
+          </div>
+
+          <!-- 8: mutation (outside range) -->
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">🔄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:39</span>
+                <span class="history-trigger trigger-mutation">mutation</span>
+              </div>
+              <div class="history-summary">text change on span.status</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- REPORT FORM -->
+        <div class="report-form">
+          <div class="report-summary">
+            <span class="count">5</span> snapshots selected
+            <span class="excluded">(1 excluded)</span>
+            · <span class="time-range">12:04:34 – 12:04:38</span>
+          </div>
+          <textarea class="report-textarea" placeholder="Describe what went wrong...">Clicking the submit button on the comments form causes a 500 error. The error state renders but the error message is wrong.</textarea>
+          <div class="element-picker-row">
+            <button class="pick-element-btn" title="Click to pick a different element">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+            </button>
+            <div class="picked-element-chip">
+              <span class="el-tag">&lt;button&gt;</span>
+              <span class="el-sel">.submit-btn</span>
+              <span class="el-component">CommentForm</span>
+            </div>
+            <button class="picked-element-clear" title="Clear element">✕</button>
+          </div>
+          <button class="report-btn enabled">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+            Report Bug
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count active">2</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECOND PANEL: empty state / no range selected yet -->
+  <div class="col">
+    <span class="col-label">Panel — Bug Report mode, no range selected</span>
+    <div class="panel" style="height: 360px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+          </button>
+          <button title="Insert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+          </button>
+          <button class="active" title="Bug Report">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+          </button>
+        </div>
+        <div class="panel-title">Bug Report</div>
+        <button class="panel-container-btn" title="Container layout">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+        </button>
+      </div>
+
+      <div class="panel-body">
+        <div class="history-list" style="max-height: 220px;">
+          <!-- entries (no range selected — all plain) -->
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">📄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:32</span>
+                <span class="history-trigger trigger-pageload">page-load</span>
+                <span class="history-keyframe">◆</span>
+              </div>
+              <div class="history-summary">Initial page load</div>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">🔄</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:33</span>
+                <span class="history-trigger trigger-mutation">mutation</span>
+              </div>
+              <div class="history-summary">class change on div.card</div>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">🖱️</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:34</span>
+                <span class="history-trigger trigger-click">click</span>
+              </div>
+              <div class="history-summary">Click on button.submit-btn</div>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb"><span class="trigger-icon">❌</span></div>
+            <div class="history-meta">
+              <div class="history-meta-top">
+                <span class="history-time">12:04:35</span>
+                <span class="history-trigger trigger-error">error</span>
+                <span class="history-keyframe">◆</span>
+              </div>
+              <div class="history-summary">Uncaught TypeError</div>
+              <div class="history-badges">
+                <span class="badge-error">2 errors</span>
+                <span class="badge-network">1 network</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-form">
+          <div class="report-summary" style="color: #555;">
+            Click an entry to start the range, click another to end it
+          </div>
+          <textarea class="report-textarea" placeholder="Describe what went wrong..."></textarea>
+          <div class="element-picker-row">
+            <button class="pick-element-btn" title="Pick an element related to the bug">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+              Pick Element
+            </button>
+            <span style="font-size: 10px; color: #555; font-style: italic;">optional</span>
+          </div>
+          <button class="report-btn disabled">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+            Report Bug
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count">0</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 3. SELECT MODE — for comparison (icon-only mode toggle)    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Select Mode — Icon-Only ModeToggle (Comparison)</div>
+<p class="section-subtitle">
+  For reference: the existing Select mode with an element selected.
+  The only UI change here is that <strong>ModeToggle now uses icon-only buttons</strong>
+  with the new Bug Report button added. Everything else is unchanged.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Panel — Select mode, Design tab active</span>
+    <div class="panel" style="height: 360px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button class="active" title="Select">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></svg>
+          </button>
+          <button title="Insert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="4" y="2" width="16" height="8" rx="2"/><path d="m17,14h1c1.105,0,2,.895,2,2"/><path d="m4,16c0-1.105.895-2,2-2h1"/><path d="m7,22h-1c-1.105,0-2-.895-2-2"/><path d="m20,20c0,1.105-.895,2-2,2h-1"/><line x1="13" y1="14" x2="11" y2="14"/><line x1="13" y1="22" x2="11" y2="22"/></svg>
+          </button>
+          <button title="Bug Report">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect x="3" y="8" width="10" height="6" rx="2"/><path d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect x="7" y="9" width="2" height="4" rx=".5"/></svg>
+          </button>
+        </div>
+        <div class="panel-title">
+          &lt;div&gt; <span class="dim">selected</span>
+        </div>
+        <button class="panel-container-btn" title="Container layout">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+        </button>
+      </div>
+      <div class="tab-bar">
+        <button class="active">Design</button>
+        <button>Replace</button>
+      </div>
+      <div class="panel-body" style="padding: 12px;">
+        <div class="design-group">
+          <div class="design-group-label">Layout</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="prefix">flex</span></div>
+            <div class="design-chip"><span class="prefix">flex-col</span></div>
+            <div class="design-chip"><span class="prefix">gap-</span>3</div>
+          </div>
+        </div>
+        <div class="design-group">
+          <div class="design-group-label">Spacing</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="prefix">p-</span>4</div>
+            <div class="design-chip"><span class="prefix">mt-</span>2</div>
+          </div>
+        </div>
+        <div class="design-group">
+          <div class="design-group-label">Background</div>
+          <div class="design-chips">
+            <div class="design-chip">
+              <span class="color-dot" style="background: white;"></span>
+              <span class="prefix">bg-</span>white
+            </div>
+          </div>
+        </div>
+        <div class="design-group">
+          <div class="design-group-label">Border</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="prefix">rounded-</span>lg</div>
+            <div class="design-chip"><span class="prefix">border</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count active">2</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 4. Behavior summary table                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Mode Behavior Summary</div>
+<p class="section-subtitle" style="margin-bottom: 12px;">
+  How each mode maps to panel content and overlay behavior.
+</p>
+
+<table style="border-collapse: collapse; font-size: 12px; color: var(--text); max-width: 700px;">
+  <thead>
+    <tr style="border-bottom: 2px solid var(--border);">
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Mode</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Panel Content</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Overlay Behavior</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px; font-weight: 600;">Select</td>
+      <td style="padding: 8px 16px;">Design · Replace tabs</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Crosshair cursor, element selection, highlights</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">class-change, text-change, design, component-drop patches</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px; font-weight: 600;">Insert</td>
+      <td style="padding: 8px 16px;">Place tab</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Crosshair cursor, drop zone indicators</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">component-drop, design patches</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px; font-weight: 600;">Bug Report</td>
+      <td style="padding: 8px 16px;">History list + description + Report button</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">No crosshair, no selection — recording runs silently</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">bug-report patch (screenshots, DOM, console, network)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="section-subtitle" style="margin-top: 16px;">
+  <strong>Recording is always on.</strong> Background recording starts when the overlay initializes and runs in all modes.
+  Bug Report mode just provides the UI to <em>browse</em> and <em>submit</em> that recorded data.
+</p>
+
+
+</body>
+</html>

@@ -204,6 +204,46 @@ describe('usePatchManager', () => {
     });
   });
 
+  describe('discardCommit', () => {
+    it('sends DISCARD_COMMIT with the commit ID when given a patch ID from a committed commit', () => {
+      const { result } = renderHook(() => usePatchManager());
+
+      const committedPatch = {
+        id: 'patch-1', kind: 'class-change' as const, elementKey: 'Card::div/0', status: 'committed' as const,
+        originalClass: 'py-2', newClass: 'py-4', property: 'py-', timestamp: '2026-01-01T00:00:00Z',
+      };
+      act(() => result.current.handleQueueUpdate({
+        draftCount: 0, committedCount: 1, implementingCount: 0, implementedCount: 0, partialCount: 0, errorCount: 0,
+        draft: [],
+        commits: [{ id: 'commit-1', status: 'committed', timestamp: '2026-01-01T00:00:00Z', patches: [committedPatch] }],
+      }));
+      vi.clearAllMocks();
+
+      act(() => result.current.discardCommit('patch-1'));
+
+      expect(send).toHaveBeenCalledWith({ type: 'DISCARD_COMMIT', commitId: 'commit-1' });
+    });
+
+    it('does nothing when the patch ID does not belong to a committed commit', () => {
+      const { result } = renderHook(() => usePatchManager());
+
+      const implementingPatch = {
+        id: 'patch-2', kind: 'class-change' as const, elementKey: 'Card::div/0', status: 'implementing' as const,
+        originalClass: 'py-2', newClass: 'py-4', property: 'py-', timestamp: '2026-01-01T00:00:00Z',
+      };
+      act(() => result.current.handleQueueUpdate({
+        draftCount: 0, committedCount: 0, implementingCount: 1, implementedCount: 0, partialCount: 0, errorCount: 0,
+        draft: [],
+        commits: [{ id: 'commit-2', status: 'implementing', timestamp: '2026-01-01T00:00:00Z', patches: [implementingPatch] }],
+      }));
+      vi.clearAllMocks();
+
+      act(() => result.current.discardCommit('patch-2'));
+
+      expect(send).not.toHaveBeenCalled();
+    });
+  });
+
   describe('reset', () => {
     it('preserves patches (only resets local UI state)', () => {
       const { result } = renderHook(() => usePatchManager());

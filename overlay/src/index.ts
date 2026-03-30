@@ -27,6 +27,8 @@ import { state, resolveTab } from "./overlay-state";
 import { highlightElement, clearHighlights, clearHoverPreview, mouseMoveHandler } from "./element-highlight";
 import { showDrawButton, positionWithFlip, initToolbar } from "./element-toolbar";
 import { injectDesignCanvas, handleCaptureScreenshot, handleDesignSubmitted, handleDesignClose, initDesignCanvasManager } from "./design-canvas-manager";
+import { RecordingEngine } from "./recording/recording-engine";
+import type { BugReportElement } from "../../shared/types";
 
 /** Callback for startBrowse — when user locks an insertion point, set it as current target and show toolbar */
 function onBrowseLocked(target: HTMLElement): void {
@@ -394,9 +396,12 @@ function init(): void {
 				if (state.tabPreference === 'design') state.tabPreference = 'component';
 				state.currentTab = resolveTab();
 				startBrowse(state.shadowHost, onBrowseLocked);
-			} else {
+			} else if (msg.mode === 'select') {
 				state.currentTab = resolveTab();
 				setSelectMode(true);
+			} else {
+				// bug-report or null — no element selection
+				setSelectMode(false);
 			}
 		} else if (msg.type === "TAB_CHANGED") {
 			state.currentTab = msg.tab;
@@ -609,6 +614,27 @@ function init(): void {
 				}
 				showDrawButton(state.currentTargetEl);
 			}
+		} else if (msg.type === "RECORDING_GET_HISTORY") {
+			recordingEngine.getHistory().then(snapshots => {
+				sendTo("panel", { type: "RECORDING_HISTORY", snapshots });
+			});
+		} else if (msg.type === "RECORDING_GET_SNAPSHOT") {
+			recordingEngine.getSnapshot(msg.snapshotId).then(snapshot => {
+				if (snapshot) {
+					sendTo("panel", { type: "RECORDING_SNAPSHOT", snapshot });
+				}
+			});
+		} else if (msg.type === "RECORDING_GET_RANGE") {
+			const ids: number[] = msg.ids ?? [];
+			if (ids.length >= 2) {
+				const min = Math.min(...ids);
+				const max = Math.max(...ids);
+				recordingEngine.getRange(min, max).then(snapshots => {
+					sendTo("panel", { type: "RECORDING_RANGE", snapshots });
+				});
+			}
+		} else if (msg.type === "BUG_REPORT_PICK_ELEMENT") {
+			enterBugReportPickMode();
 		}
 	});
 
@@ -661,6 +687,99 @@ function init(): void {
 			showToast("Connection lost — restart the server and refresh.", 5000);
 		}
 	});
+
+	// Start always-on background recording
+	recordingEngine.startRecording().catch(err => {
+		console.error("[tw-overlay] Failed to start recording:", err);
+	});
+}
+
+// Recording engine — always-on background recording
+const recordingEngine = new RecordingEngine({
+	serverOrigin: SERVER_ORIGIN,
+	onNewSnapshot: (meta) => {
+		sendTo("panel", { type: "RECORDING_SNAPSHOT_META", meta });
+	},
+	isClickSuppressed: () => state.selectModeOn || state.currentMode === 'insert' || bugReportPickCleanup !== null,
+});
+
+// Bug report element pick mode
+let bugReportPickCleanup: (() => void) | null = null;
+
+function enterBugReportPickMode(): void {
+	// Clean up any existing pick mode
+	if (bugReportPickCleanup) bugReportPickCleanup();
+
+	document.documentElement.style.cursor = "crosshair";
+
+	const handleClick = (e: MouseEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+
+		const target = e.target as HTMLElement;
+		if (!target || target === state.shadowHost || e.composedPath().some(el => el === state.shadowHost)) {
+			return;
+		}
+
+		const fiber = getFiber(target);
+		const boundary = fiber ? findComponentBoundary(fiber) : null;
+
+		// Build selector path
+		const selectorPath = buildSelectorPath(target);
+
+		const rect = target.getBoundingClientRect();
+		const element: BugReportElement = {
+			tag: target.tagName.toLowerCase(),
+			id: target.id || undefined,
+			classes: typeof target.className === 'string' ? target.className : '',
+			selectorPath,
+			componentName: boundary?.componentName,
+			outerHTML: target.outerHTML.slice(0, 10000),
+			boundingBox: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+		};
+
+		sendTo("panel", { type: "BUG_REPORT_ELEMENT_PICKED", element });
+		cleanup();
+	};
+
+	const handleKeydown = (e: KeyboardEvent) => {
+		if (e.key === "Escape") {
+			sendTo("panel", { type: "BUG_REPORT_PICK_CANCELLED" });
+			cleanup();
+		}
+	};
+
+	function cleanup() {
+		document.documentElement.style.cursor = "";
+		document.removeEventListener("click", handleClick, { capture: true });
+		document.removeEventListener("keydown", handleKeydown, { capture: true });
+		document.removeEventListener("mousemove", mouseMoveHandler);
+		clearHoverPreview();
+		bugReportPickCleanup = null;
+	}
+
+	document.addEventListener("click", handleClick, { capture: true });
+	document.addEventListener("keydown", handleKeydown, { capture: true });
+	document.addEventListener("mousemove", mouseMoveHandler, { passive: true });
+
+	bugReportPickCleanup = cleanup;
+}
+
+function buildSelectorPath(el: HTMLElement): string {
+	const parts: string[] = [];
+	let current: HTMLElement | null = el;
+	while (current && current !== document.body) {
+		let selector = current.tagName.toLowerCase();
+		if (current.id) {
+			selector += `#${current.id}`;
+		} else if (current.className && typeof current.className === 'string') {
+			const cls = current.className.trim().split(/\s+/).slice(0, 2).join('.');
+			if (cls) selector += `.${cls}`;
+		}
+		parts.unshift(selector);
+		current = current.parentElement;
+	}
+	return parts.join(' > ');
 }
 
 init();

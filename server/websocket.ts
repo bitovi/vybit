@@ -3,7 +3,7 @@
 import { WebSocketServer, type WebSocket } from "ws";
 import type { Server } from "http";
 
-import { addPatch, commitDraft, getQueueUpdate, discardDraftPatch } from "./queue.js";
+import { addPatch, addAndCommit, commitDraft, getQueueUpdate, discardDraftPatch, discardCommit } from "./queue.js";
 import type { Patch } from "../shared/types.js";
 
 export interface WebSocketDeps {
@@ -88,6 +88,12 @@ export function setupWebSocket(httpServer: Server): WebSocketDeps {
           }
           console.error(`[ws] Discarded ${ids.length} draft patch(es)`);
           broadcastPatchUpdate();
+        } else if (msg.type === "DISCARD_COMMIT") {
+          const commitId: string = msg.commitId;
+          if (commitId && discardCommit(commitId)) {
+            console.error(`[ws] Discarded committed commit: ${commitId}`);
+            broadcastPatchUpdate();
+          }
         } else if (msg.type === "PING") {
           ws.send(JSON.stringify({ type: "PONG" }));
         } else if (msg.type === "DESIGN_SUBMIT") {
@@ -125,6 +131,10 @@ export function setupWebSocket(httpServer: Server): WebSocketDeps {
         } else if (msg.type === "COMPONENT_DROPPED") {
           const patch = addPatch({ ...msg.patch, kind: msg.patch.kind ?? 'component-drop' });
           console.error(`[ws] Component-drop patch staged: #${patch.id}`);
+          broadcastPatchUpdate();
+        } else if (msg.type === "BUG_REPORT_STAGE") {
+          const commit = addAndCommit({ ...msg.patch, kind: 'bug-report' });
+          console.error(`[ws] Bug-report auto-committed: commit #${commit.id}`);
           broadcastPatchUpdate();
         }
       } catch (err) {

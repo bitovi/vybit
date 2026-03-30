@@ -47,6 +47,8 @@ export interface PatchManager {
   discard: (id: string) => void;
   /** Discard all staged patches */
   discardAll: () => void;
+  /** Discard a committed (not yet implementing) commit by one of its patch IDs */
+  discardCommit: (patchId: string) => void;
   /** Reset local UI state (on element change) — does NOT clear patches */
   reset: () => void;
   /** Handle a QUEUE_UPDATE message from the server */
@@ -190,6 +192,16 @@ export function usePatchManager(): PatchManager {
     sendTo('overlay', { type: 'PATCH_REVERT' });
   }, []);
 
+  const discardCommit = useCallback((patchId: string) => {
+    // Find the commit that contains this patch
+    const commit = queueStateRef.current.commits.find(
+      c => c.status === 'committed' && c.patches.some(p => p.id === patchId)
+    );
+    if (commit) {
+      send({ type: 'DISCARD_COMMIT', commitId: commit.id });
+    }
+  }, []);
+
   const reset = useCallback(() => {
     // Only reset local UI state — patches persist across element switches
   }, []);
@@ -251,6 +263,7 @@ export function usePatchManager(): PatchManager {
     commitAll,
     discard,
     discardAll,
+    discardCommit,
     reset,
     handleQueueUpdate,
     handlePatchUpdate,

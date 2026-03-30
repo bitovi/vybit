@@ -21,3 +21,15 @@ export const InsertMode: Story = {
     mode: 'insert',
   },
 };
+
+export const BugReportMode: Story = {
+  args: {
+    mode: 'bug-report',
+  },
+};
+
+export const NoMode: Story = {
+  args: {
+    mode: null,
+  },
+};

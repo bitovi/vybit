@@ -25,6 +25,7 @@ function toSummary(p: Patch): PatchSummary {
     targetPatchId: p.targetPatchId,
     originalHtml: p.originalHtml,
     newHtml: p.newHtml,
+    bugDescription: p.bugDescription,
   };
 }
 
@@ -70,6 +71,21 @@ export function addPatch(patch: Patch): Patch {
   // Message patches are always appended (no dedup)
   draftPatches.push(patch);
   return patch;
+}
+
+/** Immediately commit a single patch as its own commit (skips the draft). */
+export function addAndCommit(patch: Patch): Commit {
+  patch.status = 'committed';
+  const commit: Commit = {
+    id: crypto.randomUUID(),
+    patches: [patch],
+    status: 'committed',
+    timestamp: new Date().toISOString(),
+  };
+  patch.commitId = commit.id;
+  commits.push(commit);
+  emitter.emit('committed');
+  return commit;
 }
 
 export function commitDraft(ids: string[]): Commit {
@@ -299,6 +315,18 @@ export function discardDraftPatch(id: string): boolean {
   draftPatches.length = 0;
   draftPatches.push(...remaining);
   return remaining.length < before;
+}
+
+/**
+ * Discard a committed (but not yet implementing) commit.
+ * Returns true if the commit was found and removed.
+ * Safe against race conditions: only removes if status is still 'committed'.
+ */
+export function discardCommit(commitId: string): boolean {
+  const idx = commits.findIndex(c => c.id === commitId && c.status === 'committed');
+  if (idx === -1) return false;
+  commits.splice(idx, 1);
+  return true;
 }
 
 export function clearAll(): { staged: number; committed: number; implementing: number; implemented: number } {

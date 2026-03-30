@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>035 · Bug Report Mode — Panel UX Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #2c2c2c;
+      --surface:      #383838;
+      --surface-hi:   #404040;
+      --border:       #3a3a3a;
+      --text:         #e5e5e5;
+      --text-mid:     #b3b3b3;
+      --muted:        #999999;
+      --orange:       #F5532D;
+      --teal:         #00848B;
+      --teal-dark:    #00464A;
+      --teal-dim:     rgba(0, 132, 139, 0.12);
+      --red:          #ef4444;
+      --red-dim:      rgba(239, 68, 68, 0.12);
+      --yellow:       #fbbf24;
+      --green:        #2E7229;
+      --purple:       #c084fc;
+      --purple-dim:   rgba(168, 85, 247, 0.12);
+      --blue:         #60a5fa;
+      --blue-dim:     rgba(59, 130, 246, 0.12);
+      --font-display: 'Poppins', sans-serif;
+      --font-ui:      'Inter', sans-serif;
+      --font-mono:    'Roboto Mono', 'Menlo', ui-monospace, monospace;
+      --t-fast:       120ms ease-out;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a1a;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      padding: 40px 40px 120px;
+    }
+
+    .page-header { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .page-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 40px; line-height: 1.7; max-width: 800px; }
+    .page-subtitle strong { color: var(--text-mid); }
+
+    .section-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+    .section-subtitle { font-size: 11px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; max-width: 700px; }
+
+    hr.divider { border: none; border-top: 1px solid #333; margin: 48px 0 32px; }
+
+    .variations { display: flex; gap: 48px; flex-wrap: wrap; align-items: flex-start; }
+
+    .col { display: flex; flex-direction: column; gap: 10px; }
+    .col-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); color: var(--muted); max-width: 460px; }
+    .col-description { font-size: 11px; color: var(--text-mid); max-width: 460px; line-height: 1.55; margin-bottom: 6px; }
+
+    /* ─── PANEL ──────────────────────────────────────────── */
+    .panel {
+      width: 340px;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: var(--font-ui);
+    }
+
+    .panel-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── MODE TOGGLE ────────────────────────────────────── */
+    .mode-toggle {
+      display: inline-flex; align-items: center;
+      border-radius: 6px; background: #1a1a1a;
+      padding: 2px; gap: 1px; flex-shrink: 0;
+    }
+    .mode-toggle button {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 28px; border-radius: 4px;
+      border: none; cursor: pointer;
+      transition: all var(--t-fast);
+      background: transparent; color: var(--muted);
+    }
+    .mode-toggle button:hover { color: var(--text-mid); }
+    .mode-toggle button.active {
+      background: var(--teal-dark); color: #5fd4da;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .mode-toggle button svg { width: 14px; height: 14px; }
+
+    .panel-title {
+      font-family: var(--font-display); font-size: 13px; font-weight: 700;
+      color: var(--text); flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .panel-title .dim { font-family: var(--font-ui); font-weight: 400; color: var(--text-mid); }
+
+    .panel-container-btn {
+      width: 26px; height: 26px; border-radius: 5px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); display: flex; align-items: center;
+      justify-content: center; cursor: pointer; flex-shrink: 0;
+    }
+    .panel-container-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .panel-container-btn svg { width: 14px; height: 14px; }
+
+    .panel-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+    .panel-footer {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 6px 12px;
+      border-top: 1px solid var(--border); font-size: 10px;
+    }
+    .footer-stat { color: var(--muted); }
+    .footer-stat .count { font-weight: 700; margin-right: 2px; }
+    .footer-stat .count.active { color: var(--yellow); }
+
+    /* ─── EVENT TIMELINE ─────────────────────────────────── */
+    .event-timeline {
+      flex: 1; overflow-y: auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Primary Event Row ── */
+    .ev-primary {
+      padding: 7px 12px 7px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+    .ev-primary:hover { background: rgba(255,255,255,0.025); }
+
+    .ev-primary.in-range {
+      background: var(--teal-dim);
+      border-left: 2px solid var(--teal);
+      padding-left: 10px;
+    }
+    .ev-primary.range-start { border-top: 1px solid rgba(0,132,139,0.3); }
+    .ev-primary.range-end { border-bottom: 1px solid rgba(0,132,139,0.3); }
+
+    .ev-primary-row {
+      display: flex; align-items: baseline; gap: 0;
+    }
+
+    .ev-time {
+      width: 52px; flex-shrink: 0;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--muted); font-weight: 500;
+      text-align: right; padding-right: 8px;
+    }
+    .ev-time.update { color: var(--text-mid); }
+
+    .ev-badge {
+      font-size: 9px; padding: 1px 6px;
+      border-radius: 3px; font-weight: 600;
+      letter-spacing: 0.2px; margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .badge-click { background: rgba(0,132,139,0.15); color: #5fd4da; }
+    .badge-nav { background: var(--purple-dim); color: var(--purple); }
+    .badge-pageload { background: var(--blue-dim); color: var(--blue); }
+    .badge-error { background: var(--red-dim); color: #f87171; }
+    .badge-bg { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+    .ev-label {
+      font-size: 11px; color: var(--text);
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ev-label .target { color: var(--text-mid); font-family: var(--font-mono); font-size: 10px; }
+    .ev-label .component { color: var(--text-mid); font-size: 10px; }
+    .ev-label .route { font-family: var(--font-mono); font-size: 10px; color: var(--text-mid); }
+
+    .ev-keyframe {
+      font-size: 8px; color: var(--teal); font-weight: 700;
+      margin-left: 4px; flex-shrink: 0;
+    }
+
+    /* ── Child Summary (collapsed) ── */
+    .ev-children-summary {
+      display: flex; flex-wrap: wrap; gap: 3px 6px;
+      padding: 3px 0 0 60px;
+      font-size: 9px; color: var(--muted);
+    }
+    .ev-children-summary .cs-item {
+      display: inline-flex; align-items: center; gap: 2px;
+    }
+    .ev-children-summary .cs-count { font-weight: 600; font-family: var(--font-mono); font-size: 9px; }
+    .ev-children-summary .cs-error { color: #f87171; }
+    .ev-children-summary .cs-network { color: var(--yellow); }
+    .ev-children-summary .cs-dot {
+      width: 3px; height: 3px; border-radius: 50%;
+      background: var(--border); margin: 0 1px;
+    }
+
+    /* ── Expanded Children ── */
+    .ev-children-expanded {
+      padding: 4px 0 2px 52px;
+    }
+
+    .ev-child {
+      display: flex; align-items: center; gap: 6px;
+      padding: 2px 0 2px 8px;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      font-size: 10px; color: var(--text-mid);
+      position: relative;
+    }
+    .ev-child::before {
+      content: '';
+      position: absolute; left: 0; top: 50%;
+      width: 6px; height: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+    .ev-child:last-child { border-left-color: transparent; }
+    .ev-child:last-child::before {
+      border-left: 1px solid rgba(255,255,255,0.08);
+      height: 50%; top: 0; width: 0;
+    }
+    .ev-child:last-child::after {
+      content: '';
+      position: absolute; left: 0; top: 50%;
+      width: 6px; height: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .child-icon {
+      width: 14px; flex-shrink: 0; text-align: center;
+      font-size: 10px; opacity: 0.6;
+    }
+    .child-label { flex: 1; min-width: 0; }
+    .child-label .net-status { font-weight: 700; }
+    .child-label .net-status.fail { color: var(--red); }
+    .child-label .net-status.ok { color: var(--green); }
+    .child-label .err-count { color: #f87171; font-weight: 600; }
+
+    .child-check {
+      width: 14px; height: 14px; border-radius: 3px;
+      border: 1.5px solid var(--border); background: transparent;
+      cursor: pointer; flex-shrink: 0; display: none;
+      align-items: center; justify-content: center;
+      font-size: 8px; color: var(--teal);
+    }
+    .in-range .child-check { display: flex; }
+    .child-check.checked { background: var(--teal-dim); border-color: var(--teal); }
+    .child-check.unchecked { opacity: 0.4; }
+
+    .ev-child.excluded {
+      opacity: 0.35;
+      text-decoration: line-through;
+      text-decoration-color: rgba(255,255,255,0.2);
+    }
+
+    /* ── Expanded Detail Block (screenshot, logs, diff) ── */
+    .ev-detail-block {
+      margin: 6px 0 2px 60px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .detail-screenshot {
+      width: 100%; border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface); height: 70px;
+      margin-bottom: 6px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .detail-screenshot .placeholder-text { font-size: 10px; color: #555; }
+
+    .detail-log-entry {
+      display: flex; align-items: flex-start; gap: 4px;
+      padding: 2px 6px; border-radius: 3px;
+      font-family: var(--font-mono); font-size: 9px; line-height: 1.5;
+      margin-bottom: 1px;
+    }
+    .log-error { background: var(--red-dim); color: #f87171; }
+    .log-warn { background: rgba(251,191,36,0.08); color: var(--yellow); }
+    .log-info { background: rgba(255,255,255,0.03); color: var(--text-mid); }
+
+    .detail-log-level { font-weight: 700; flex-shrink: 0; text-transform: uppercase; font-size: 8px; padding-top: 1px; }
+    .detail-log-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .detail-network {
+      display: flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 3px;
+      font-family: var(--font-mono); font-size: 9px;
+      margin-top: 2px;
+    }
+    .detail-network.fail { background: rgba(239,68,68,0.08); color: #f87171; }
+    .detail-network.ok { background: rgba(255,255,255,0.03); color: var(--text-mid); }
+    .detail-network .status { font-weight: 700; }
+
+    .detail-dom-diff {
+      margin-top: 4px; padding: 4px 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.03);
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--text-mid); line-height: 1.5;
+    }
+    .diff-add { color: #4ade80; }
+    .diff-del { color: #f87171; text-decoration: line-through; }
+
+    /* ─── REPORT FORM ────────────────────────────────────── */
+    .report-form {
+      padding: 10px 12px; display: flex;
+      flex-direction: column; gap: 8px;
+    }
+    .report-summary { font-size: 10px; color: var(--text-mid); }
+    .report-summary .count { font-weight: 700; color: var(--teal); }
+    .report-summary .excluded { color: var(--muted); }
+    .report-summary .time-range { color: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+
+    .report-textarea {
+      width: 100%; min-height: 48px; padding: 8px 10px;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      font-family: var(--font-ui); font-size: 11px;
+      line-height: 1.5; resize: vertical; outline: none;
+      transition: border-color var(--t-fast);
+    }
+    .report-textarea::placeholder { color: #666; }
+    .report-textarea:focus { border-color: var(--teal); }
+
+    .report-btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; width: 100%; padding: 8px 0;
+      border-radius: var(--radius); border: none;
+      font-family: var(--font-ui); font-size: 11px;
+      font-weight: 600; cursor: pointer;
+      transition: all var(--t-fast);
+    }
+    .report-btn.enabled { background: var(--orange); color: white; }
+    .report-btn.enabled:hover { background: #e04420; }
+    .report-btn.disabled { background: var(--surface); color: #555; cursor: not-allowed; }
+    .report-btn svg { width: 14px; height: 14px; }
+
+    /* ─── ELEMENT PICKER ─────────────────────────────────── */
+    .element-picker-row { display: flex; align-items: center; gap: 6px; }
+    .pick-element-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border-radius: var(--radius);
+      border: 1px dashed var(--border); background: transparent;
+      color: var(--text-mid); font-family: var(--font-ui);
+      font-size: 10px; font-weight: 500; cursor: pointer;
+      transition: all var(--t-fast); white-space: nowrap;
+    }
+    .pick-element-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .pick-element-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+    .picked-element-chip {
+      display: flex; align-items: center; gap: 4px;
+      flex: 1; min-width: 0; padding: 4px 8px;
+      border-radius: 4px; background: var(--surface);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono); font-size: 10px; color: var(--text);
+    }
+    .picked-element-chip .el-tag { color: var(--teal); font-weight: 600; }
+    .picked-element-chip .el-sel { color: var(--muted); }
+    .picked-element-chip .el-component {
+      font-family: var(--font-ui); font-size: 9px; color: var(--text-mid);
+      background: rgba(0,132,139,0.1); padding: 0 4px; border-radius: 2px; font-weight: 500;
+    }
+    .picked-element-clear {
+      width: 14px; height: 14px; border-radius: 3px; border: none;
+      background: rgba(255,255,255,0.08); color: var(--muted); font-size: 9px;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .picked-element-clear:hover { background: rgba(255,255,255,0.15); color: var(--text); }
+
+    /* ─── LANDING CTA CARDS ──────────────────────────────── */
+    .landing-cards {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; padding: 20px 16px;
+    }
+    .cta-card {
+      width: 100%; display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-radius: 8px;
+      border: 1.5px solid var(--border); background: transparent;
+      cursor: pointer; transition: all var(--t-fast); text-align: left;
+    }
+    .cta-card:hover { border-color: var(--teal); background: var(--teal-dim); }
+    .cta-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--surface); display: flex;
+      align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--teal);
+    }
+    .cta-icon svg { width: 18px; height: 18px; }
+    .cta-text { display: flex; flex-direction: column; gap: 2px; }
+    .cta-label { font-family: var(--font-display); font-size: 12px; font-weight: 600; color: var(--text); }
+    .cta-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+
+    /* ─── TAB BAR + DESIGN MOCK ──────────────────────────── */
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 12px; }
+    .tab-bar button {
+      position: relative; padding: 8px 12px; font-size: 11px; font-weight: 500;
+      font-family: var(--font-ui); background: transparent; border: none;
+      cursor: pointer; color: var(--text-mid); transition: color var(--t-fast);
+    }
+    .tab-bar button:hover { color: var(--text); }
+    .tab-bar button.active { color: var(--text); }
+    .tab-bar button.active::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2px; background: var(--teal);
+    }
+    .design-group { margin-bottom: 14px; }
+    .design-group-label {
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--muted); margin-bottom: 6px; font-family: var(--font-mono);
+    }
+    .design-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .design-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 3px 8px; border-radius: 4px; font-size: 10px;
+      font-weight: 500; font-family: var(--font-mono);
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    }
+    .design-chip .prefix { color: var(--muted); }
+    .design-chip .color-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<!-- SVG icon constants (reused throughout) -->
+<svg style="display:none">
+  <defs>
+    <symbol id="ico-select" viewBox="0 0 16 16"><path fill="currentColor" d="M14,0H2C.895,0,0,.895,0,2V14c0,1.105,.895,2,2,2H6c.552,0,1-.448,1-1h0c0-.552-.448-1-1-1H2V2H14V6c0,.552,.448,1,1,1h0c.552,0,1-.448,1-1V2c0-1.105-.895-2-2-2Z"/><path fill="currentColor" d="M12.043,10.629l2.578-.644c.268-.068,.43-.339,.362-.607-.043-.172-.175-.308-.345-.358l-7-2c-.175-.051-.363-.002-.492,.126-.128,.129-.177,.317-.126,.492l2,7c.061,.214,.257,.362,.48,.362h.009c.226-.004,.421-.16,.476-.379l.644-2.578,3.664,3.664c.397,.384,1.03,.373,1.414-.025,.374-.388,.374-1.002,0-1.389l-3.664-3.664Z"/></symbol>
+    <symbol id="ico-insert" viewBox="0 0 24 24"><rect fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" x="4" y="2" width="16" height="8" rx="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="m17,14h1c1.105,0,2,.895,2,2"/><path fill="none" stroke="currentColor" stroke-width="2" d="m4,16c0-1.105.895-2,2-2h1"/><path fill="none" stroke="currentColor" stroke-width="2" d="m7,22h-1c-1.105,0-2-.895-2-2"/><path fill="none" stroke="currentColor" stroke-width="2" d="m20,20c0,1.105-.895,2-2,2h-1"/><line fill="none" stroke="currentColor" stroke-width="2" x1="13" y1="14" x2="11" y2="14"/><line fill="none" stroke="currentColor" stroke-width="2" x1="13" y1="22" x2="11" y2="22"/></symbol>
+    <symbol id="ico-bug" viewBox="0 0 16 16"><path fill="currentColor" d="M11.5,6C11.5,4.067,9.933,2.5,8,2.5S4.5,4.067,4.5,6v1h7V6Z"/><rect fill="currentColor" x="3" y="8" width="10" height="6" rx="2"/><path fill="currentColor" d="M1,5.5h2.2C3.07,5.01,3,4.51,3,4h0V3.5H1c-.552,0-1,.448-1,1S.448,5.5,1,5.5Z"/><path fill="currentColor" d="M15,3.5h-2c0,.51-.07,1.01-.2,1.5H15c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path fill="currentColor" d="M1,11.5h2.05c.232,.89,.62,1.71,1.13,2.5H1c-.552,0-1-.448-1-1s.448-1,1-1h0Z"/><path fill="currentColor" d="M15,10.5h-2.05c-.232,.89-.62,1.71-1.13,2.5h3.18c.552,0,1-.448,1-1s-.448-1-1-1Z"/><path fill="currentColor" d="M1,7.5h2v2H1c-.552,0-1-.448-1-1s.448-1,1-1Z"/><path fill="currentColor" d="M13,7.5h2c.552,0,1,.448,1,1s-.448,1-1,1h-2v-2Z"/><rect fill="currentColor" x="7" y="9" width="2" height="4" rx=".5"/></symbol>
+    <symbol id="ico-layout" viewBox="0 0 16 16"><rect fill="none" stroke="currentColor" stroke-width="1.5" x="1" y="2" width="14" height="12" rx="2"/><line fill="none" stroke="currentColor" stroke-width="1.5" x1="6" y1="2" x2="6" y2="14"/></symbol>
+  </defs>
+</svg>
+
+<h1 class="page-header">035 · Bug Report Mode — Grouped Event Timeline</h1>
+<p class="page-subtitle">
+  Events are structured as a <strong>primary → children tree</strong>. Primaries are user actions
+  (clicks, navigation, page-load) or promoted errors/background updates. Children (mutations, screenshots,
+  network, console logs) are grouped under their causal primary. <strong>Range selection</strong>
+  operates on primaries — children are selected/deselectable individually within the range.
+  <strong>Time</strong> displays on primaries only; children inherit context. Consecutive same-second
+  primaries may suppress the repeated time.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 1 — Collapsed timeline, range selected             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<div class="section-title">Variation A — Collapsed, Range Selected</div>
+<p class="section-subtitle">
+  All primaries show a one-line <strong>children summary</strong>. Three primaries are selected
+  (teal highlight). Children are listed as compact counts — "2 mutations · screenshot · 500 POST /api · 3 logs (2 err)".
+  No detail expanded. The form at the bottom is ready to submit.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Collapsed timeline, 3 primaries in range</span>
+    <div class="panel" style="height: 540px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select"><svg><use href="#ico-select"/></svg></button>
+          <button title="Insert"><svg><use href="#ico-insert"/></svg></button>
+          <button class="active" title="Bug Report"><svg><use href="#ico-bug"/></svg></button>
+        </div>
+        <div class="panel-title">Bug Report</div>
+        <button class="panel-container-btn" title="Layout"><svg><use href="#ico-layout"/></svg></button>
+      </div>
+
+      <div class="panel-body">
+        <div class="event-timeline">
+
+          <!-- PRIMARY: page-load -->
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time">12:04:22</span>
+              <span class="ev-badge badge-pageload">page-load</span>
+              <span class="ev-label">localhost:5173</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: navigation -->
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:23</span>
+              <span class="ev-badge badge-nav">navigation</span>
+              <span class="ev-label"><span class="route">/dashboard → /comments</span></span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">2</span> mutations</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: click (RANGE START) -->
+          <div class="ev-primary in-range range-start">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:34</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;button&gt;</span> <span class="component">in CommentForm</span></span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">2</span> mutations</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item cs-network"><span class="cs-count">500</span> POST /api/comments</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">3</span> logs <span class="cs-error">(2 err)</span></span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: error (IN RANGE, promoted) -->
+          <div class="ev-primary in-range">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:35</span>
+              <span class="ev-badge badge-error">error</span>
+              <span class="ev-label">TypeError in handleSubmit</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">2</span> logs <span class="cs-error">(2 err)</span></span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: click (RANGE END) -->
+          <div class="ev-primary in-range range-end">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:38</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;button.retry-btn&gt;</span></span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item">screenshot</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: background (outside range) -->
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:39</span>
+              <span class="ev-badge badge-bg">background</span>
+              <span class="ev-label" style="color: var(--muted);">DOM update</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- REPORT FORM -->
+        <div class="report-form">
+          <div class="report-summary">
+            <span class="count">3</span> events selected
+            · <span class="time-range">12:04:34 – 12:04:38</span>
+          </div>
+          <textarea class="report-textarea" placeholder="Describe what went wrong...">Clicking submit on the comments form returns a 500. The error state renders but shows a generic message.</textarea>
+          <div class="element-picker-row">
+            <button class="pick-element-btn" title="Pick a different element">
+              <svg><use href="#ico-select"/></svg>
+            </button>
+            <div class="picked-element-chip">
+              <span class="el-tag">&lt;button&gt;</span>
+              <span class="el-sel">.submit-btn</span>
+              <span class="el-component">CommentForm</span>
+            </div>
+            <button class="picked-element-clear" title="Clear">✕</button>
+          </div>
+          <button class="report-btn enabled">
+            <svg><use href="#ico-bug"/></svg>
+            Report Bug
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count active">2</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 2 — Expanded primary with child deselection        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Variation B — Expanded Primary, Child Deselection</div>
+<p class="section-subtitle">
+  One primary (the click at :34) is <strong>expanded</strong> showing its children as a tree.
+  Each child has a <strong>checkbox</strong> since the primary is within the selected range.
+  The user has <strong>unchecked</strong> the "2 mutations" child — it appears dimmed/struck-through.
+  The screenshot, network, and logs remain checked. The error at :35 also shows its detail block
+  with inline log entries and DOM diff.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Expanded click event, children individually selectable</span>
+    <div class="panel" style="height: 660px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select"><svg><use href="#ico-select"/></svg></button>
+          <button title="Insert"><svg><use href="#ico-insert"/></svg></button>
+          <button class="active" title="Bug Report"><svg><use href="#ico-bug"/></svg></button>
+        </div>
+        <div class="panel-title">Bug Report</div>
+        <button class="panel-container-btn" title="Layout"><svg><use href="#ico-layout"/></svg></button>
+      </div>
+
+      <div class="panel-body">
+        <div class="event-timeline">
+
+          <!-- PRIMARY: page-load (collapsed, outside range) -->
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time">12:04:22</span>
+              <span class="ev-badge badge-pageload">page-load</span>
+              <span class="ev-label">localhost:5173</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: click EXPANDED (RANGE START) -->
+          <div class="ev-primary in-range range-start">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:34</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;button&gt;</span> <span class="component">in CommentForm</span></span>
+            </div>
+
+            <!-- Expanded children tree -->
+            <div class="ev-children-expanded">
+              <div class="ev-child excluded">
+                <span class="child-icon">△</span>
+                <span class="child-label">2 mutations</span>
+                <span class="child-check unchecked"></span>
+              </div>
+              <div class="ev-child">
+                <span class="child-icon">▢</span>
+                <span class="child-label">screenshot</span>
+                <span class="child-check checked">✓</span>
+              </div>
+              <div class="ev-child">
+                <span class="child-icon">↗</span>
+                <span class="child-label"><span class="net-status fail">500</span> POST /api/comments</span>
+                <span class="child-check checked">✓</span>
+              </div>
+              <div class="ev-child">
+                <span class="child-icon">▤</span>
+                <span class="child-label">3 logs <span class="err-count">(2 errors)</span></span>
+                <span class="child-check checked">✓</span>
+              </div>
+            </div>
+
+            <!-- Detail block for the network failure -->
+            <div class="ev-detail-block">
+              <div class="detail-network fail">
+                <span class="status">500</span>
+                <span>POST /api/comments — Internal Server Error</span>
+              </div>
+              <div class="detail-log-entry log-error">
+                <span class="detail-log-level">err</span>
+                <span class="detail-log-msg">TypeError: Cannot read properties of undefined (reading 'map')</span>
+              </div>
+              <div class="detail-log-entry log-error">
+                <span class="detail-log-level">err</span>
+                <span class="detail-log-msg">Uncaught (in promise) TypeError: data.items is not iterable</span>
+              </div>
+              <div class="detail-log-entry log-warn">
+                <span class="detail-log-level">wrn</span>
+                <span class="detail-log-msg">React does not recognize the `orderBy` prop</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRIMARY: error EXPANDED (IN RANGE) -->
+          <div class="ev-primary in-range">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:35</span>
+              <span class="ev-badge badge-error">error</span>
+              <span class="ev-label">TypeError in handleSubmit</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+
+            <div class="ev-children-expanded">
+              <div class="ev-child">
+                <span class="child-icon">△</span>
+                <span class="child-label">1 mutation</span>
+                <span class="child-check checked">✓</span>
+              </div>
+              <div class="ev-child">
+                <span class="child-icon">▢</span>
+                <span class="child-label">screenshot</span>
+                <span class="child-check checked">✓</span>
+              </div>
+            </div>
+
+            <!-- Detail block: DOM diff -->
+            <div class="ev-detail-block">
+              <div class="detail-screenshot"><span class="placeholder-text">[ viewport screenshot ]</span></div>
+              <div class="detail-dom-diff">
+                <span class="diff-del">- &lt;div class="card-list loaded"&gt;</span><br>
+                <span class="diff-add">+ &lt;div class="card-list error"&gt;</span><br>
+                <span class="diff-add">+   &lt;p class="error-msg"&gt;Something went wrong&lt;/p&gt;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRIMARY: click (RANGE END, collapsed) -->
+          <div class="ev-primary in-range range-end">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:38</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;button.retry-btn&gt;</span></span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item">screenshot</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY: background (outside range) -->
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:39</span>
+              <span class="ev-badge badge-bg">background</span>
+              <span class="ev-label" style="color: var(--muted);">DOM update</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- REPORT FORM -->
+        <div class="report-form">
+          <div class="report-summary">
+            <span class="count">3</span> events selected
+            <span class="excluded">(1 child excluded)</span>
+            · <span class="time-range">12:04:34 – 12:04:38</span>
+          </div>
+          <textarea class="report-textarea" placeholder="Describe what went wrong...">Clicking submit on the comments form returns a 500. The error state renders but shows a generic message.</textarea>
+          <div class="element-picker-row">
+            <button class="pick-element-btn" title="Pick a different element">
+              <svg><use href="#ico-select"/></svg>
+            </button>
+            <div class="picked-element-chip">
+              <span class="el-tag">&lt;button&gt;</span>
+              <span class="el-sel">.submit-btn</span>
+              <span class="el-component">CommentForm</span>
+            </div>
+            <button class="picked-element-clear" title="Clear">✕</button>
+          </div>
+          <button class="report-btn enabled">
+            <svg><use href="#ico-bug"/></svg>
+            Report Bug
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count active">2</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 3 — No range selected yet                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Variation C — No Selection Yet</div>
+<p class="section-subtitle">
+  User just entered Bug Report mode. The timeline shows events but nothing is selected.
+  The form area shows a hint. Report button disabled.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Empty selection state</span>
+    <div class="panel" style="height: 390px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select"><svg><use href="#ico-select"/></svg></button>
+          <button title="Insert"><svg><use href="#ico-insert"/></svg></button>
+          <button class="active" title="Bug Report"><svg><use href="#ico-bug"/></svg></button>
+        </div>
+        <div class="panel-title">Bug Report</div>
+        <button class="panel-container-btn" title="Layout"><svg><use href="#ico-layout"/></svg></button>
+      </div>
+
+      <div class="panel-body">
+        <div class="event-timeline">
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time">12:04:22</span>
+              <span class="ev-badge badge-pageload">page-load</span>
+              <span class="ev-label">localhost:5173</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:23</span>
+              <span class="ev-badge badge-nav">navigation</span>
+              <span class="ev-label"><span class="route">/dashboard → /comments</span></span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">2</span> mutations</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:34</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;button&gt;</span> <span class="component">in CommentForm</span></span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">2</span> mutations</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item cs-network"><span class="cs-count">500</span> POST /api/comments</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">3</span> logs <span class="cs-error">(2 err)</span></span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:35</span>
+              <span class="ev-badge badge-error">error</span>
+              <span class="ev-label">TypeError in handleSubmit</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">2</span> logs <span class="cs-error">(2 err)</span></span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="report-form">
+          <div class="report-summary" style="color: #555;">
+            Click an event to start the range, click another to end it
+          </div>
+          <textarea class="report-textarea" placeholder="Describe what went wrong..."></textarea>
+          <div class="element-picker-row">
+            <button class="pick-element-btn" title="Pick an element">
+              <svg><use href="#ico-select"/></svg>
+              Pick Element
+            </button>
+            <span style="font-size: 10px; color: #555; font-style: italic;">optional</span>
+          </div>
+          <button class="report-btn disabled">
+            <svg><use href="#ico-bug"/></svg>
+            Report Bug
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count">0</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 4 — Longer timeline with mixed event types         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Variation D — Longer Timeline, Background Events, Full-Page Nav</div>
+<p class="section-subtitle">
+  A richer scenario: the user navigated between pages,
+  some background polling updates appeared (grouped as "background" primaries),
+  and a full-page navigation occurred. Time display shows the <strong>:SS shorthand</strong>
+  when in the same minute, and <strong>full HH:MM:SS</strong> when the minute changes.
+  No range selected — this shows the look of a longer timeline.
+</p>
+
+<div class="variations">
+  <div class="col">
+    <span class="col-label">Longer timeline — diverse event types</span>
+    <div class="panel" style="height: 530px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select"><svg><use href="#ico-select"/></svg></button>
+          <button title="Insert"><svg><use href="#ico-insert"/></svg></button>
+          <button class="active" title="Bug Report"><svg><use href="#ico-bug"/></svg></button>
+        </div>
+        <div class="panel-title">Bug Report</div>
+        <button class="panel-container-btn" title="Layout"><svg><use href="#ico-layout"/></svg></button>
+      </div>
+
+      <div class="panel-body">
+        <div class="event-timeline">
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time">12:04:22</span>
+              <span class="ev-badge badge-pageload">page-load</span>
+              <span class="ev-label">localhost:5173</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">2</span> logs</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:24</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;a.nav-link&gt;</span> <span class="component">in Sidebar</span></span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time"></span>
+              <span class="ev-badge badge-nav">navigation</span>
+              <span class="ev-label"><span class="route">/home → /dashboard</span></span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">5</span> mutations</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">200</span> GET /api/dashboard</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:30</span>
+              <span class="ev-badge badge-bg">background</span>
+              <span class="ev-label" style="color: var(--muted);">polling update</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">2</span> mutations</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">200</span> GET /api/notifications</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:35</span>
+              <span class="ev-badge badge-bg">background</span>
+              <span class="ev-label" style="color: var(--muted);">polling update</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">200</span> GET /api/notifications</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:42</span>
+              <span class="ev-badge badge-click">click</span>
+              <span class="ev-label">on <span class="target">&lt;a&gt;</span> <span class="component">in Header</span></span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time"></span>
+              <span class="ev-badge badge-nav">navigation</span>
+              <span class="ev-label"><span class="route">full-page → /settings</span></span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item" style="color: var(--muted); font-style: italic;">pre-nav flush (buffers saved)</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time">12:05:01</span>
+              <span class="ev-badge badge-pageload">page-load</span>
+              <span class="ev-label">localhost:5173/settings</span>
+              <span class="ev-keyframe">◆</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">3</span> mutations</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">200</span> GET /api/settings</span>
+            </div>
+          </div>
+
+          <div class="ev-primary">
+            <div class="ev-primary-row">
+              <span class="ev-time update">:03</span>
+              <span class="ev-badge badge-error">error</span>
+              <span class="ev-label">RangeError: Invalid time zone</span>
+            </div>
+            <div class="ev-children-summary">
+              <span class="cs-item">screenshot</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">1</span> mutation</span>
+              <span class="cs-dot"></span>
+              <span class="cs-item"><span class="cs-count">1</span> log <span class="cs-error">(1 err)</span></span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="report-form">
+          <div class="report-summary" style="color: #555;">
+            Click an event to start the range, click another to end it
+          </div>
+          <textarea class="report-textarea" placeholder="Describe what went wrong..."></textarea>
+          <div class="element-picker-row">
+            <button class="pick-element-btn" title="Pick an element">
+              <svg><use href="#ico-select"/></svg>
+              Pick Element
+            </button>
+            <span style="font-size: 10px; color: #555; font-style: italic;">optional</span>
+          </div>
+          <button class="report-btn disabled">
+            <svg><use href="#ico-bug"/></svg>
+            Report Bug
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count">0</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 5 — Landing state + Select mode comparison         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Landing State + Select Mode Comparison</div>
+<p class="section-subtitle">
+  Left: Landing state with three CTA cards. Right: Select mode with icon-only ModeToggle
+  showing the new Bug Report button as the third icon.
+</p>
+
+<div class="variations">
+  <!-- Landing -->
+  <div class="col">
+    <span class="col-label">Landing — no mode active</span>
+    <div class="panel" style="height: 360px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button title="Select"><svg><use href="#ico-select"/></svg></button>
+          <button title="Insert"><svg><use href="#ico-insert"/></svg></button>
+          <button title="Bug Report"><svg><use href="#ico-bug"/></svg></button>
+        </div>
+        <div class="panel-title dim" style="font-weight: 400; font-size: 11px; color: var(--text-mid);">
+          Choose a mode
+        </div>
+        <button class="panel-container-btn" title="Layout"><svg><use href="#ico-layout"/></svg></button>
+      </div>
+      <div class="panel-body">
+        <div class="landing-cards">
+          <button class="cta-card">
+            <div class="cta-icon"><svg><use href="#ico-select"/></svg></div>
+            <div class="cta-text">
+              <span class="cta-label">Select an element</span>
+              <span class="cta-desc">Change its design, text, or replace it</span>
+            </div>
+          </button>
+          <button class="cta-card">
+            <div class="cta-icon"><svg><use href="#ico-insert"/></svg></div>
+            <div class="cta-text">
+              <span class="cta-label">Insert to add content</span>
+              <span class="cta-desc">Place a new component on the page</span>
+            </div>
+          </button>
+          <button class="cta-card">
+            <div class="cta-icon" style="color: var(--orange);"><svg><use href="#ico-bug"/></svg></div>
+            <div class="cta-text">
+              <span class="cta-label">Report a bug</span>
+              <span class="cta-desc">Select events from the recording timeline and describe the issue</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count">0</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Select mode -->
+  <div class="col">
+    <span class="col-label">Select mode — design tab</span>
+    <div class="panel" style="height: 360px;">
+      <div class="panel-header">
+        <div class="mode-toggle">
+          <button class="active" title="Select"><svg><use href="#ico-select"/></svg></button>
+          <button title="Insert"><svg><use href="#ico-insert"/></svg></button>
+          <button title="Bug Report"><svg><use href="#ico-bug"/></svg></button>
+        </div>
+        <div class="panel-title">
+          &lt;div&gt; <span class="dim">selected</span>
+        </div>
+        <button class="panel-container-btn" title="Layout"><svg><use href="#ico-layout"/></svg></button>
+      </div>
+      <div class="tab-bar">
+        <button class="active">Design</button>
+        <button>Replace</button>
+      </div>
+      <div class="panel-body" style="padding: 12px;">
+        <div class="design-group">
+          <div class="design-group-label">Layout</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="prefix">flex</span></div>
+            <div class="design-chip"><span class="prefix">flex-col</span></div>
+            <div class="design-chip"><span class="prefix">gap-</span>3</div>
+          </div>
+        </div>
+        <div class="design-group">
+          <div class="design-group-label">Spacing</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="prefix">p-</span>4</div>
+            <div class="design-chip"><span class="prefix">mt-</span>2</div>
+          </div>
+        </div>
+        <div class="design-group">
+          <div class="design-group-label">Background</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="color-dot" style="background: white;"></span><span class="prefix">bg-</span>white</div>
+          </div>
+        </div>
+        <div class="design-group">
+          <div class="design-group-label">Border</div>
+          <div class="design-chips">
+            <div class="design-chip"><span class="prefix">rounded-</span>lg</div>
+            <div class="design-chip"><span class="prefix">border</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-footer">
+        <span class="footer-stat"><span class="count active">2</span>draft</span>
+        <span class="footer-stat"><span class="count">0</span>committed</span>
+        <span class="footer-stat"><span class="count">0</span>implementing</span>
+        <span class="footer-stat"><span class="count">0</span>implemented</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 6 — Behavior summary table                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<hr class="divider">
+
+<div class="section-title">Event Grouping Rules</div>
+<p class="section-subtitle" style="margin-bottom: 12px;">
+  How flat snapshot data maps to the visual primary → children tree.
+</p>
+
+<table style="border-collapse: collapse; font-size: 12px; color: var(--text); max-width: 750px;">
+  <thead>
+    <tr style="border-bottom: 2px solid var(--border);">
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Snapshot trigger</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Becomes</th>
+      <th style="text-align: left; padding: 8px 16px; color: var(--teal); font-family: var(--font-display);">Rule</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><code>click</code></td>
+      <td style="padding: 8px 16px; font-weight: 600;">Primary</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Always — user-initiated</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><code>navigation</code></td>
+      <td style="padding: 8px 16px; font-weight: 600;">Primary</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Always — route change or full-page nav</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><code>page-load</code></td>
+      <td style="padding: 8px 16px; font-weight: 600;">Primary</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Always — initial or post-nav load</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><code>error</code></td>
+      <td style="padding: 8px 16px; font-weight: 600;">Primary <em>or</em> Child</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Primary if outside any grouping window; child if within 5s of a primary</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><code>mutation</code></td>
+      <td style="padding: 8px 16px;">Child</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Groups under nearest preceding primary (up to 5s cap)</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><code>network-error</code></td>
+      <td style="padding: 8px 16px;">Child</td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Groups under nearest preceding primary</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 16px;"><em>orphan (no primary within 5s)</em></td>
+      <td style="padding: 8px 16px; font-weight: 600;">Primary <code>background</code></td>
+      <td style="padding: 8px 16px; color: var(--text-mid);">Synthetic grouping — e.g., polling, timer callbacks</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="section-subtitle" style="margin-top: 16px;">
+  <strong>Recording is always on.</strong> Background recording starts when the overlay initializes
+  and runs in all modes. Bug Report mode provides the UI to <em>browse</em> and <em>submit</em> that recorded data.
+  <strong>Grouping is visual only</strong> — the underlying flat snapshot array is unchanged.
+</p>
+
+
+</body>
+</html>

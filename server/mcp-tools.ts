@@ -59,6 +59,7 @@ function buildCommitInstructions(commit: Commit, remainingCount: number): string
   const messages = commit.patches.filter(p => p.kind === 'message');
   const designs = commit.patches.filter(p => p.kind === 'design');
   const componentDrops = commit.patches.filter(p => p.kind === 'component-drop');
+  const bugReports = commit.patches.filter(p => p.kind === 'bug-report');
   const moreText = remainingCount > 0
     ? `${remainingCount} more commit${remainingCount === 1 ? '' : 's'} waiting in the queue after this one.`
     : 'This is the last commit in the queue. After implementing it, call `implement_next_change` again to wait for future changes.';
@@ -168,6 +169,74 @@ ${patch.newHtml ?? ''}
 \`\`\`
 ${context ? `- **Context HTML:**\n\`\`\`html\n${context}\n\`\`\`\n` : ''}
 `;
+    } else if (patch.kind === 'bug-report') {
+      patchList += `### ${stepNum}. Bug report \`${patch.id}\`
+- **Description:** ${patch.bugDescription ?? '(no description)'}
+- **Time range:** ${patch.bugTimeRange ? `${patch.bugTimeRange.start} – ${patch.bugTimeRange.end}` : 'unknown'}
+${patch.bugElement ? `
+- **Related element:** \`${patch.bugElement.selectorPath}\`${patch.bugElement.componentName ? ` (in \`${patch.bugElement.componentName}\`)` : ''}
+- **Element HTML:**
+\`\`\`html
+${patch.bugElement.outerHTML.slice(0, 10000)}
+\`\`\`
+` : ''}
+${patch.bugTimeline && patch.bugTimeline.length > 0 ? (() => {
+  const triggerLabel = (t: import('../shared/types').BugTimelineEntry) => {
+    switch (t.trigger) {
+      case 'click': return `Click${t.elementInfo ? ` on \`<${t.elementInfo.tag}${t.elementInfo.classes ? ` class="${t.elementInfo.classes}"` : ''}>\`` : ''}`;
+      case 'mutation': return 'DOM mutation';
+      case 'error': return 'Error';
+      case 'navigation': return `Navigation${t.navigationInfo ? ` (${t.navigationInfo.method}: ${t.navigationInfo.from} → ${t.navigationInfo.to ?? 'unknown'})` : ''}`;
+      case 'page-load': return 'Page load';
+      default: return t.trigger;
+    }
+  };
+  let screenshotNum = 0;
+  let timeline = `**Timeline** (${patch.bugTimeline!.length} events):\n\n`;
+  for (let i = 0; i < patch.bugTimeline!.length; i++) {
+    const entry = patch.bugTimeline![i];
+    const time = entry.timestamp.replace(/.*T/, '').replace(/Z$/, '');
+    timeline += `#### ${i + 1}. [${time}] ${triggerLabel(entry)}\n`;
+    timeline += `**URL:** ${entry.url}\n`;
+    if (entry.hasScreenshot) {
+      screenshotNum++;
+      timeline += `📸 **Screenshot ${screenshotNum}** (see attached image ${screenshotNum} below)\n`;
+    }
+    if (entry.consoleLogs && entry.consoleLogs.length > 0) {
+      timeline += `\n**Console (${entry.consoleLogs.length}):**\n\`\`\`\n${entry.consoleLogs.map(l => `[${l.level.toUpperCase()}] ${l.args.join(' ')}${l.stack ? `\n${l.stack}` : ''}`).join('\n').slice(0, 3000)}\n\`\`\`\n`;
+    }
+    if (entry.networkErrors && entry.networkErrors.length > 0) {
+      timeline += `\n**Network errors (${entry.networkErrors.length}):**\n${entry.networkErrors.map(e => `- \`${e.status ?? 'ERR'} ${e.method} ${e.url}\`${e.errorMessage ? ` — ${e.errorMessage}` : ''}`).join('\n')}\n`;
+    }
+    if (entry.domChanges && entry.domChanges.length > 0) {
+      timeline += `\n**DOM changes (${entry.domChanges.length}):**\n`;
+      for (const c of entry.domChanges) {
+        const loc = `\`${c.selector}\`${c.componentName ? ` (in \`${c.componentName}\`)` : ''}`;
+        if (c.type === 'attribute') {
+          timeline += `- ${loc}: attribute \`${c.attributeName}\` changed: \`${c.oldValue ?? ''}\` → \`${c.newValue ?? ''}\`\n`;
+        } else if (c.type === 'text') {
+          timeline += `- ${loc}: text changed: "${c.oldText ?? ''}" → "${c.newText ?? ''}"\n`;
+        } else if (c.type === 'childList') {
+          const parts: string[] = [];
+          if (c.addedCount) parts.push(`${c.addedCount} added`);
+          if (c.removedCount) parts.push(`${c.removedCount} removed`);
+          timeline += `- ${loc}: children ${parts.join(', ')}`;
+          if (c.addedHTML) timeline += `\n  Added: \`${c.addedHTML.slice(0, 300)}\``;
+          if (c.removedHTML) timeline += `\n  Removed: \`${c.removedHTML.slice(0, 300)}\``;
+          timeline += `\n`;
+        }
+      }
+    } else if (entry.domDiff) {
+      timeline += `\n**DOM diff:**\n\`\`\`diff\n${entry.domDiff.slice(0, 10000)}\n\`\`\`\n`;
+    }
+    if (entry.domSnapshot && i === 0) {
+      timeline += `\n**Initial DOM state:**\n\`\`\`html\n${entry.domSnapshot.slice(0, 50000)}\n\`\`\`\n`;
+    }
+    timeline += `\n---\n\n`;
+  }
+  return timeline;
+})() : ''}
+`;
     }
     stepNum++;
   }
@@ -179,12 +248,14 @@ ${context ? `- **Context HTML:**\n\`\`\`html\n${context}\n\`\`\`\n` : ''}
   if (messages.length) summaryParts.push(`${messages.length} message${messages.length === 1 ? '' : 's'}`);
   if (designs.length) summaryParts.push(`${designs.length} design${designs.length === 1 ? '' : 's'}`);
   if (componentDrops.length) summaryParts.push(`${componentDrops.length} component drop${componentDrops.length === 1 ? '' : 's'}`);
+  if (bugReports.length) summaryParts.push(`${bugReports.length} bug report${bugReports.length === 1 ? '' : 's'}`);
 
   const resultsPart = classChanges.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
   const textResultsPart = textChanges.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
   const designResultsPart = designs.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
   const dropResultsPart = componentDrops.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
-  const allResultsPart = [resultsPart, textResultsPart, designResultsPart, dropResultsPart].filter(Boolean).join(',\n');
+  const bugResultsPart = bugReports.map(p => `     { "patchId": "${p.id}", "success": true }`).join(',\n');
+  const allResultsPart = [resultsPart, textResultsPart, designResultsPart, dropResultsPart, bugResultsPart].filter(Boolean).join(',\n');
 
   // Build step instructions
   const stepInstructions: string[] = [];
@@ -204,6 +275,10 @@ ${context ? `- **Context HTML:**\n\`\`\`html\n${context}\n\`\`\`\n` : ''}
   if (designs.length) {
     stepInstructions.push(`${stepInstructions.length + 1}. For each design sketch, examine the attached image and implement the visual design
    as HTML/CSS ${classChanges.length ? 'alongside the class changes' : 'in the specified component'}. Insert it ${designs[0].insertMode ?? 'after'} the target element.`);
+  }
+  if (bugReports.length) {
+    stepInstructions.push(`${stepInstructions.length + 1}. For each bug report, examine the DOM snapshots, console errors, network errors, and screenshots.
+   Identify the root cause. Implement a fix.${bugReports.some(p => p.bugElement) ? ' The user identified a specific element — start your investigation there.' : ''}`);
   }
 
   return `# IMPLEMENT THIS COMMIT — then call implement_next_change again
@@ -405,6 +480,19 @@ export function registerMcpTools(mcp: McpServer, deps: McpToolDeps): void {
               data: match[2],
               mimeType: match[1],
             });
+          }
+        }
+        // Add bug report screenshots
+        if (patch.kind === 'bug-report' && patch.bugScreenshots) {
+          for (const screenshot of patch.bugScreenshots.slice(0, 5)) {
+            const match = screenshot.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              content.push({
+                type: "image" as const,
+                data: match[2],
+                mimeType: match[1],
+              });
+            }
           }
         }
       }
